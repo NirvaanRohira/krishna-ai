@@ -16,11 +16,20 @@ interface ChatWindowProps {
 export function ChatWindow({ messages, onSend, loading }: ChatWindowProps) {
   return (
     <div className="chat-window">
-      <div className="chat-window__messages">
-        {messages.map((m, i) => (
-          <MessageBubble key={i} role={m.role} content={m.content} />
-        ))}
-      </div>
+      {messages.length === 0 ? (
+        <div className="chat-window__empty">
+          <span className="chat-window__empty-title">Namaste</span>
+          <span className="chat-window__empty-hint">
+            What is weighing on you today?
+          </span>
+        </div>
+      ) : (
+        <div className="chat-window__messages">
+          {messages.map((m, i) => (
+            <MessageBubble key={i} role={m.role} content={m.content} />
+          ))}
+        </div>
+      )}
       <InputBar onSubmit={onSend} loading={loading} />
     </div>
   )

@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from '@/lib/supabase'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 export interface SparseResult {

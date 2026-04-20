@@ -1,13 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+vi.mock('@/lib/supabase-server', () => ({ createServerSupabaseClient: vi.fn() }))
+vi.mock('@/lib/session', () => ({ startSession: vi.fn(), saveExchange: vi.fn() }))
 vi.mock('@/lib/retrieval/parallelRetrieval', () => ({ parallelRetrieve: vi.fn() }))
+vi.mock('@/lib/retrieval/complexityRouter', () => ({ classifyComplexity: vi.fn() }))
+vi.mock('@/lib/crag/loop', () => ({ runCRAG: vi.fn() }))
 vi.mock('@/lib/gemini', () => ({
   generateText: vi.fn(),
   embedText: vi.fn(),
   classify: vi.fn(),
   EMBEDDING_DIMENSION: 3072,
 }))
-vi.mock('@supabase/supabase-js', () => ({ createClient: vi.fn(() => ({})) }))
 
 const FAKE_SOURCES = [
   { id: 1, text_source: 'bhagavad_gita', book_chapter: 2, verse: 47, text: 'karmanye vadhikaraste...', theme_tags: ['karma'], score: 0.032 },
@@ -22,15 +25,30 @@ function makeRequest(body: object) {
   })
 }
 
+function makeMockSupabase(user: object | null = { id: 'user-123' }) {
+  return { auth: { getUser: vi.fn().mockResolvedValue({ data: { user }, error: null }) } }
+}
+
 describe('POST /api/chat', () => {
-  let denseRetrieve: ReturnType<typeof vi.fn>
+  let parallelRetrieve: ReturnType<typeof vi.fn>
   let generateText: ReturnType<typeof vi.fn>
 
   beforeEach(async () => {
     vi.clearAllMocks()
+
+    const supabaseLib = await import('@/lib/supabase-server')
+    vi.mocked(supabaseLib.createServerSupabaseClient).mockResolvedValue(makeMockSupabase() as never)
+
+    const session = await import('@/lib/session')
+    vi.mocked(session.startSession).mockResolvedValue('sess-123')
+    vi.mocked(session.saveExchange).mockResolvedValue(undefined)
+
+    const router = await import('@/lib/retrieval/complexityRouter')
+    vi.mocked(router.classifyComplexity).mockResolvedValue('SIMPLE')
+
     const parallel = await import('@/lib/retrieval/parallelRetrieval')
-    denseRetrieve = vi.mocked(parallel.parallelRetrieve)
-    denseRetrieve.mockResolvedValue(FAKE_SOURCES)
+    parallelRetrieve = vi.mocked(parallel.parallelRetrieve)
+    parallelRetrieve.mockResolvedValue(FAKE_SOURCES)
 
     const gemini = await import('@/lib/gemini')
     generateText = vi.mocked(gemini.generateText)
@@ -50,7 +68,7 @@ describe('POST /api/chat', () => {
   it('calls parallelRetrieve with the user message', async () => {
     const { POST } = await import('@/app/api/chat/route')
     await POST(makeRequest({ message: 'Who am I really' }))
-    expect(denseRetrieve).toHaveBeenCalledWith('Who am I really', expect.anything())
+    expect(parallelRetrieve).toHaveBeenCalledWith('Who am I really', expect.anything())
   })
 
   it('calls generateText with a prompt containing retrieved verse text', async () => {
@@ -72,7 +90,7 @@ describe('POST /api/chat', () => {
     expect(promptArg).toContain('prior answer')
   })
 
-  it('returns sources from denseRetrieve in the response', async () => {
+  it('returns sources from parallelRetrieve in the response', async () => {
     const { POST } = await import('@/app/api/chat/route')
     const res = await POST(makeRequest({ message: 'test' }))
     const json = await res.json()

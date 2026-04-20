@@ -12,7 +12,7 @@ export default function Home() {
       </div>
 
       <Link
-        href="/chat"
+        href="/login"
         className="px-6 py-3 bg-neutral-900 text-white text-sm rounded-full hover:bg-neutral-700 transition-colors"
       >
         Begin

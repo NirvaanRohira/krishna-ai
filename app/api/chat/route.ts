@@ -1,56 +1,52 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { classifyComplexity } from '@/lib/retrieval/complexityRouter'
 import { parallelRetrieve } from '@/lib/retrieval/parallelRetrieval'
-import type { RRFResult as DenseResult } from '@/lib/retrieval/rrfMerge'
+import { runCRAG } from '@/lib/crag/loop'
+import { buildPrompt } from '@/lib/prompts/chat'
 import { generateText } from '@/lib/gemini'
-import { SYSTEM_PROMPT_V0 } from '@/lib/prompts/system_v0'
+import { startSession, saveExchange } from '@/lib/session'
 
 type Message = { role: 'user' | 'assistant'; content: string }
 
-function buildPrompt(sources: DenseResult[], history: Message[], message: string): string {
-  const contextBlock = sources
-    .map((s, i) => `[${i + 1}] Bhagavad Gita ${s.book_chapter}.${s.verse}: ${s.text}`)
-    .join('\n')
-
-  const historyBlock = history
-    .map((m) => `${m.role === 'user' ? 'Seeker' : 'Yogi'}: ${m.content}`)
-    .join('\n')
-
-  return [
-    SYSTEM_PROMPT_V0,
-    '',
-    '--- Retrieved context ---',
-    contextBlock,
-    '--- End context ---',
-    '',
-    historyBlock,
-    `Seeker: ${message}`,
-    'Yogi:',
-  ]
-    .filter(Boolean)
-    .join('\n')
-}
-
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
-  const { message, history = [] } = body
+  const { message, history = [], sessionId: existingSessionId } = body
 
   if (!message || typeof message !== 'string') {
     return NextResponse.json({ error: 'message is required' }, { status: 400 })
   }
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const sessionId: string = existingSessionId ?? await startSession(supabase, user.id)
 
   try {
-    const sources = await parallelRetrieve(message, { supabaseClient: supabase })
-    const prompt = buildPrompt(sources, history, message)
-    const response = await generateText(prompt)
-    return NextResponse.json({ response, sources })
+    const complexity = await classifyComplexity(message)
+    let response: string
+    let sources: object[]
+
+    if (complexity === 'SIMPLE') {
+      const retrieved = await parallelRetrieve(message, { supabaseClient: supabase })
+      const prompt = buildPrompt(retrieved, history as Message[], message)
+      response = await generateText(prompt)
+      sources = retrieved
+    } else {
+      const result = await runCRAG(message, history as Message[], { supabaseClient: supabase })
+      response = result.response
+      sources = result.sources
+    }
+
+    await saveExchange(supabase, sessionId, message, response, sources)
+
+    return NextResponse.json({ response, sources, sessionId })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    return NextResponse.json({ error: message }, { status: 500 })
+    const msg = err instanceof Error ? err.message : 'Unknown error'
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }

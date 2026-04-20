@@ -1,0 +1,105 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+vi.mock('@/lib/supabase-server', () => ({ createServerSupabaseClient: vi.fn() }))
+vi.mock('@/lib/session', () => ({ startSession: vi.fn(), saveExchange: vi.fn() }))
+vi.mock('@/lib/retrieval/complexityRouter', () => ({ classifyComplexity: vi.fn() }))
+vi.mock('@/lib/crag/loop', () => ({ runCRAG: vi.fn() }))
+vi.mock('@/lib/retrieval/parallelRetrieval', () => ({ parallelRetrieve: vi.fn() }))
+vi.mock('@/lib/gemini', () => ({
+  generateText: vi.fn(),
+  embedText: vi.fn(),
+  classify: vi.fn(),
+  EMBEDDING_DIMENSION: 3072,
+}))
+
+const FAKE_SOURCES = [
+  { id: 1, text_source: 'bhagavad_gita', book_chapter: 2, verse: 47, text: 'karmanye vadhikaraste...', theme_tags: ['karma'], score: 0.8 },
+]
+
+function makeRequest(body: object) {
+  return new Request('http://localhost/api/chat', {
+    method: 'POST',
+    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
+function makeMockSupabase(user: object | null = { id: 'user-123' }) {
+  return { auth: { getUser: vi.fn().mockResolvedValue({ data: { user }, error: null }) } }
+}
+
+describe('POST /api/chat — complexity routing', () => {
+  let classifyComplexity: ReturnType<typeof vi.fn>
+  let runCRAG: ReturnType<typeof vi.fn>
+  let parallelRetrieve: ReturnType<typeof vi.fn>
+  let generateText: ReturnType<typeof vi.fn>
+
+  beforeEach(async () => {
+    vi.clearAllMocks()
+
+    const supabaseLib = await import('@/lib/supabase-server')
+    vi.mocked(supabaseLib.createServerSupabaseClient).mockResolvedValue(makeMockSupabase() as never)
+
+    const session = await import('@/lib/session')
+    vi.mocked(session.startSession).mockResolvedValue('sess-123')
+    vi.mocked(session.saveExchange).mockResolvedValue(undefined)
+
+    const router = await import('@/lib/retrieval/complexityRouter')
+    classifyComplexity = vi.mocked(router.classifyComplexity)
+
+    const crag = await import('@/lib/crag/loop')
+    runCRAG = vi.mocked(crag.runCRAG)
+    runCRAG.mockResolvedValue({ response: 'CRAG response', sources: FAKE_SOURCES })
+
+    const parallel = await import('@/lib/retrieval/parallelRetrieval')
+    parallelRetrieve = vi.mocked(parallel.parallelRetrieve)
+    parallelRetrieve.mockResolvedValue(FAKE_SOURCES)
+
+    const gemini = await import('@/lib/gemini')
+    generateText = vi.mocked(gemini.generateText)
+    generateText.mockResolvedValue('Fast path response')
+  })
+
+  it('uses fast path (parallelRetrieve + generateText) for SIMPLE queries', async () => {
+    classifyComplexity.mockResolvedValue('SIMPLE')
+    const { POST } = await import('@/app/api/chat/route')
+    const res = await POST(makeRequest({ message: 'Who is Arjuna?' }))
+    expect(res.status).toBe(200)
+    expect(parallelRetrieve).toHaveBeenCalled()
+    expect(generateText).toHaveBeenCalled()
+    expect(runCRAG).not.toHaveBeenCalled()
+  })
+
+  it('uses CRAG loop for COMPLEX queries', async () => {
+    classifyComplexity.mockResolvedValue('COMPLEX')
+    const { POST } = await import('@/app/api/chat/route')
+    const res = await POST(makeRequest({ message: 'I feel paralyzed by fear of failing my family' }))
+    expect(res.status).toBe(200)
+    expect(runCRAG).toHaveBeenCalled()
+    expect(parallelRetrieve).not.toHaveBeenCalled()
+  })
+
+  it('returns CRAG response and sources for COMPLEX query', async () => {
+    classifyComplexity.mockResolvedValue('COMPLEX')
+    const { POST } = await import('@/app/api/chat/route')
+    const res = await POST(makeRequest({ message: 'why do I feel so lost?' }))
+    const json = await res.json()
+    expect(json.response).toBe('CRAG response')
+    expect(json.sources).toHaveLength(1)
+  })
+
+  it('passes history to runCRAG for COMPLEX queries', async () => {
+    classifyComplexity.mockResolvedValue('COMPLEX')
+    const { POST } = await import('@/app/api/chat/route')
+    const history = [{ role: 'user', content: 'prior question' }]
+    await POST(makeRequest({ message: 'follow up', history }))
+    expect(runCRAG).toHaveBeenCalledWith('follow up', history, expect.anything())
+  })
+
+  it('calls classifyComplexity with the user message', async () => {
+    classifyComplexity.mockResolvedValue('SIMPLE')
+    const { POST } = await import('@/app/api/chat/route')
+    await POST(makeRequest({ message: 'What is dharma?' }))
+    expect(classifyComplexity).toHaveBeenCalledWith('What is dharma?')
+  })
+})

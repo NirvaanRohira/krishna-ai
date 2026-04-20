@@ -13,7 +13,7 @@ describe('Home page', () => {
     render(<Page />)
     const cta = screen.getByRole('link', { name: /begin|start|enter/i })
     expect(cta).toBeInTheDocument()
-    expect(cta).toHaveAttribute('href', '/chat')
+    expect(cta).toHaveAttribute('href', '/login')
   })
 
   it('displays the disclaimer text', () => {
