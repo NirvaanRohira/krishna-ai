@@ -1,13 +1,31 @@
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { classifyComplexity } from '@/lib/retrieval/complexityRouter'
+import { classifyMessage } from '@/lib/guardrails/classifier'
+import { getGuardrailResponse } from '@/lib/guardrails/responses'
 import { parallelRetrieve } from '@/lib/retrieval/parallelRetrieval'
 import { runCRAG } from '@/lib/crag/loop'
 import { buildPrompt } from '@/lib/prompts/chat'
 import { generateText } from '@/lib/gemini'
-import { startSession, saveExchange } from '@/lib/session'
+import { startSession, saveExchange, endSession } from '@/lib/session'
 
 type Message = { role: 'user' | 'assistant'; content: string }
+
+const encoder = new TextEncoder()
+
+function sseChunk(data: object | '[DONE]'): Uint8Array {
+  const line = data === '[DONE]' ? 'data: [DONE]\n\n' : `data: ${JSON.stringify(data)}\n\n`
+  return encoder.encode(line)
+}
+
+// For short follow-up messages, enrich the retrieval query with recent history
+// so "yeah that didn't work" retrieves the same topic as the previous turn.
+function buildRetrievalQuery(message: string, history: Message[]): string {
+  if (message.length > 60 || history.length === 0) return message
+  const lastUser = history.filter(m => m.role === 'user').slice(-1)[0]?.content ?? ''
+  const lastAssistant = history.filter(m => m.role === 'assistant').slice(-1)[0]?.content?.slice(0, 300) ?? ''
+  return [lastUser, message, lastAssistant].filter(Boolean).join(' ')
+}
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
@@ -26,27 +44,89 @@ export async function POST(req: Request) {
 
   const sessionId: string = existingSessionId ?? await startSession(supabase, user.id)
 
-  try {
-    const complexity = await classifyComplexity(message)
-    let response: string
-    let sources: object[]
+  const stream = new TransformStream<Uint8Array, Uint8Array>()
+  const writer = stream.writable.getWriter()
 
-    if (complexity === 'SIMPLE') {
-      const retrieved = await parallelRetrieve(message, { supabaseClient: supabase })
-      const prompt = buildPrompt(retrieved, history as Message[], message)
-      response = await generateText(prompt)
-      sources = retrieved
-    } else {
-      const result = await runCRAG(message, history as Message[], { supabaseClient: supabase })
-      response = result.response
-      sources = result.sources
+  ;(async () => {
+    try {
+      // ── Guardrail check (pre-LLM) ──────────────────────────────
+      const category = await classifyMessage(message)
+      const fixedResponse = getGuardrailResponse(category)
+
+      if (fixedResponse !== undefined) {
+        await writer.write(sseChunk({ t: 's', id: sessionId, src: [] }))
+        const tokens = fixedResponse.match(/\S+\s*/g) ?? [fixedResponse]
+        for (const token of tokens) {
+          await writer.write(sseChunk({ t: 'c', v: token }))
+        }
+        await saveExchange(supabase, sessionId, message, fixedResponse, [], false)
+        if (category === 'CRISIS') {
+          await endSession(supabase, sessionId)
+        }
+        await writer.write(sseChunk('[DONE]'))
+        return
+      }
+
+      // ── Persona drift check ────────────────────────────────────
+      const { data: sessionRow } = await supabase
+        .from('sessions')
+        .select('turn_count')
+        .eq('id', sessionId)
+        .single()
+      const turnCount: number = sessionRow?.turn_count ?? 0
+      if (turnCount >= 15) {
+        console.log('[persona-drift-check] turn', turnCount, '— injecting drift reminder')
+      }
+
+      // ── Normal generation path ─────────────────────────────────
+      const retrievalQuery = buildRetrievalQuery(message, history as Message[])
+      const complexity = await classifyComplexity(message)
+
+      if (complexity === 'SIMPLE') {
+        const sources = await parallelRetrieve(retrievalQuery, { supabaseClient: supabase })
+        await writer.write(sseChunk({ t: 's', id: sessionId, src: sources }))
+
+        const prompt = buildPrompt(sources, history as Message[], message)
+        const fullResponse = await generateText(prompt)
+
+        // Fake-stream word by word so client animates the response
+        const tokens = fullResponse.match(/\S+\s*/g) ?? [fullResponse]
+        for (const token of tokens) {
+          await writer.write(sseChunk({ t: 'c', v: token }))
+        }
+
+        await saveExchange(supabase, sessionId, message, fullResponse, sources)
+
+      } else {
+        const { response, sources } = await runCRAG(
+          retrievalQuery,
+          history as Message[],
+          { supabaseClient: supabase }
+        )
+        await writer.write(sseChunk({ t: 's', id: sessionId, src: sources }))
+
+        const tokens = response.match(/\S+\s*/g) ?? [response]
+        for (const token of tokens) {
+          await writer.write(sseChunk({ t: 'c', v: token }))
+        }
+
+        await saveExchange(supabase, sessionId, message, response, sources)
+      }
+
+      await writer.write(sseChunk('[DONE]'))
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      await writer.write(sseChunk({ t: 'e', msg }))
+    } finally {
+      await writer.close()
     }
+  })()
 
-    await saveExchange(supabase, sessionId, message, response, sources)
-
-    return NextResponse.json({ response, sources, sessionId })
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Unknown error'
-    return NextResponse.json({ error: msg }, { status: 500 })
-  }
+  return new Response(stream.readable, {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+    },
+  })
 }

@@ -13,7 +13,6 @@ describe('runCRAG', () => {
   let parallelRetrieve: ReturnType<typeof vi.fn>
   let generateText: ReturnType<typeof vi.fn>
   let checkRelevance: ReturnType<typeof vi.fn>
-  let checkFaithfulness: ReturnType<typeof vi.fn>
 
   beforeEach(async () => {
     vi.clearAllMocks()
@@ -28,10 +27,6 @@ describe('runCRAG', () => {
     const rel = await import('@/lib/crag/relevanceCheck')
     checkRelevance = vi.mocked(rel.checkRelevance)
     checkRelevance.mockResolvedValue(true)
-
-    const faith = await import('@/lib/crag/faithfulnessCheck')
-    checkFaithfulness = vi.mocked(faith.checkFaithfulness)
-    checkFaithfulness.mockResolvedValue(true)
   })
 
   it('returns generated response and sources on happy path', async () => {
@@ -54,27 +49,24 @@ describe('runCRAG', () => {
     expect(parallelRetrieve).toHaveBeenCalledTimes(2)
   })
 
-  it('retries with expanded query when faithfulness check fails on first attempt', async () => {
-    checkFaithfulness.mockResolvedValueOnce(false).mockResolvedValueOnce(true)
+  it('soft-falls back to generation from best sources when relevance fails all retries', async () => {
+    // Sources exist but relevance check always returns false
+    checkRelevance.mockResolvedValue(false)
     const { runCRAG } = await import('@/lib/crag/loop')
-    await runCRAG('dharma path', [], {})
-    expect(generateText).toHaveBeenCalledTimes(2)
+    const result = await runCRAG('I feel lost in my job', [], {})
+    // Should NOT give up — should generate from best sources found
+    expect(generateText).toHaveBeenCalled()
+    expect(result.response).toBe('The Gita teaches us...')
+    expect(result.sources.length).toBeGreaterThan(0)
   })
 
-  it('returns give-up message after 2 failed relevance retries', async () => {
+  it('returns hard give-up only when retrieval returns empty sources', async () => {
     checkRelevance.mockResolvedValue(false)
+    parallelRetrieve.mockResolvedValue([]) // truly no sources
     const { runCRAG } = await import('@/lib/crag/loop')
     const result = await runCRAG('what is cryptocurrency?', [], {})
     expect(result.response).toContain('cannot find')
-    expect(parallelRetrieve).toHaveBeenCalledTimes(3)
-  })
-
-  it('returns give-up message after 2 failed faithfulness retries', async () => {
-    checkFaithfulness.mockResolvedValue(false)
-    const { runCRAG } = await import('@/lib/crag/loop')
-    const result = await runCRAG('some query', [], {})
-    expect(result.response).toContain('cannot find')
-    expect(generateText).toHaveBeenCalledTimes(3)
+    expect(generateText).not.toHaveBeenCalled()
   })
 
   it('includes conversation history in generation prompt', async () => {

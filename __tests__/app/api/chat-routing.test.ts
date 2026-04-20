@@ -5,8 +5,10 @@ vi.mock('@/lib/session', () => ({ startSession: vi.fn(), saveExchange: vi.fn() }
 vi.mock('@/lib/retrieval/complexityRouter', () => ({ classifyComplexity: vi.fn() }))
 vi.mock('@/lib/crag/loop', () => ({ runCRAG: vi.fn() }))
 vi.mock('@/lib/retrieval/parallelRetrieval', () => ({ parallelRetrieve: vi.fn() }))
+vi.mock('@/lib/guardrails/classifier', () => ({ classifyMessage: vi.fn() }))
 vi.mock('@/lib/gemini', () => ({
   generateText: vi.fn(),
+  generateTextStream: vi.fn(),
   embedText: vi.fn(),
   classify: vi.fn(),
   EMBEDDING_DIMENSION: 3072,
@@ -25,14 +27,29 @@ function makeRequest(body: object) {
 }
 
 function makeMockSupabase(user: object | null = { id: 'user-123' }) {
-  return { auth: { getUser: vi.fn().mockResolvedValue({ data: { user }, error: null }) } }
+  const chain = { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), single: vi.fn().mockResolvedValue({ data: { turn_count: 0 }, error: null }) }
+  return { auth: { getUser: vi.fn().mockResolvedValue({ data: { user }, error: null }) }, from: vi.fn().mockReturnValue(chain) }
+}
+
+async function parseStream(res: Response): Promise<{ sessionId: string; response: string; sources: unknown[] }> {
+  const text = await res.text()
+  let sessionId = '', response = '', sources: unknown[] = []
+  for (const line of text.split('\n')) {
+    if (!line.startsWith('data: ') || line.trim() === 'data: [DONE]') continue
+    try {
+      const d = JSON.parse(line.slice(6))
+      if (d.t === 's') { sessionId = d.id; sources = d.src }
+      if (d.t === 'c') response += d.v
+    } catch { /* skip malformed lines */ }
+  }
+  return { sessionId, response, sources }
 }
 
 describe('POST /api/chat — complexity routing', () => {
   let classifyComplexity: ReturnType<typeof vi.fn>
   let runCRAG: ReturnType<typeof vi.fn>
   let parallelRetrieve: ReturnType<typeof vi.fn>
-  let generateText: ReturnType<typeof vi.fn>
+  let generateTextStream: ReturnType<typeof vi.fn>
 
   beforeEach(async () => {
     vi.clearAllMocks()
@@ -56,8 +73,11 @@ describe('POST /api/chat — complexity routing', () => {
     parallelRetrieve.mockResolvedValue(FAKE_SOURCES)
 
     const gemini = await import('@/lib/gemini')
-    generateText = vi.mocked(gemini.generateText)
-    generateText.mockResolvedValue('Fast path response')
+    generateTextStream = vi.mocked(gemini.generateTextStream as ReturnType<typeof vi.fn>)
+    vi.mocked(gemini.generateText).mockResolvedValue('Fast path response')
+
+    const guardrail = await import('@/lib/guardrails/classifier')
+    vi.mocked(guardrail.classifyMessage).mockResolvedValue('SAFE')
   })
 
   it('uses fast path (parallelRetrieve + generateText) for SIMPLE queries', async () => {
@@ -65,8 +85,8 @@ describe('POST /api/chat — complexity routing', () => {
     const { POST } = await import('@/app/api/chat/route')
     const res = await POST(makeRequest({ message: 'Who is Arjuna?' }))
     expect(res.status).toBe(200)
+    await parseStream(res)
     expect(parallelRetrieve).toHaveBeenCalled()
-    expect(generateText).toHaveBeenCalled()
     expect(runCRAG).not.toHaveBeenCalled()
   })
 
@@ -75,6 +95,7 @@ describe('POST /api/chat — complexity routing', () => {
     const { POST } = await import('@/app/api/chat/route')
     const res = await POST(makeRequest({ message: 'I feel paralyzed by fear of failing my family' }))
     expect(res.status).toBe(200)
+    await parseStream(res)
     expect(runCRAG).toHaveBeenCalled()
     expect(parallelRetrieve).not.toHaveBeenCalled()
   })
@@ -83,23 +104,24 @@ describe('POST /api/chat — complexity routing', () => {
     classifyComplexity.mockResolvedValue('COMPLEX')
     const { POST } = await import('@/app/api/chat/route')
     const res = await POST(makeRequest({ message: 'why do I feel so lost?' }))
-    const json = await res.json()
-    expect(json.response).toBe('CRAG response')
-    expect(json.sources).toHaveLength(1)
+    const { response, sources } = await parseStream(res)
+    expect(response).toBe('CRAG response')
+    expect(sources).toHaveLength(1)
   })
 
   it('passes history to runCRAG for COMPLEX queries', async () => {
     classifyComplexity.mockResolvedValue('COMPLEX')
     const { POST } = await import('@/app/api/chat/route')
     const history = [{ role: 'user', content: 'prior question' }]
-    await POST(makeRequest({ message: 'follow up', history }))
-    expect(runCRAG).toHaveBeenCalledWith('follow up', history, expect.anything())
+    await parseStream(await POST(makeRequest({ message: 'follow up', history })))
+    // First arg is the (possibly enriched) retrieval query; second is the full history
+    expect(runCRAG).toHaveBeenCalledWith(expect.any(String), history, expect.anything())
   })
 
   it('calls classifyComplexity with the user message', async () => {
     classifyComplexity.mockResolvedValue('SIMPLE')
     const { POST } = await import('@/app/api/chat/route')
-    await POST(makeRequest({ message: 'What is dharma?' }))
+    await parseStream(await POST(makeRequest({ message: 'What is dharma?' })))
     expect(classifyComplexity).toHaveBeenCalledWith('What is dharma?')
   })
 })

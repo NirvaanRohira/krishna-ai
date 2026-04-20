@@ -15,15 +15,23 @@ export function InputBar({ onSubmit, loading = false }: InputBarProps) {
     setValue('')
   }
 
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key !== 'Enter') return
+    if (e.shiftKey) return // let textarea insert newline naturally
+    e.preventDefault()
+    submit()
+  }
+
   return (
     <div className="input-bar">
-      <input
-        type="text"
+      <textarea
+        rows={1}
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') submit() }}
-        placeholder="Ask your question..."
+        onKeyDown={handleKeyDown}
+        placeholder="Ask your question…"
         disabled={loading}
+        className="input-bar__textarea"
       />
       <button onClick={submit} disabled={loading}>
         Send

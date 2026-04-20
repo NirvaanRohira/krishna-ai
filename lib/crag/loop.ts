@@ -1,7 +1,6 @@
 import { parallelRetrieve } from '@/lib/retrieval/parallelRetrieval'
 import { generateText } from '@/lib/gemini'
 import { checkRelevance } from '@/lib/crag/relevanceCheck'
-import { checkFaithfulness } from '@/lib/crag/faithfulnessCheck'
 import { expandQuery } from '@/lib/crag/queryExpansion'
 import { buildPrompt } from '@/lib/prompts/chat'
 import type { RRFResult } from '@/lib/retrieval/rrfMerge'
@@ -18,29 +17,32 @@ export async function runCRAG(
 ): Promise<{ response: string; sources: RRFResult[] }> {
   const MAX_RETRIES = 2
   let currentQuery = query
+  let bestSources: RRFResult[] = []
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     const sources = await parallelRetrieve(currentQuery, options)
 
+    if (sources.length > 0 && bestSources.length === 0) bestSources = sources
+
     const relevant = await checkRelevance(currentQuery, sources)
-    if (!relevant) {
-      if (attempt === MAX_RETRIES) return { response: GIVE_UP, sources: [] }
-      currentQuery = expandQuery(query)
-      continue
+    if (relevant) {
+      const prompt = buildPrompt(sources, history, query)
+      const response = await generateText(prompt)
+      return { response, sources }
     }
 
-    const prompt = buildPrompt(sources, history, query)
-    const response = await generateText(prompt)
-
-    const faithful = await checkFaithfulness(response, sources)
-    if (!faithful) {
-      if (attempt === MAX_RETRIES) return { response: GIVE_UP, sources: [] }
+    if (attempt < MAX_RETRIES) {
       currentQuery = expandQuery(query)
-      continue
     }
-
-    return { response, sources }
   }
 
+  // Soft fallback: we have sources but none passed relevance — still generate from best
+  if (bestSources.length > 0) {
+    const prompt = buildPrompt(bestSources, history, query)
+    const response = await generateText(prompt)
+    return { response, sources: bestSources }
+  }
+
+  // Hard give-up: retrieval returned nothing across all attempts
   return { response: GIVE_UP, sources: [] }
 }

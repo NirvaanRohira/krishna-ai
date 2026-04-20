@@ -5,8 +5,10 @@ vi.mock('@/lib/session', () => ({ startSession: vi.fn(), saveExchange: vi.fn() }
 vi.mock('@/lib/retrieval/parallelRetrieval', () => ({ parallelRetrieve: vi.fn() }))
 vi.mock('@/lib/retrieval/complexityRouter', () => ({ classifyComplexity: vi.fn() }))
 vi.mock('@/lib/crag/loop', () => ({ runCRAG: vi.fn() }))
+vi.mock('@/lib/guardrails/classifier', () => ({ classifyMessage: vi.fn() }))
 vi.mock('@/lib/gemini', () => ({
   generateText: vi.fn(),
+  generateTextStream: vi.fn(),
   embedText: vi.fn(),
   classify: vi.fn(),
   EMBEDDING_DIMENSION: 3072,
@@ -26,12 +28,27 @@ function makeRequest(body: object) {
 }
 
 function makeMockSupabase(user: object | null = { id: 'user-123' }) {
-  return { auth: { getUser: vi.fn().mockResolvedValue({ data: { user }, error: null }) } }
+  const chain = { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), single: vi.fn().mockResolvedValue({ data: { turn_count: 0 }, error: null }) }
+  return { auth: { getUser: vi.fn().mockResolvedValue({ data: { user }, error: null }) }, from: vi.fn().mockReturnValue(chain) }
+}
+
+async function parseStream(res: Response): Promise<{ response: string; sources: unknown[] }> {
+  const text = await res.text()
+  let response = '', sources: unknown[] = []
+  for (const line of text.split('\n')) {
+    if (!line.startsWith('data: ') || line.trim() === 'data: [DONE]') continue
+    try {
+      const d = JSON.parse(line.slice(6))
+      if (d.t === 's') sources = d.src
+      if (d.t === 'c') response += d.v
+    } catch { /* skip */ }
+  }
+  return { response, sources }
 }
 
 describe('POST /api/chat', () => {
   let parallelRetrieve: ReturnType<typeof vi.fn>
-  let generateText: ReturnType<typeof vi.fn>
+  let generateTextStream: ReturnType<typeof vi.fn>
 
   beforeEach(async () => {
     vi.clearAllMocks()
@@ -51,40 +68,48 @@ describe('POST /api/chat', () => {
     parallelRetrieve.mockResolvedValue(FAKE_SOURCES)
 
     const gemini = await import('@/lib/gemini')
-    generateText = vi.mocked(gemini.generateText)
-    generateText.mockResolvedValue('The Gita teaches us that action without attachment is the path. What situation brings this question to you today?')
+    generateTextStream = vi.mocked(gemini.generateTextStream as ReturnType<typeof vi.fn>)
+    vi.mocked(gemini.generateText).mockResolvedValue(
+      'The Gita teaches us that action without attachment is the path. What situation brings this question to you today?'
+    )
+
+    const guardrail = await import('@/lib/guardrails/classifier')
+    vi.mocked(guardrail.classifyMessage).mockResolvedValue('SAFE')
   })
 
   it('returns 200 with response text and sources', async () => {
     const { POST } = await import('@/app/api/chat/route')
     const res = await POST(makeRequest({ message: 'I feel paralyzed by duty' }))
     expect(res.status).toBe(200)
-    const json = await res.json()
-    expect(typeof json.response).toBe('string')
-    expect(json.response.length).toBeGreaterThan(0)
-    expect(Array.isArray(json.sources)).toBe(true)
+    const { response, sources } = await parseStream(res)
+    expect(response.length).toBeGreaterThan(0)
+    expect(Array.isArray(sources)).toBe(true)
   })
 
   it('calls parallelRetrieve with the user message', async () => {
     const { POST } = await import('@/app/api/chat/route')
-    await POST(makeRequest({ message: 'Who am I really' }))
+    await parseStream(await POST(makeRequest({ message: 'Who am I really' })))
     expect(parallelRetrieve).toHaveBeenCalledWith('Who am I really', expect.anything())
   })
 
   it('calls generateText with a prompt containing retrieved verse text', async () => {
     const { POST } = await import('@/app/api/chat/route')
-    await POST(makeRequest({ message: 'test question' }))
+    const gemini = await import('@/lib/gemini')
+    const generateText = vi.mocked(gemini.generateText)
+    await parseStream(await POST(makeRequest({ message: 'test question' })))
     const promptArg = generateText.mock.calls[0][0] as string
     expect(promptArg).toContain('karmanye vadhikaraste')
   })
 
   it('includes conversation history in the prompt when provided', async () => {
     const { POST } = await import('@/app/api/chat/route')
+    const gemini = await import('@/lib/gemini')
+    const generateText = vi.mocked(gemini.generateText)
     const history = [
       { role: 'user', content: 'prior question' },
       { role: 'assistant', content: 'prior answer' },
     ]
-    await POST(makeRequest({ message: 'follow-up question', history }))
+    await parseStream(await POST(makeRequest({ message: 'follow-up question', history })))
     const promptArg = generateText.mock.calls[0][0] as string
     expect(promptArg).toContain('prior question')
     expect(promptArg).toContain('prior answer')
@@ -92,10 +117,9 @@ describe('POST /api/chat', () => {
 
   it('returns sources from parallelRetrieve in the response', async () => {
     const { POST } = await import('@/app/api/chat/route')
-    const res = await POST(makeRequest({ message: 'test' }))
-    const json = await res.json()
-    expect(json.sources).toHaveLength(2)
-    expect(json.sources[0].verse).toBe(47)
+    const { sources } = await parseStream(await POST(makeRequest({ message: 'test' })))
+    expect(sources).toHaveLength(2)
+    expect((sources as Array<{ verse: number }>)[0].verse).toBe(47)
   })
 
   it('returns 400 when message is missing', async () => {
@@ -104,10 +128,14 @@ describe('POST /api/chat', () => {
     expect(res.status).toBe(400)
   })
 
-  it('returns 500 when generation fails', async () => {
-    generateText.mockRejectedValue(new Error('Gemini timeout'))
+  it('streams an error event when generation fails', async () => {
+    const gemini = await import('@/lib/gemini')
+    vi.mocked(gemini.generateText).mockRejectedValue(new Error('OpenRouter timeout'))
     const { POST } = await import('@/app/api/chat/route')
     const res = await POST(makeRequest({ message: 'test' }))
-    expect(res.status).toBe(500)
+    expect(res.status).toBe(200) // streaming route always returns 200
+    const text = await res.text()
+    expect(text).toContain('"t":"e"')
+    expect(text).toContain('OpenRouter timeout')
   })
 })

@@ -15,7 +15,8 @@ export async function saveExchange(
   sessionId: string,
   userMessage: string,
   assistantResponse: string,
-  sources: object[]
+  sources: object[],
+  groundingPassed = true
 ): Promise<void> {
   const { error: msgError } = await supabase.from('messages').insert([
     { session_id: sessionId, role: 'user', content: userMessage },
@@ -24,7 +25,7 @@ export async function saveExchange(
       role: 'assistant',
       content: assistantResponse,
       retrieval_context: sources,
-      grounding_passed: true,
+      grounding_passed: groundingPassed,
     },
   ])
   if (msgError) throw new Error(msgError.message)

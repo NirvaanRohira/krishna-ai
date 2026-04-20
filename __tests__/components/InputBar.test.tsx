@@ -42,6 +42,24 @@ describe('InputBar', () => {
     expect(onSubmit).toHaveBeenCalledWith('Enter key test')
   })
 
+  it('shift+Enter does NOT submit (allows newline)', () => {
+    const onSubmit = vi.fn()
+    render(<InputBar onSubmit={onSubmit} />)
+    const input = screen.getByRole('textbox')
+    fireEvent.change(input, { target: { value: 'line one' } })
+    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', shiftKey: true })
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('Cmd+Enter submits', () => {
+    const onSubmit = vi.fn()
+    render(<InputBar onSubmit={onSubmit} />)
+    const input = screen.getByRole('textbox')
+    fireEvent.change(input, { target: { value: 'cmd enter test' } })
+    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', metaKey: true })
+    expect(onSubmit).toHaveBeenCalledWith('cmd enter test')
+  })
+
   it('is disabled while loading', () => {
     render(<InputBar onSubmit={vi.fn()} loading />)
     expect(screen.getByRole('button')).toHaveProperty('disabled', true)

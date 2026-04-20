@@ -5,8 +5,10 @@ vi.mock('@/lib/session', () => ({ startSession: vi.fn(), saveExchange: vi.fn() }
 vi.mock('@/lib/retrieval/complexityRouter', () => ({ classifyComplexity: vi.fn() }))
 vi.mock('@/lib/retrieval/parallelRetrieval', () => ({ parallelRetrieve: vi.fn() }))
 vi.mock('@/lib/crag/loop', () => ({ runCRAG: vi.fn() }))
+vi.mock('@/lib/guardrails/classifier', () => ({ classifyMessage: vi.fn() }))
 vi.mock('@/lib/gemini', () => ({
   generateText: vi.fn(),
+  generateTextStream: vi.fn(),
   embedText: vi.fn(),
   classify: vi.fn(),
   EMBEDDING_DIMENSION: 3072,
@@ -26,12 +28,38 @@ function makeRequest(body: object) {
   })
 }
 
+function makeMockFromChain() {
+  const chain = {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    single: vi.fn().mockResolvedValue({ data: { turn_count: 0 }, error: null }),
+    insert: vi.fn().mockResolvedValue({ error: null }),
+    update: vi.fn().mockReturnThis(),
+  }
+  return vi.fn().mockReturnValue(chain)
+}
+
 function makeMockSupabase(user: object | null = FAKE_USER) {
   return {
     auth: {
       getUser: vi.fn().mockResolvedValue({ data: { user }, error: null }),
     },
+    from: makeMockFromChain(),
   }
+}
+
+async function parseStream(res: Response): Promise<{ sessionId: string; response: string; sources: unknown[] }> {
+  const text = await res.text()
+  let sessionId = '', response = '', sources: unknown[] = []
+  for (const line of text.split('\n')) {
+    if (!line.startsWith('data: ') || line.trim() === 'data: [DONE]') continue
+    try {
+      const d = JSON.parse(line.slice(6))
+      if (d.t === 's') { sessionId = d.id; sources = d.src }
+      if (d.t === 'c') response += d.v
+    } catch { /* skip malformed lines */ }
+  }
+  return { sessionId, response, sources }
 }
 
 describe('POST /api/chat — auth and persistence', () => {
@@ -39,7 +67,6 @@ describe('POST /api/chat — auth and persistence', () => {
   let saveExchange: ReturnType<typeof vi.fn>
   let classifyComplexity: ReturnType<typeof vi.fn>
   let parallelRetrieve: ReturnType<typeof vi.fn>
-  let generateText: ReturnType<typeof vi.fn>
   let createServerSupabaseClient: ReturnType<typeof vi.fn>
 
   beforeEach(async () => {
@@ -64,8 +91,10 @@ describe('POST /api/chat — auth and persistence', () => {
     parallelRetrieve.mockResolvedValue(FAKE_SOURCES)
 
     const gemini = await import('@/lib/gemini')
-    generateText = vi.mocked(gemini.generateText)
-    generateText.mockResolvedValue('The Gita teaches us...')
+    vi.mocked(gemini.generateText).mockResolvedValue('The Gita teaches us...')
+
+    const guardrail = await import('@/lib/guardrails/classifier')
+    vi.mocked(guardrail.classifyMessage).mockResolvedValue('SAFE')
   })
 
   it('returns 401 when user is not authenticated', async () => {
@@ -79,27 +108,28 @@ describe('POST /api/chat — auth and persistence', () => {
     const { POST } = await import('@/app/api/chat/route')
     const res = await POST(makeRequest({ message: 'what is dharma?' }))
     expect(res.status).toBe(200)
-    const json = await res.json()
-    expect(json.sessionId).toBe(FAKE_SESSION_ID)
+    const { sessionId } = await parseStream(res)
+    expect(sessionId).toBe(FAKE_SESSION_ID)
   })
 
   it('creates a new session when sessionId is not provided', async () => {
     const { POST } = await import('@/app/api/chat/route')
-    await POST(makeRequest({ message: 'test' }))
+    const res = await POST(makeRequest({ message: 'test' }))
+    await parseStream(res) // consume stream so background work finishes
     expect(startSession).toHaveBeenCalledWith(expect.anything(), FAKE_USER.id)
   })
 
   it('reuses existing sessionId when provided in request body', async () => {
     const { POST } = await import('@/app/api/chat/route')
-    await POST(makeRequest({ message: 'follow-up', sessionId: 'existing-sess' }))
+    await parseStream(await POST(makeRequest({ message: 'follow-up', sessionId: 'existing-sess' })))
     expect(startSession).not.toHaveBeenCalled()
-    const json = await (await POST(makeRequest({ message: 'another', sessionId: 'existing-sess' }))).json()
-    expect(json.sessionId).toBe('existing-sess')
+    const { sessionId } = await parseStream(await POST(makeRequest({ message: 'another', sessionId: 'existing-sess' })))
+    expect(sessionId).toBe('existing-sess')
   })
 
   it('calls saveExchange with user message, response, and sources', async () => {
     const { POST } = await import('@/app/api/chat/route')
-    await POST(makeRequest({ message: 'what is karma?' }))
+    await parseStream(await POST(makeRequest({ message: 'what is karma?' })))
     expect(saveExchange).toHaveBeenCalledWith(
       expect.anything(),
       FAKE_SESSION_ID,
