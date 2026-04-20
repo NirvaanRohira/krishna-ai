@@ -13,12 +13,7 @@ async function openRouterGenerate(prompt: string): Promise<string> {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      models: [
-        'meta-llama/llama-3.3-70b-instruct:free',
-        'google/gemma-3-27b-it:free',
-        'mistralai/mistral-7b-instruct:free',
-      ],
-      route: 'fallback',
+      model: 'nvidia/nemotron-3-super-120b-a12b:free',
       messages: [{ role: 'user', content: prompt }],
     }),
   })
