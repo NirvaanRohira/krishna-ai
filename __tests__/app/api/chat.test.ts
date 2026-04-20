@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-vi.mock('@/lib/retrieval/dense', () => ({ denseRetrieve: vi.fn() }))
+vi.mock('@/lib/retrieval/parallelRetrieval', () => ({ parallelRetrieve: vi.fn() }))
 vi.mock('@/lib/gemini', () => ({
   generateText: vi.fn(),
   embedText: vi.fn(),
@@ -10,8 +10,8 @@ vi.mock('@/lib/gemini', () => ({
 vi.mock('@supabase/supabase-js', () => ({ createClient: vi.fn(() => ({})) }))
 
 const FAKE_SOURCES = [
-  { id: 1, text_source: 'bhagavad_gita', book_chapter: 2, verse: 47, text: 'karmanye vadhikaraste...', theme_tags: ['karma'], similarity: 0.92 },
-  { id: 2, text_source: 'bhagavad_gita', book_chapter: 3, verse: 19, text: 'tasmad asaktah...', theme_tags: ['duty'], similarity: 0.85 },
+  { id: 1, text_source: 'bhagavad_gita', book_chapter: 2, verse: 47, text: 'karmanye vadhikaraste...', theme_tags: ['karma'], score: 0.032 },
+  { id: 2, text_source: 'bhagavad_gita', book_chapter: 3, verse: 19, text: 'tasmad asaktah...', theme_tags: ['duty'], score: 0.028 },
 ]
 
 function makeRequest(body: object) {
@@ -28,8 +28,8 @@ describe('POST /api/chat', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks()
-    const dense = await import('@/lib/retrieval/dense')
-    denseRetrieve = vi.mocked(dense.denseRetrieve)
+    const parallel = await import('@/lib/retrieval/parallelRetrieval')
+    denseRetrieve = vi.mocked(parallel.parallelRetrieve)
     denseRetrieve.mockResolvedValue(FAKE_SOURCES)
 
     const gemini = await import('@/lib/gemini')
@@ -47,7 +47,7 @@ describe('POST /api/chat', () => {
     expect(Array.isArray(json.sources)).toBe(true)
   })
 
-  it('calls denseRetrieve with the user message', async () => {
+  it('calls parallelRetrieve with the user message', async () => {
     const { POST } = await import('@/app/api/chat/route')
     await POST(makeRequest({ message: 'Who am I really' }))
     expect(denseRetrieve).toHaveBeenCalledWith('Who am I really', expect.anything())

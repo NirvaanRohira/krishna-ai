@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { denseRetrieve, type DenseResult } from '@/lib/retrieval/dense'
+import { parallelRetrieve } from '@/lib/retrieval/parallelRetrieval'
+import type { RRFResult as DenseResult } from '@/lib/retrieval/rrfMerge'
 import { generateText } from '@/lib/gemini'
 import { SYSTEM_PROMPT_V0 } from '@/lib/prompts/system_v0'
 
@@ -44,7 +45,7 @@ export async function POST(req: Request) {
   )
 
   try {
-    const sources = await denseRetrieve(message, { supabaseClient: supabase })
+    const sources = await parallelRetrieve(message, { supabaseClient: supabase })
     const prompt = buildPrompt(sources, history, message)
     const response = await generateText(prompt)
     return NextResponse.json({ response, sources })
