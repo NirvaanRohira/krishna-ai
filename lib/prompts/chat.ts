@@ -3,7 +3,7 @@ import type { RRFResult } from '@/lib/retrieval/rrfMerge'
 
 type Message = { role: 'user' | 'assistant'; content: string }
 
-export function buildPrompt(sources: RRFResult[], history: Message[], message: string): string {
+export function buildPrompt(sources: RRFResult[], history: Message[], message: string, systemPrompt?: string): string {
   const contextBlock = sources
     .map((s, i) => `[${i + 1}] ${s.text_source} ${s.book_chapter}.${s.verse}: ${s.text}`)
     .join('\n')
@@ -13,7 +13,7 @@ export function buildPrompt(sources: RRFResult[], history: Message[], message: s
     .join('\n')
 
   return [
-    SYSTEM_PROMPT_V0,
+    systemPrompt ?? SYSTEM_PROMPT_V0,
     '',
     '--- Retrieved context ---',
     contextBlock,

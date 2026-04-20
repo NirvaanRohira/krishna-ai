@@ -8,6 +8,7 @@ import { runCRAG } from '@/lib/crag/loop'
 import { buildPrompt } from '@/lib/prompts/chat'
 import { generateText } from '@/lib/gemini'
 import { startSession, saveExchange, endSession } from '@/lib/session'
+import { loadAndInjectProfile } from '@/lib/memory/profileInjector'
 
 type Message = { role: 'user' | 'assistant'; content: string }
 
@@ -81,12 +82,13 @@ export async function POST(req: Request) {
       // ── Normal generation path ─────────────────────────────────
       const retrievalQuery = buildRetrievalQuery(message, history as Message[])
       const complexity = await classifyComplexity(message)
+      const systemPrompt = await loadAndInjectProfile(user.id, supabase)
 
       if (complexity === 'SIMPLE') {
         const sources = await parallelRetrieve(retrievalQuery, { supabaseClient: supabase })
         await writer.write(sseChunk({ t: 's', id: sessionId, src: sources }))
 
-        const prompt = buildPrompt(sources, history as Message[], message)
+        const prompt = buildPrompt(sources, history as Message[], message, systemPrompt)
         const fullResponse = await generateText(prompt)
 
         // Fake-stream word by word so client animates the response
@@ -101,7 +103,7 @@ export async function POST(req: Request) {
         const { response, sources } = await runCRAG(
           retrievalQuery,
           history as Message[],
-          { supabaseClient: supabase }
+          { supabaseClient: supabase, systemPrompt }
         )
         await writer.write(sseChunk({ t: 's', id: sessionId, src: sources }))
 
