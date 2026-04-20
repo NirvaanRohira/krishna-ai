@@ -21,10 +21,10 @@ describe('lib/gemini', () => {
     expect(typeof mod.embedText).toBe('function')
   })
 
-  it('exports EMBEDDING_DIMENSION as 768', async () => {
-    // Embedding dimension must be 768 (text-embedding-004) not 1536 (OpenAI)
-    // This is a critical constant — schema migrations depend on it
+  it('exports EMBEDDING_DIMENSION as 3072', async () => {
+    // gemini-embedding-001 produces 3072-dim vectors (text-embedding-004 no longer exists)
+    // Critical: schema migrations use vector(3072)
     const mod = await import('@/lib/gemini')
-    expect(mod.EMBEDDING_DIMENSION).toBe(768)
+    expect(mod.EMBEDDING_DIMENSION).toBe(3072)
   })
 })
