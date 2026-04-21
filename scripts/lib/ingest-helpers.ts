@@ -12,7 +12,11 @@ export async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 8): Promi
       lastErr = err
       if (attempt >= maxAttempts) break
       const anyErr = err as Record<string, unknown>
-      if (anyErr?.status === 429) {
+      if (anyErr?.status === 503) {
+        const waitMs = Math.min(5000 * attempt, 60000)
+        console.log(`  503 service unavailable — retrying in ${Math.round(waitMs / 1000)}s (attempt ${attempt})`)
+        await new Promise(r => setTimeout(r, waitMs))
+      } else if (anyErr?.status === 429) {
         const details = anyErr?.errorDetails as Array<Record<string, string>> | undefined
         const d = details?.find(x => String(x['@type']).includes('RetryInfo'))
         const waitMs = d?.retryDelay ? parseInt(d.retryDelay) * 1000 + 2000 : 65000

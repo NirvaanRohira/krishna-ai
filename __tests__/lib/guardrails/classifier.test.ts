@@ -5,7 +5,7 @@ vi.mock('@/lib/gemini', () => ({
   generateText: vi.fn(),
   generateTextStream: vi.fn(),
   embedText: vi.fn(),
-  EMBEDDING_DIMENSION: 3072,
+  EMBEDDING_DIMENSION: 1536,
 }))
 
 describe('classifyMessage', () => {

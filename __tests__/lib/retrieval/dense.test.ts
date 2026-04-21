@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 vi.mock('@/lib/gemini', () => ({
   embedText: vi.fn(),
-  EMBEDDING_DIMENSION: 3072,
+  EMBEDDING_DIMENSION: 1536,
   generateText: vi.fn(),
   classify: vi.fn(),
 }))

@@ -11,7 +11,7 @@ vi.mock('@/lib/gemini', () => ({
   generateTextStream: vi.fn(async function* () { yield 'response' }),
   embedText: vi.fn(),
   classify: vi.fn(),
-  EMBEDDING_DIMENSION: 3072,
+  EMBEDDING_DIMENSION: 1536,
 }))
 
 function makeRequest(body: object) {
