@@ -6,6 +6,8 @@ vi.mock('@/lib/retrieval/complexityRouter', () => ({ classifyComplexity: vi.fn()
 vi.mock('@/lib/crag/loop', () => ({ runCRAG: vi.fn() }))
 vi.mock('@/lib/retrieval/parallelRetrieval', () => ({ parallelRetrieve: vi.fn() }))
 vi.mock('@/lib/guardrails/classifier', () => ({ classifyMessage: vi.fn() }))
+vi.mock('@/lib/retrieval/structuralLookup', () => ({ queryStructuralLookup: vi.fn() }))
+vi.mock('@/lib/retrieval/contextRetrieval', () => ({ getContextVector: vi.fn() }))
 vi.mock('@/lib/gemini', () => ({
   generateText: vi.fn(),
   generateTextStream: vi.fn(),
@@ -74,10 +76,17 @@ describe('POST /api/chat — complexity routing', () => {
 
     const gemini = await import('@/lib/gemini')
     generateTextStream = vi.mocked(gemini.generateTextStream as ReturnType<typeof vi.fn>)
+    generateTextStream.mockImplementation(async function* () { yield 'Fast path response' })
     vi.mocked(gemini.generateText).mockResolvedValue('Fast path response')
 
     const guardrail = await import('@/lib/guardrails/classifier')
     vi.mocked(guardrail.classifyMessage).mockResolvedValue('SAFE')
+
+    const l3 = await import('@/lib/retrieval/structuralLookup')
+    vi.mocked(l3.queryStructuralLookup).mockResolvedValue([])
+
+    const l4 = await import('@/lib/retrieval/contextRetrieval')
+    vi.mocked(l4.getContextVector).mockResolvedValue(null)
   })
 
   it('uses fast path (parallelRetrieve + generateText) for SIMPLE queries', async () => {

@@ -6,6 +6,8 @@ vi.mock('@/lib/retrieval/complexityRouter', () => ({ classifyComplexity: vi.fn()
 vi.mock('@/lib/retrieval/parallelRetrieval', () => ({ parallelRetrieve: vi.fn() }))
 vi.mock('@/lib/crag/loop', () => ({ runCRAG: vi.fn() }))
 vi.mock('@/lib/guardrails/classifier', () => ({ classifyMessage: vi.fn() }))
+vi.mock('@/lib/retrieval/structuralLookup', () => ({ queryStructuralLookup: vi.fn() }))
+vi.mock('@/lib/retrieval/contextRetrieval', () => ({ getContextVector: vi.fn() }))
 vi.mock('@/lib/gemini', () => ({
   generateText: vi.fn(),
   generateTextStream: vi.fn(async function* () { yield 'response' }),
@@ -69,6 +71,12 @@ describe('POST /api/chat — guardrails', () => {
 
     const router = await import('@/lib/retrieval/complexityRouter')
     vi.mocked(router.classifyComplexity).mockResolvedValue('SIMPLE')
+
+    const l3 = await import('@/lib/retrieval/structuralLookup')
+    vi.mocked(l3.queryStructuralLookup).mockResolvedValue([])
+
+    const l4 = await import('@/lib/retrieval/contextRetrieval')
+    vi.mocked(l4.getContextVector).mockResolvedValue(null)
   })
 
   it('intercepts CRISIS messages — returns fixed response without calling retrieval', async () => {

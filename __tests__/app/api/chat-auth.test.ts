@@ -6,6 +6,8 @@ vi.mock('@/lib/retrieval/complexityRouter', () => ({ classifyComplexity: vi.fn()
 vi.mock('@/lib/retrieval/parallelRetrieval', () => ({ parallelRetrieve: vi.fn() }))
 vi.mock('@/lib/crag/loop', () => ({ runCRAG: vi.fn() }))
 vi.mock('@/lib/guardrails/classifier', () => ({ classifyMessage: vi.fn() }))
+vi.mock('@/lib/retrieval/structuralLookup', () => ({ queryStructuralLookup: vi.fn() }))
+vi.mock('@/lib/retrieval/contextRetrieval', () => ({ getContextVector: vi.fn() }))
 vi.mock('@/lib/gemini', () => ({
   generateText: vi.fn(),
   generateTextStream: vi.fn(),
@@ -92,9 +94,18 @@ describe('POST /api/chat — auth and persistence', () => {
 
     const gemini = await import('@/lib/gemini')
     vi.mocked(gemini.generateText).mockResolvedValue('The Gita teaches us...')
+    vi.mocked(gemini.generateTextStream as ReturnType<typeof vi.fn>).mockImplementation(async function* () {
+      yield 'The Gita teaches us...'
+    })
 
     const guardrail = await import('@/lib/guardrails/classifier')
     vi.mocked(guardrail.classifyMessage).mockResolvedValue('SAFE')
+
+    const l3 = await import('@/lib/retrieval/structuralLookup')
+    vi.mocked(l3.queryStructuralLookup).mockResolvedValue([])
+
+    const l4 = await import('@/lib/retrieval/contextRetrieval')
+    vi.mocked(l4.getContextVector).mockResolvedValue(null)
   })
 
   it('returns 401 when user is not authenticated', async () => {

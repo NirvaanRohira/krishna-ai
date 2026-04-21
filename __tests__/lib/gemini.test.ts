@@ -21,6 +21,16 @@ describe('lib/gemini', () => {
     expect(typeof mod.embedText).toBe('function')
   })
 
+  it('exports a generateTextStream async generator function', async () => {
+    const mod = await import('@/lib/gemini')
+    expect(typeof mod.generateTextStream).toBe('function')
+    // async generators return an object with Symbol.asyncIterator
+    const gen = mod.generateTextStream('test')
+    expect(typeof gen[Symbol.asyncIterator]).toBe('function')
+    // clean up without consuming (would call the real API)
+    gen.return?.(undefined)
+  })
+
   it('exports EMBEDDING_DIMENSION as 1536', async () => {
     // gemini-embedding-001 with outputDimensionality=1536; schema uses vector(1536)
     // 1536 is under the 2000-dim pgvector index limit; MRL preserves near-full quality

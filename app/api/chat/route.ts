@@ -6,9 +6,11 @@ import { getGuardrailResponse } from '@/lib/guardrails/responses'
 import { parallelRetrieve } from '@/lib/retrieval/parallelRetrieval'
 import { runCRAG } from '@/lib/crag/loop'
 import { buildPrompt } from '@/lib/prompts/chat'
-import { generateText } from '@/lib/gemini'
+import { generateText, generateTextStream } from '@/lib/gemini'
 import { startSession, saveExchange, endSession } from '@/lib/session'
 import { loadAndInjectProfile } from '@/lib/memory/profileInjector'
+import { queryStructuralLookup } from '@/lib/retrieval/structuralLookup'
+import { getContextVector } from '@/lib/retrieval/contextRetrieval'
 
 type Message = { role: 'user' | 'assistant'; content: string }
 
@@ -17,6 +19,15 @@ const encoder = new TextEncoder()
 function sseChunk(data: object | '[DONE]'): Uint8Array {
   const line = data === '[DONE]' ? 'data: [DONE]\n\n' : `data: ${JSON.stringify(data)}\n\n`
   return encoder.encode(line)
+}
+
+const STOP_WORDS = new Set(['the','a','an','is','it','in','on','of','to','and','or','but','for','with','my','i','am','me','do','be','have','that','this','are','was','at','by','as','so','if','not','can','you','we','he','she','they','what','why','how','who','when','where','will','would','could','should','did','has','had','its'])
+
+function extractKeywords(message: string): string[] {
+  return message
+    .toLowerCase()
+    .split(/\W+/)
+    .filter(w => w.length >= 3 && !STOP_WORDS.has(w))
 }
 
 // For short follow-up messages, enrich the retrieval query with recent history
@@ -86,17 +97,23 @@ export async function POST(req: Request) {
       const complexity = await classifyComplexity(message)
       const systemPrompt = await loadAndInjectProfile(user.id, supabase)
 
+      // L3 structural lookup + L4 context vector (both paths)
+      const keywords = extractKeywords(message)
+      const [anchors, contextVector] = await Promise.all([
+        queryStructuralLookup(keywords, { supabaseClient: supabase }),
+        getContextVector(user.id, { supabaseClient: supabase }),
+      ])
+      void contextVector // reserved for L4 future use: pass to dense retrieval as secondary vector
+
       if (complexity === 'SIMPLE') {
         const sources = await parallelRetrieve(retrievalQuery, { supabaseClient: supabase })
         await writer.write(sseChunk({ t: 's', id: sessionId, src: sources }))
 
-        const prompt = buildPrompt(sources, recentHistory, message, systemPrompt)
-        const fullResponse = await generateText(prompt)
-
-        // Fake-stream word by word so client animates the response
-        const tokens = fullResponse.match(/\S+\s*/g) ?? [fullResponse]
-        for (const token of tokens) {
-          await writer.write(sseChunk({ t: 'c', v: token }))
+        const prompt = buildPrompt(sources, recentHistory, message, systemPrompt, anchors)
+        let fullResponse = ''
+        for await (const chunk of generateTextStream(prompt)) {
+          fullResponse += chunk
+          await writer.write(sseChunk({ t: 'c', v: chunk }))
         }
 
         await saveExchange(supabase, sessionId, message, fullResponse, sources)
@@ -105,7 +122,7 @@ export async function POST(req: Request) {
         const { response, sources } = await runCRAG(
           retrievalQuery,
           recentHistory,
-          { supabaseClient: supabase, systemPrompt }
+          { supabaseClient: supabase, systemPrompt, anchors }
         )
         await writer.write(sseChunk({ t: 's', id: sessionId, src: sources }))
 

@@ -6,6 +6,8 @@ vi.mock('@/lib/retrieval/parallelRetrieval', () => ({ parallelRetrieve: vi.fn() 
 vi.mock('@/lib/retrieval/complexityRouter', () => ({ classifyComplexity: vi.fn() }))
 vi.mock('@/lib/crag/loop', () => ({ runCRAG: vi.fn() }))
 vi.mock('@/lib/guardrails/classifier', () => ({ classifyMessage: vi.fn() }))
+vi.mock('@/lib/retrieval/structuralLookup', () => ({ queryStructuralLookup: vi.fn() }))
+vi.mock('@/lib/retrieval/contextRetrieval', () => ({ getContextVector: vi.fn() }))
 vi.mock('@/lib/gemini', () => ({
   generateText: vi.fn(),
   generateTextStream: vi.fn(),
@@ -69,12 +71,21 @@ describe('POST /api/chat', () => {
 
     const gemini = await import('@/lib/gemini')
     generateTextStream = vi.mocked(gemini.generateTextStream as ReturnType<typeof vi.fn>)
+    generateTextStream.mockImplementation(async function* () {
+      yield 'The Gita teaches us that action without attachment is the path. What situation brings this question to you today?'
+    })
     vi.mocked(gemini.generateText).mockResolvedValue(
       'The Gita teaches us that action without attachment is the path. What situation brings this question to you today?'
     )
 
     const guardrail = await import('@/lib/guardrails/classifier')
     vi.mocked(guardrail.classifyMessage).mockResolvedValue('SAFE')
+
+    const l3 = await import('@/lib/retrieval/structuralLookup')
+    vi.mocked(l3.queryStructuralLookup).mockResolvedValue([])
+
+    const l4 = await import('@/lib/retrieval/contextRetrieval')
+    vi.mocked(l4.getContextVector).mockResolvedValue(null)
   })
 
   it('returns 200 with response text and sources', async () => {
@@ -92,25 +103,23 @@ describe('POST /api/chat', () => {
     expect(parallelRetrieve).toHaveBeenCalledWith('Who am I really', expect.anything())
   })
 
-  it('calls generateText with a prompt containing retrieved verse text', async () => {
+  it('calls generateTextStream with a prompt containing retrieved verse text', async () => {
+    generateTextStream.mockImplementation(async function* () { yield 'response' })
     const { POST } = await import('@/app/api/chat/route')
-    const gemini = await import('@/lib/gemini')
-    const generateText = vi.mocked(gemini.generateText)
     await parseStream(await POST(makeRequest({ message: 'test question' })))
-    const promptArg = generateText.mock.calls[0][0] as string
+    const promptArg = (generateTextStream.mock.calls[0] as [string])[0]
     expect(promptArg).toContain('karmanye vadhikaraste')
   })
 
   it('includes conversation history in the prompt when provided', async () => {
+    generateTextStream.mockImplementation(async function* () { yield 'response' })
     const { POST } = await import('@/app/api/chat/route')
-    const gemini = await import('@/lib/gemini')
-    const generateText = vi.mocked(gemini.generateText)
     const history = [
       { role: 'user', content: 'prior question' },
       { role: 'assistant', content: 'prior answer' },
     ]
     await parseStream(await POST(makeRequest({ message: 'follow-up question', history })))
-    const promptArg = generateText.mock.calls[0][0] as string
+    const promptArg = (generateTextStream.mock.calls[0] as [string])[0]
     expect(promptArg).toContain('prior question')
     expect(promptArg).toContain('prior answer')
   })
@@ -130,7 +139,9 @@ describe('POST /api/chat', () => {
 
   it('streams an error event when generation fails', async () => {
     const gemini = await import('@/lib/gemini')
-    vi.mocked(gemini.generateText).mockRejectedValue(new Error('OpenRouter timeout'))
+    vi.mocked(gemini.generateTextStream as ReturnType<typeof vi.fn>).mockImplementation(async function* () {
+      throw new Error('OpenRouter timeout')
+    })
     const { POST } = await import('@/app/api/chat/route')
     const res = await POST(makeRequest({ message: 'test' }))
     expect(res.status).toBe(200) // streaming route always returns 200

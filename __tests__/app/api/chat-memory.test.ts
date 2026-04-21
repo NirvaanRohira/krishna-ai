@@ -7,6 +7,8 @@ vi.mock('@/lib/retrieval/parallelRetrieval', () => ({ parallelRetrieve: vi.fn() 
 vi.mock('@/lib/crag/loop', () => ({ runCRAG: vi.fn() }))
 vi.mock('@/lib/guardrails/classifier', () => ({ classifyMessage: vi.fn() }))
 vi.mock('@/lib/memory/profileInjector', () => ({ loadAndInjectProfile: vi.fn() }))
+vi.mock('@/lib/retrieval/structuralLookup', () => ({ queryStructuralLookup: vi.fn() }))
+vi.mock('@/lib/retrieval/contextRetrieval', () => ({ getContextVector: vi.fn() }))
 vi.mock('@/lib/gemini', () => ({
   generateText: vi.fn(),
   generateTextStream: vi.fn(),
@@ -70,6 +72,9 @@ describe('POST /api/chat — memory injection', () => {
 
     const gemini = await import('@/lib/gemini')
     vi.mocked(gemini.generateText).mockResolvedValue('The Gita teaches...')
+    vi.mocked(gemini.generateTextStream as ReturnType<typeof vi.fn>).mockImplementation(async function* () {
+      yield 'The Gita teaches...'
+    })
 
     const guardrail = await import('@/lib/guardrails/classifier')
     vi.mocked(guardrail.classifyMessage).mockResolvedValue('SAFE')
@@ -77,6 +82,12 @@ describe('POST /api/chat — memory injection', () => {
     const memory = await import('@/lib/memory/profileInjector')
     loadAndInjectProfile = vi.mocked(memory.loadAndInjectProfile)
     loadAndInjectProfile.mockResolvedValue('ENRICHED_SYSTEM_PROMPT')
+
+    const l3 = await import('@/lib/retrieval/structuralLookup')
+    vi.mocked(l3.queryStructuralLookup).mockResolvedValue([])
+
+    const l4 = await import('@/lib/retrieval/contextRetrieval')
+    vi.mocked(l4.getContextVector).mockResolvedValue(null)
   })
 
   it('calls loadAndInjectProfile with the authenticated user id', async () => {
@@ -89,7 +100,7 @@ describe('POST /api/chat — memory injection', () => {
     const { POST } = await import('@/app/api/chat/route')
     const gemini = await import('@/lib/gemini')
     await parseStream(await POST(makeRequest({ message: 'What is dharma?' })))
-    const promptArg = vi.mocked(gemini.generateText).mock.calls[0][0] as string
+    const promptArg = (vi.mocked(gemini.generateTextStream as ReturnType<typeof vi.fn>).mock.calls[0] as [string])[0]
     expect(promptArg).toContain('ENRICHED_SYSTEM_PROMPT')
   })
 })

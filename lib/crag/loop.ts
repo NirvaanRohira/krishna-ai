@@ -4,6 +4,7 @@ import { checkRelevance } from '@/lib/crag/relevanceCheck'
 import { expandQuery } from '@/lib/crag/queryExpansion'
 import { buildPrompt } from '@/lib/prompts/chat'
 import type { RRFResult } from '@/lib/retrieval/rrfMerge'
+import type { LookupResult } from '@/lib/retrieval/structuralLookup'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 type Message = { role: 'user' | 'assistant'; content: string }
@@ -13,7 +14,7 @@ const GIVE_UP = "I cannot find relevant guidance in the sacred texts for this qu
 export async function runCRAG(
   query: string,
   history: Message[],
-  options: { topN?: number; supabaseClient?: SupabaseClient; systemPrompt?: string }
+  options: { topN?: number; supabaseClient?: SupabaseClient; systemPrompt?: string; anchors?: LookupResult[] }
 ): Promise<{ response: string; sources: RRFResult[] }> {
   const MAX_RETRIES = 2
   let currentQuery = query
@@ -26,7 +27,7 @@ export async function runCRAG(
 
     const relevant = await checkRelevance(currentQuery, sources)
     if (relevant) {
-      const prompt = buildPrompt(sources, history, query, options.systemPrompt)
+      const prompt = buildPrompt(sources, history, query, options.systemPrompt, options.anchors)
       const response = await generateText(prompt)
       return { response, sources }
     }
@@ -38,7 +39,7 @@ export async function runCRAG(
 
   // Soft fallback: we have sources but none passed relevance — still generate from best
   if (bestSources.length > 0) {
-    const prompt = buildPrompt(bestSources, history, query, options.systemPrompt)
+    const prompt = buildPrompt(bestSources, history, query, options.systemPrompt, options.anchors)
     const response = await generateText(prompt)
     return { response, sources: bestSources }
   }
