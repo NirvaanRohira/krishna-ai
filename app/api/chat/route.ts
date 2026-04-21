@@ -80,7 +80,9 @@ export async function POST(req: Request) {
       }
 
       // ── Normal generation path ─────────────────────────────────
-      const retrievalQuery = buildRetrievalQuery(message, history as Message[])
+      // Keep last 20 turns (40 messages) to bound context window growth
+      const recentHistory = (history as Message[]).slice(-40)
+      const retrievalQuery = buildRetrievalQuery(message, recentHistory)
       const complexity = await classifyComplexity(message)
       const systemPrompt = await loadAndInjectProfile(user.id, supabase)
 
@@ -88,7 +90,7 @@ export async function POST(req: Request) {
         const sources = await parallelRetrieve(retrievalQuery, { supabaseClient: supabase })
         await writer.write(sseChunk({ t: 's', id: sessionId, src: sources }))
 
-        const prompt = buildPrompt(sources, history as Message[], message, systemPrompt)
+        const prompt = buildPrompt(sources, recentHistory, message, systemPrompt)
         const fullResponse = await generateText(prompt)
 
         // Fake-stream word by word so client animates the response
@@ -102,7 +104,7 @@ export async function POST(req: Request) {
       } else {
         const { response, sources } = await runCRAG(
           retrievalQuery,
-          history as Message[],
+          recentHistory,
           { supabaseClient: supabase, systemPrompt }
         )
         await writer.write(sseChunk({ t: 's', id: sessionId, src: sources }))
