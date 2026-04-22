@@ -1,4 +1,4 @@
-import { classify } from '@/lib/gemini'
+import { classify } from '@/lib/llm'
 import { buildGuardrailPrompt } from '@/lib/prompts/guardrail'
 
 export type GuardrailCategory = 'SAFE' | 'CRISIS' | 'MEDICAL' | 'LEGAL_FINANCIAL' | 'DIVINITY_CLAIM' | 'POLITICAL'

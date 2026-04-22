@@ -1,4 +1,4 @@
-import { generateText } from '@/lib/gemini'
+import { generateText } from '@/lib/llm'
 
 export type ExtractedProfile = {
   life_context?: string

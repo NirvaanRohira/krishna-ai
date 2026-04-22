@@ -8,13 +8,8 @@ vi.mock('@/lib/crag/loop', () => ({ runCRAG: vi.fn() }))
 vi.mock('@/lib/guardrails/classifier', () => ({ classifyMessage: vi.fn() }))
 vi.mock('@/lib/retrieval/structuralLookup', () => ({ queryStructuralLookup: vi.fn() }))
 vi.mock('@/lib/retrieval/contextRetrieval', () => ({ getContextVector: vi.fn() }))
-vi.mock('@/lib/gemini', () => ({
-  generateText: vi.fn(),
-  generateTextStream: vi.fn(),
-  embedText: vi.fn(),
-  classify: vi.fn(),
-  EMBEDDING_DIMENSION: 1536,
-}))
+vi.mock('@/lib/gemini', () => ({ embedText: vi.fn(), EMBEDDING_DIMENSION: 1536 }))
+vi.mock('@/lib/llm', () => ({ generateText: vi.fn(), generateTextStream: vi.fn(), classify: vi.fn() }))
 
 const FAKE_USER = { id: 'user-abc-123' }
 const FAKE_SESSION_ID = 'sess-xyz-456'
@@ -92,9 +87,9 @@ describe('POST /api/chat — auth and persistence', () => {
     parallelRetrieve = vi.mocked(parallel.parallelRetrieve)
     parallelRetrieve.mockResolvedValue(FAKE_SOURCES)
 
-    const gemini = await import('@/lib/gemini')
-    vi.mocked(gemini.generateText).mockResolvedValue('The Gita teaches us...')
-    vi.mocked(gemini.generateTextStream as ReturnType<typeof vi.fn>).mockImplementation(async function* () {
+    const groq = await import('@/lib/llm')
+    vi.mocked(groq.generateText).mockResolvedValue('The Gita teaches us...')
+    vi.mocked(groq.generateTextStream as ReturnType<typeof vi.fn>).mockImplementation(async function* () {
       yield 'The Gita teaches us...'
     })
 

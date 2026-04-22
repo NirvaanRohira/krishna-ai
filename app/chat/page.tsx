@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import { flushSync } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { ChatWindow } from '@/components/ChatWindow'
 import { DisclaimerBadge } from '@/components/DisclaimerBadge'
@@ -88,7 +89,9 @@ export default function ChatPage() {
         res,
         (chunk) => {
           assembled += chunk
-          setMessages([...withUser, { role: 'assistant', content: assembled }])
+          flushSync(() => {
+            setMessages([...withUser, { role: 'assistant', content: assembled }])
+          })
         },
         (id) => {
           if (!sessionId) setSessionId(id)

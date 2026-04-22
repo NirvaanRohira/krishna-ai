@@ -16,7 +16,9 @@
     "@google/generative-ai": "^0.24.1",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.3",
+    "groq-sdk": "^1.1.2",
     "next": "14.2.35",
+    "openai": "^6.34.0",
     "react": "^18",
     "react-dom": "^18"
   },

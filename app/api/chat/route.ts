@@ -6,7 +6,7 @@ import { getGuardrailResponse } from '@/lib/guardrails/responses'
 import { parallelRetrieve } from '@/lib/retrieval/parallelRetrieval'
 import { runCRAG } from '@/lib/crag/loop'
 import { buildPrompt } from '@/lib/prompts/chat'
-import { generateText, generateTextStream } from '@/lib/gemini'
+import { generateText, generateTextStream } from '@/lib/llm'
 import { startSession, saveExchange, endSession } from '@/lib/session'
 import { loadAndInjectProfile } from '@/lib/memory/profileInjector'
 import { queryStructuralLookup } from '@/lib/retrieval/structuralLookup'
@@ -79,30 +79,23 @@ export async function POST(req: Request) {
         return
       }
 
-      // ── Persona drift check ────────────────────────────────────
-      const { data: sessionRow } = await supabase
-        .from('sessions')
-        .select('turn_count')
-        .eq('id', sessionId)
-        .single()
-      const turnCount: number = sessionRow?.turn_count ?? 0
-      if (turnCount >= 15) {
-        console.log('[persona-drift-check] turn', turnCount, '— injecting drift reminder')
-      }
-
-      // ── Normal generation path ─────────────────────────────────
-      // Keep last 20 turns (40 messages) to bound context window growth
+      // ── Parallel: turn count + complexity + profile (all independent of each other) ──
       const recentHistory = (history as Message[]).slice(-40)
       const retrievalQuery = buildRetrievalQuery(message, recentHistory)
-      const complexity = await classifyComplexity(message)
-      const systemPrompt = await loadAndInjectProfile(user.id, supabase)
-
-      // L3 structural lookup + L4 context vector (both paths)
       const keywords = extractKeywords(message)
-      const [anchors, contextVector] = await Promise.all([
+
+      const [{ data: sessionRow }, complexity, systemPrompt, anchors, contextVector] = await Promise.all([
+        supabase.from('sessions').select('turn_count').eq('id', sessionId).single(),
+        classifyComplexity(message),
+        loadAndInjectProfile(user.id, supabase),
         queryStructuralLookup(keywords, { supabaseClient: supabase }),
         getContextVector(user.id, { supabaseClient: supabase }),
       ])
+
+      const turnCount: number = (sessionRow as { turn_count?: number } | null)?.turn_count ?? 0
+      if (turnCount >= 15) {
+        console.log('[persona-drift-check] turn', turnCount, '— injecting drift reminder')
+      }
       void contextVector // reserved for L4 future use: pass to dense retrieval as secondary vector
 
       if (complexity === 'SIMPLE') {
@@ -119,16 +112,28 @@ export async function POST(req: Request) {
         await saveExchange(supabase, sessionId, message, fullResponse, sources)
 
       } else {
+        let chunksEmitted = false
         const { response, sources } = await runCRAG(
           retrievalQuery,
           recentHistory,
-          { supabaseClient: supabase, systemPrompt, anchors }
+          {
+            supabaseClient: supabase,
+            systemPrompt,
+            anchors,
+            onChunk: async (chunk) => {
+              chunksEmitted = true
+              await writer.write(sseChunk({ t: 'c', v: chunk }))
+            },
+          }
         )
         await writer.write(sseChunk({ t: 's', id: sessionId, src: sources }))
 
-        const tokens = response.match(/\S+\s*/g) ?? [response]
-        for (const token of tokens) {
-          await writer.write(sseChunk({ t: 'c', v: token }))
+        // give-up path: onChunk never called, emit response as tokens
+        if (!chunksEmitted) {
+          const tokens = response.match(/\S+\s*/g) ?? [response]
+          for (const token of tokens) {
+            await writer.write(sseChunk({ t: 'c', v: token }))
+          }
         }
 
         await saveExchange(supabase, sessionId, message, response, sources)

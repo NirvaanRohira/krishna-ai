@@ -5,30 +5,9 @@ beforeAll(() => {
 })
 
 describe('lib/gemini', () => {
-  it('exports a generateText function', async () => {
-    // RED: fails because lib/gemini.ts does not exist yet
-    const mod = await import('@/lib/gemini')
-    expect(typeof mod.generateText).toBe('function')
-  })
-
-  it('exports a classify function', async () => {
-    const mod = await import('@/lib/gemini')
-    expect(typeof mod.classify).toBe('function')
-  })
-
   it('exports an embedText function', async () => {
     const mod = await import('@/lib/gemini')
     expect(typeof mod.embedText).toBe('function')
-  })
-
-  it('exports a generateTextStream async generator function', async () => {
-    const mod = await import('@/lib/gemini')
-    expect(typeof mod.generateTextStream).toBe('function')
-    // async generators return an object with Symbol.asyncIterator
-    const gen = mod.generateTextStream('test')
-    expect(typeof gen[Symbol.asyncIterator]).toBe('function')
-    // clean up without consuming (would call the real API)
-    gen.return?.(undefined)
   })
 
   it('exports EMBEDDING_DIMENSION as 1536', async () => {
@@ -36,5 +15,15 @@ describe('lib/gemini', () => {
     // 1536 is under the 2000-dim pgvector index limit; MRL preserves near-full quality
     const mod = await import('@/lib/gemini')
     expect(mod.EMBEDDING_DIMENSION).toBe(1536)
+  })
+
+  it('does not export generateText (moved to lib/groq)', async () => {
+    const mod = await import('@/lib/gemini')
+    expect((mod as Record<string, unknown>).generateText).toBeUndefined()
+  })
+
+  it('does not export classify (moved to lib/groq)', async () => {
+    const mod = await import('@/lib/gemini')
+    expect((mod as Record<string, unknown>).classify).toBeUndefined()
   })
 })

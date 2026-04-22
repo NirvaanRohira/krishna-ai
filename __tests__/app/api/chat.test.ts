@@ -8,13 +8,8 @@ vi.mock('@/lib/crag/loop', () => ({ runCRAG: vi.fn() }))
 vi.mock('@/lib/guardrails/classifier', () => ({ classifyMessage: vi.fn() }))
 vi.mock('@/lib/retrieval/structuralLookup', () => ({ queryStructuralLookup: vi.fn() }))
 vi.mock('@/lib/retrieval/contextRetrieval', () => ({ getContextVector: vi.fn() }))
-vi.mock('@/lib/gemini', () => ({
-  generateText: vi.fn(),
-  generateTextStream: vi.fn(),
-  embedText: vi.fn(),
-  classify: vi.fn(),
-  EMBEDDING_DIMENSION: 1536,
-}))
+vi.mock('@/lib/gemini', () => ({ embedText: vi.fn(), EMBEDDING_DIMENSION: 1536 }))
+vi.mock('@/lib/llm', () => ({ generateText: vi.fn(), generateTextStream: vi.fn(), classify: vi.fn() }))
 
 const FAKE_SOURCES = [
   { id: 1, text_source: 'bhagavad_gita', book_chapter: 2, verse: 47, text: 'karmanye vadhikaraste...', theme_tags: ['karma'], score: 0.032 },
@@ -69,12 +64,12 @@ describe('POST /api/chat', () => {
     parallelRetrieve = vi.mocked(parallel.parallelRetrieve)
     parallelRetrieve.mockResolvedValue(FAKE_SOURCES)
 
-    const gemini = await import('@/lib/gemini')
-    generateTextStream = vi.mocked(gemini.generateTextStream as ReturnType<typeof vi.fn>)
+    const groq = await import('@/lib/llm')
+    generateTextStream = vi.mocked(groq.generateTextStream as ReturnType<typeof vi.fn>)
     generateTextStream.mockImplementation(async function* () {
       yield 'The Gita teaches us that action without attachment is the path. What situation brings this question to you today?'
     })
-    vi.mocked(gemini.generateText).mockResolvedValue(
+    vi.mocked(groq.generateText).mockResolvedValue(
       'The Gita teaches us that action without attachment is the path. What situation brings this question to you today?'
     )
 
@@ -138,8 +133,8 @@ describe('POST /api/chat', () => {
   })
 
   it('streams an error event when generation fails', async () => {
-    const gemini = await import('@/lib/gemini')
-    vi.mocked(gemini.generateTextStream as ReturnType<typeof vi.fn>).mockImplementation(async function* () {
+    const groq = await import('@/lib/llm')
+    vi.mocked(groq.generateTextStream as ReturnType<typeof vi.fn>).mockImplementation(async function* () {
       throw new Error('OpenRouter timeout')
     })
     const { POST } = await import('@/app/api/chat/route')

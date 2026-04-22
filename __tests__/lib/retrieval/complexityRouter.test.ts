@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-vi.mock('@/lib/gemini', () => ({ classify: vi.fn() }))
+vi.mock('@/lib/llm', () => ({ classify: vi.fn(), generateText: vi.fn(), generateTextStream: vi.fn() }))
 
 describe('classifyComplexity', () => {
   let classify: ReturnType<typeof vi.fn>
 
   beforeEach(async () => {
     vi.clearAllMocks()
-    const gemini = await import('@/lib/gemini')
+    const gemini = await import('@/lib/llm')
     classify = vi.mocked(gemini.classify)
   })
 

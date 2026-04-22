@@ -9,13 +9,8 @@ vi.mock('@/lib/guardrails/classifier', () => ({ classifyMessage: vi.fn() }))
 vi.mock('@/lib/memory/profileInjector', () => ({ loadAndInjectProfile: vi.fn() }))
 vi.mock('@/lib/retrieval/structuralLookup', () => ({ queryStructuralLookup: vi.fn() }))
 vi.mock('@/lib/retrieval/contextRetrieval', () => ({ getContextVector: vi.fn() }))
-vi.mock('@/lib/gemini', () => ({
-  generateText: vi.fn(),
-  generateTextStream: vi.fn(),
-  embedText: vi.fn(),
-  classify: vi.fn(),
-  EMBEDDING_DIMENSION: 1536,
-}))
+vi.mock('@/lib/gemini', () => ({ embedText: vi.fn(), EMBEDDING_DIMENSION: 1536 }))
+vi.mock('@/lib/llm', () => ({ generateText: vi.fn(), generateTextStream: vi.fn(), classify: vi.fn() }))
 
 const FAKE_SOURCES = [
   { id: 1, text_source: 'bhagavad_gita', book_chapter: 2, verse: 47, text: 'karmanye vadhikaraste', theme_tags: ['karma'], score: 0.8 },
@@ -95,9 +90,9 @@ describe('POST /api/chat — L3 structural lookup + L4 context retrieval + real 
     getContextVector = vi.mocked(l4.getContextVector)
     getContextVector.mockResolvedValue(null)
 
-    const gemini = await import('@/lib/gemini')
-    generateText = vi.mocked(gemini.generateText)
-    generateTextStream = vi.mocked(gemini.generateTextStream as ReturnType<typeof vi.fn>)
+    const groq = await import('@/lib/llm')
+    generateText = vi.mocked(groq.generateText)
+    generateTextStream = vi.mocked(groq.generateTextStream as ReturnType<typeof vi.fn>)
     generateTextStream.mockImplementation(async function* () {
       yield 'Hello '
       yield 'world'

@@ -1,5 +1,5 @@
 import { parallelRetrieve } from '@/lib/retrieval/parallelRetrieval'
-import { generateText } from '@/lib/gemini'
+import { generateText, generateTextStream } from '@/lib/llm'
 import { checkRelevance } from '@/lib/crag/relevanceCheck'
 import { expandQuery } from '@/lib/crag/queryExpansion'
 import { buildPrompt } from '@/lib/prompts/chat'
@@ -11,10 +11,23 @@ type Message = { role: 'user' | 'assistant'; content: string }
 
 const GIVE_UP = "I cannot find relevant guidance in the sacred texts for this question. Please consider consulting a qualified spiritual teacher or counselor."
 
+async function generate(
+  prompt: string,
+  onChunk?: (chunk: string) => Promise<void>
+): Promise<string> {
+  if (!onChunk) return generateText(prompt)
+  let full = ''
+  for await (const chunk of generateTextStream(prompt)) {
+    full += chunk
+    await onChunk(chunk)
+  }
+  return full
+}
+
 export async function runCRAG(
   query: string,
   history: Message[],
-  options: { topN?: number; supabaseClient?: SupabaseClient; systemPrompt?: string; anchors?: LookupResult[] }
+  options: { topN?: number; supabaseClient?: SupabaseClient; systemPrompt?: string; anchors?: LookupResult[]; onChunk?: (chunk: string) => Promise<void> }
 ): Promise<{ response: string; sources: RRFResult[] }> {
   const MAX_RETRIES = 2
   let currentQuery = query
@@ -28,7 +41,7 @@ export async function runCRAG(
     const relevant = await checkRelevance(currentQuery, sources)
     if (relevant) {
       const prompt = buildPrompt(sources, history, query, options.systemPrompt, options.anchors)
-      const response = await generateText(prompt)
+      const response = await generate(prompt, options.onChunk)
       return { response, sources }
     }
 
@@ -40,7 +53,7 @@ export async function runCRAG(
   // Soft fallback: we have sources but none passed relevance — still generate from best
   if (bestSources.length > 0) {
     const prompt = buildPrompt(bestSources, history, query, options.systemPrompt, options.anchors)
-    const response = await generateText(prompt)
+    const response = await generate(prompt, options.onChunk)
     return { response, sources: bestSources }
   }
 

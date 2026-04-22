@@ -1,4 +1,4 @@
-import { classify } from '@/lib/gemini'
+import { classify } from '@/lib/llm'
 import { buildRelevancePrompt } from '@/lib/prompts/relevance'
 import type { RRFResult } from '@/lib/retrieval/rrfMerge'
 

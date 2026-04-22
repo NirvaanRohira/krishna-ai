@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-vi.mock('@/lib/gemini', () => ({ generateText: vi.fn() }))
+vi.mock('@/lib/llm', () => ({ generateText: vi.fn() }))
 
 const FAKE_TRANSCRIPT = `user: I feel lost in my career. I have always wanted to paint but my parents want me to be an engineer.
 assistant: The Gita speaks to exactly this tension between svadharma and family obligation...`
@@ -22,7 +22,7 @@ describe('extractSessionProfile', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks()
-    const gemini = await import('@/lib/gemini')
+    const gemini = await import('@/lib/llm')
     generateText = vi.mocked(gemini.generateText)
     generateText.mockResolvedValue(FAKE_LLM_OUTPUT)
   })

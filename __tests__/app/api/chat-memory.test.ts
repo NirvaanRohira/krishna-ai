@@ -9,13 +9,8 @@ vi.mock('@/lib/guardrails/classifier', () => ({ classifyMessage: vi.fn() }))
 vi.mock('@/lib/memory/profileInjector', () => ({ loadAndInjectProfile: vi.fn() }))
 vi.mock('@/lib/retrieval/structuralLookup', () => ({ queryStructuralLookup: vi.fn() }))
 vi.mock('@/lib/retrieval/contextRetrieval', () => ({ getContextVector: vi.fn() }))
-vi.mock('@/lib/gemini', () => ({
-  generateText: vi.fn(),
-  generateTextStream: vi.fn(),
-  embedText: vi.fn(),
-  classify: vi.fn(),
-  EMBEDDING_DIMENSION: 1536,
-}))
+vi.mock('@/lib/gemini', () => ({ embedText: vi.fn(), EMBEDDING_DIMENSION: 1536 }))
+vi.mock('@/lib/llm', () => ({ generateText: vi.fn(), generateTextStream: vi.fn(), classify: vi.fn() }))
 
 const FAKE_SOURCES = [
   { id: 1, text_source: 'bhagavad_gita', book_chapter: 2, verse: 47, text: 'karmanye vadhikaraste...', theme_tags: ['karma'], score: 0.8 },
@@ -70,9 +65,9 @@ describe('POST /api/chat — memory injection', () => {
     const parallel = await import('@/lib/retrieval/parallelRetrieval')
     vi.mocked(parallel.parallelRetrieve).mockResolvedValue(FAKE_SOURCES)
 
-    const gemini = await import('@/lib/gemini')
-    vi.mocked(gemini.generateText).mockResolvedValue('The Gita teaches...')
-    vi.mocked(gemini.generateTextStream as ReturnType<typeof vi.fn>).mockImplementation(async function* () {
+    const groq = await import('@/lib/llm')
+    vi.mocked(groq.generateText).mockResolvedValue('The Gita teaches...')
+    vi.mocked(groq.generateTextStream as ReturnType<typeof vi.fn>).mockImplementation(async function* () {
       yield 'The Gita teaches...'
     })
 
@@ -98,9 +93,9 @@ describe('POST /api/chat — memory injection', () => {
 
   it('uses the enriched system prompt from profileInjector in generation', async () => {
     const { POST } = await import('@/app/api/chat/route')
-    const gemini = await import('@/lib/gemini')
+    const groq = await import('@/lib/llm')
     await parseStream(await POST(makeRequest({ message: 'What is dharma?' })))
-    const promptArg = (vi.mocked(gemini.generateTextStream as ReturnType<typeof vi.fn>).mock.calls[0] as [string])[0]
+    const promptArg = (vi.mocked(groq.generateTextStream as ReturnType<typeof vi.fn>).mock.calls[0] as [string])[0]
     expect(promptArg).toContain('ENRICHED_SYSTEM_PROMPT')
   })
 })

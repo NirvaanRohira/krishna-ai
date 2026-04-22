@@ -8,13 +8,8 @@ vi.mock('@/lib/retrieval/parallelRetrieval', () => ({ parallelRetrieve: vi.fn() 
 vi.mock('@/lib/guardrails/classifier', () => ({ classifyMessage: vi.fn() }))
 vi.mock('@/lib/retrieval/structuralLookup', () => ({ queryStructuralLookup: vi.fn() }))
 vi.mock('@/lib/retrieval/contextRetrieval', () => ({ getContextVector: vi.fn() }))
-vi.mock('@/lib/gemini', () => ({
-  generateText: vi.fn(),
-  generateTextStream: vi.fn(),
-  embedText: vi.fn(),
-  classify: vi.fn(),
-  EMBEDDING_DIMENSION: 1536,
-}))
+vi.mock('@/lib/gemini', () => ({ embedText: vi.fn(), EMBEDDING_DIMENSION: 1536 }))
+vi.mock('@/lib/llm', () => ({ generateText: vi.fn(), generateTextStream: vi.fn(), classify: vi.fn() }))
 
 const FAKE_SOURCES = [
   { id: 1, text_source: 'bhagavad_gita', book_chapter: 2, verse: 47, text: 'karmanye vadhikaraste...', theme_tags: ['karma'], score: 0.8 },
@@ -74,10 +69,10 @@ describe('POST /api/chat — complexity routing', () => {
     parallelRetrieve = vi.mocked(parallel.parallelRetrieve)
     parallelRetrieve.mockResolvedValue(FAKE_SOURCES)
 
-    const gemini = await import('@/lib/gemini')
-    generateTextStream = vi.mocked(gemini.generateTextStream as ReturnType<typeof vi.fn>)
+    const groq = await import('@/lib/llm')
+    generateTextStream = vi.mocked(groq.generateTextStream as ReturnType<typeof vi.fn>)
     generateTextStream.mockImplementation(async function* () { yield 'Fast path response' })
-    vi.mocked(gemini.generateText).mockResolvedValue('Fast path response')
+    vi.mocked(groq.generateText).mockResolvedValue('Fast path response')
 
     const guardrail = await import('@/lib/guardrails/classifier')
     vi.mocked(guardrail.classifyMessage).mockResolvedValue('SAFE')

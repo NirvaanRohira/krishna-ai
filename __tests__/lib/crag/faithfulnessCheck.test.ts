@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-vi.mock('@/lib/gemini', () => ({ classify: vi.fn() }))
+vi.mock('@/lib/llm', () => ({ classify: vi.fn(), generateText: vi.fn(), generateTextStream: vi.fn() }))
 
 const FAKE_SOURCES = [
   { id: 1, text_source: 'bhagavad_gita', book_chapter: 2, verse: 47, text: 'karmanye vadhikaraste...', theme_tags: ['karma'], score: 0.8 },
@@ -11,7 +11,7 @@ describe('checkFaithfulness', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks()
-    const gemini = await import('@/lib/gemini')
+    const gemini = await import('@/lib/llm')
     classify = vi.mocked(gemini.classify)
   })
 
