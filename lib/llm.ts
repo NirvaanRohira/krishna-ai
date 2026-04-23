@@ -45,10 +45,20 @@ function makeClient(cfg: ProviderConfig): OpenAI {
 const client = makeClient(primary)
 const fallbackClient = fallbackCfg ? makeClient(fallbackCfg) : undefined
 
-function isRateLimit(err: unknown): boolean {
+function shouldFallback(err: unknown): boolean {
   if (err instanceof Error) {
     const msg = err.message.toLowerCase()
-    return msg.includes('429') || msg.includes('rate limit') || msg.includes('quota')
+    return (
+      msg.includes('429') ||
+      msg.includes('rate limit') ||
+      msg.includes('quota') ||
+      msg.includes('timeout') ||
+      msg.includes('econnreset') ||
+      msg.includes('econnrefused') ||
+      msg.includes('network') ||
+      msg.includes('fetch failed') ||
+      msg.includes('connect')
+    )
   }
   return false
 }
@@ -57,7 +67,7 @@ async function withFallback<T>(fn: (c: OpenAI, model: string, classifyModel: str
   try {
     return await fn(client, GENERATION_MODEL, CLASSIFY_MODEL)
   } catch (err) {
-    if (fallbackClient && fallbackCfg && isRateLimit(err)) {
+    if (fallbackClient && fallbackCfg && shouldFallback(err)) {
       console.warn('[llm] rate limit on', ACTIVE_PROVIDER, '— falling back to', FALLBACK_PROVIDER)
       return fn(fallbackClient, fallbackCfg.generationModel, fallbackCfg.classifyModel)
     }

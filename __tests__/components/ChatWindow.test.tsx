@@ -17,7 +17,7 @@ describe('ChatWindow', () => {
   it('renders an InputBar', () => {
     render(<ChatWindow messages={[]} onSend={vi.fn()} loading={false} />)
     expect(screen.getByRole('textbox')).toBeTruthy()
-    expect(screen.getByRole('button')).toBeTruthy()
+    expect(screen.getByText('Send')).toBeTruthy()
   })
 
   it('renders an empty state when there are no messages', () => {
@@ -27,6 +27,6 @@ describe('ChatWindow', () => {
 
   it('passes loading state to InputBar, disabling input while waiting', () => {
     render(<ChatWindow messages={[]} onSend={vi.fn()} loading={true} />)
-    expect(screen.getByRole('button')).toHaveProperty('disabled', true)
+    expect(screen.getByText('Send')).toHaveProperty('disabled', true)
   })
 })
