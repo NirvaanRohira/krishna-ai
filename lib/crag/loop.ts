@@ -29,7 +29,7 @@ export async function runCRAG(
   history: Message[],
   options: { topN?: number; supabaseClient?: SupabaseClient; systemPrompt?: string; anchors?: LookupResult[]; onChunk?: (chunk: string) => Promise<void>; prefetchedSources?: RRFResult[] }
 ): Promise<{ response: string; sources: RRFResult[] }> {
-  const MAX_RETRIES = 2
+  const MAX_RETRIES = 1
   let currentQuery = query
   let bestSources: RRFResult[] = []
 

@@ -6,5 +6,6 @@ export async function checkRelevance(query: string, sources: RRFResult[]): Promi
   if (sources.length === 0) return false
   const prompt = buildRelevancePrompt(query, sources)
   const result = await classify(prompt)
-  return result.trim().toUpperCase() === 'RELEVANT'
+  const upper = result.trim().toUpperCase()
+  return upper.startsWith('RELEVANT') && !upper.startsWith('NOT_RELEVANT')
 }
