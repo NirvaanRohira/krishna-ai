@@ -42,8 +42,18 @@ function makeClient(cfg: ProviderConfig): OpenAI {
   return new OpenAI({ apiKey: cfg.apiKey(), baseURL: cfg.baseURL })
 }
 
-const client = makeClient(primary)
-const fallbackClient = fallbackCfg ? makeClient(fallbackCfg) : undefined
+let _client: OpenAI | undefined
+let _fallbackClient: OpenAI | undefined
+
+function getClient() {
+  if (!_client) _client = makeClient(primary)
+  return _client
+}
+
+function getFallbackClient() {
+  if (!_fallbackClient && fallbackCfg) _fallbackClient = makeClient(fallbackCfg)
+  return _fallbackClient
+}
 
 function shouldFallback(err: unknown): boolean {
   if (err instanceof Error) {
@@ -65,11 +75,12 @@ function shouldFallback(err: unknown): boolean {
 
 async function withFallback<T>(fn: (c: OpenAI, model: string, classifyModel: string) => Promise<T>): Promise<T> {
   try {
-    return await fn(client, GENERATION_MODEL, CLASSIFY_MODEL)
+    return await fn(getClient(), GENERATION_MODEL, CLASSIFY_MODEL)
   } catch (err) {
-    if (fallbackClient && fallbackCfg && shouldFallback(err)) {
+    const fb = getFallbackClient()
+    if (fb && fallbackCfg && shouldFallback(err)) {
       console.warn('[llm] rate limit on', ACTIVE_PROVIDER, '— falling back to', FALLBACK_PROVIDER)
-      return fn(fallbackClient, fallbackCfg.generationModel, fallbackCfg.classifyModel)
+      return fn(fb, fallbackCfg.generationModel, fallbackCfg.classifyModel)
     }
     throw err
   }
