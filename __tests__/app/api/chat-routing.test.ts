@@ -101,7 +101,8 @@ describe('POST /api/chat — complexity routing', () => {
     expect(res.status).toBe(200)
     await parseStream(res)
     expect(runCRAG).toHaveBeenCalled()
-    expect(parallelRetrieve).not.toHaveBeenCalled()
+    // parallelRetrieve runs once upfront as a prefetch; CRAG reuses it via prefetchedSources
+    expect(parallelRetrieve).toHaveBeenCalledTimes(1)
   })
 
   it('returns CRAG response and sources for COMPLEX query', async () => {

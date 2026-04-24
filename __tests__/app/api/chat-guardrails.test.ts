@@ -74,12 +74,12 @@ describe('POST /api/chat — guardrails', () => {
     vi.mocked(l4.getContextVector).mockResolvedValue(null)
   })
 
-  it('intercepts CRISIS messages — returns fixed response without calling retrieval', async () => {
+  it('intercepts CRISIS messages — returns fixed response', async () => {
     classifyMessage.mockResolvedValue('CRISIS')
     const { POST } = await import('@/app/api/chat/route')
     const { response } = await parseStream(await POST(makeRequest({ message: 'I want to kill myself' })))
     expect(response).toContain('9152987821')
-    expect(parallelRetrieve).not.toHaveBeenCalled()
+    // retrieval prefetches in parallel with guardrail classify; fixed response still returned
   })
 
   it('intercepts MEDICAL messages with fixed response', async () => {
@@ -87,7 +87,7 @@ describe('POST /api/chat — guardrails', () => {
     const { POST } = await import('@/app/api/chat/route')
     const { response } = await parseStream(await POST(makeRequest({ message: 'I have chest pains' })))
     expect(response.toLowerCase()).toContain('doctor')
-    expect(parallelRetrieve).not.toHaveBeenCalled()
+    // retrieval prefetches in parallel; result discarded on guardrail hit
   })
 
   it('stores guardrail exchange with grounding_passed: false', async () => {

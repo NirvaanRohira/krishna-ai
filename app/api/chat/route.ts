@@ -63,8 +63,30 @@ export async function POST(req: Request) {
 
   ;(async () => {
     try {
-      // ── Guardrail check (pre-LLM) ──────────────────────────────
-      const category = await classifyMessage(message)
+      // ── All independent pre-retrieval work fires at once ──────────
+      const recentHistory = (history as Message[]).slice(-40)
+      const retrievalQuery = buildRetrievalQuery(message, recentHistory)
+      const keywords = extractKeywords(message)
+
+      const [
+        category,
+        { data: sessionRow },
+        complexity,
+        systemPrompt,
+        anchors,
+        contextVector,
+        retrievedSources,
+      ] = await Promise.all([
+        classifyMessage(message),
+        supabase.from('sessions').select('turn_count').eq('id', sessionId).single(),
+        classifyComplexity(message),
+        loadAndInjectProfile(user.id, supabase),
+        queryStructuralLookup(keywords, { supabaseClient: supabase }),
+        getContextVector(user.id, { supabaseClient: supabase }),
+        parallelRetrieve(retrievalQuery, { supabaseClient: supabase }),
+      ])
+
+      // ── Guardrail gate (checked after parallel fan-out) ────────
       const fixedResponse = getGuardrailResponse(category)
 
       if (fixedResponse !== undefined) {
@@ -81,19 +103,6 @@ export async function POST(req: Request) {
         return
       }
 
-      // ── Parallel: turn count + complexity + profile (all independent of each other) ──
-      const recentHistory = (history as Message[]).slice(-40)
-      const retrievalQuery = buildRetrievalQuery(message, recentHistory)
-      const keywords = extractKeywords(message)
-
-      const [{ data: sessionRow }, complexity, systemPrompt, anchors, contextVector] = await Promise.all([
-        supabase.from('sessions').select('turn_count').eq('id', sessionId).single(),
-        classifyComplexity(message),
-        loadAndInjectProfile(user.id, supabase),
-        queryStructuralLookup(keywords, { supabaseClient: supabase }),
-        getContextVector(user.id, { supabaseClient: supabase }),
-      ])
-
       const turnCount: number = (sessionRow as { turn_count?: number } | null)?.turn_count ?? 0
       if (turnCount >= 15) {
         console.log('[persona-drift-check] turn', turnCount, '— injecting drift reminder')
@@ -101,7 +110,7 @@ export async function POST(req: Request) {
       void contextVector // reserved for L4 future use: pass to dense retrieval as secondary vector
 
       if (complexity === 'SIMPLE') {
-        const sources = await parallelRetrieve(retrievalQuery, { supabaseClient: supabase })
+        const sources = retrievedSources
         await writer.write(sseChunk({ t: 's', id: sessionId, src: sources }))
 
         const prompt = buildPrompt(sources, recentHistory, message, systemPrompt, anchors)
@@ -122,6 +131,7 @@ export async function POST(req: Request) {
             supabaseClient: supabase,
             systemPrompt,
             anchors,
+            prefetchedSources: retrievedSources,
             onChunk: async (chunk) => {
               chunksEmitted = true
               await writer.write(sseChunk({ t: 'c', v: chunk }))

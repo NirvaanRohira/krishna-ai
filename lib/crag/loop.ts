@@ -27,14 +27,16 @@ async function generate(
 export async function runCRAG(
   query: string,
   history: Message[],
-  options: { topN?: number; supabaseClient?: SupabaseClient; systemPrompt?: string; anchors?: LookupResult[]; onChunk?: (chunk: string) => Promise<void> }
+  options: { topN?: number; supabaseClient?: SupabaseClient; systemPrompt?: string; anchors?: LookupResult[]; onChunk?: (chunk: string) => Promise<void>; prefetchedSources?: RRFResult[] }
 ): Promise<{ response: string; sources: RRFResult[] }> {
   const MAX_RETRIES = 2
   let currentQuery = query
   let bestSources: RRFResult[] = []
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    const sources = await parallelRetrieve(currentQuery, options)
+    const sources = attempt === 0 && options.prefetchedSources
+      ? options.prefetchedSources
+      : await parallelRetrieve(currentQuery, options)
 
     if (sources.length > 0 && bestSources.length === 0) bestSources = sources
 
