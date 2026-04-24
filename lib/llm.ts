@@ -23,8 +23,8 @@ const PROVIDERS: Record<string, ProviderConfig> = {
   deepseek: {
     baseURL: 'https://api.deepseek.com/v1',
     apiKey: () => process.env.DEEPSEEK_API_KEY!,
-    generationModel: 'deepseek-chat',
-    classifyModel: 'deepseek-chat',
+    generationModel: 'deepseek-v4-flash',
+    classifyModel: 'deepseek-v4-flash',
   },
 }
 
