@@ -8,7 +8,14 @@ export default function OnboardingPage() {
 
   async function handleAccept() {
     setLoading(true)
-    await fetch('/api/onboarding/complete', { method: 'POST' })
+    try {
+      await Promise.race([
+        fetch('/api/onboarding/complete', { method: 'POST' }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
+      ])
+    } catch {
+      // non-blocking — proceed to chat regardless
+    }
     router.push('/chat')
   }
 
