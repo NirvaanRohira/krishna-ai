@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ChatWindow } from '@/components/ChatWindow'
 import { DisclaimerBadge } from '@/components/DisclaimerBadge'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
+import { useTTS } from '@/hooks/useTTS'
 
 type Message = { role: 'user' | 'assistant'; content: string }
 
@@ -45,6 +46,7 @@ export default function ChatPage() {
   const router = useRouter()
   const messagesRef = useRef(messages)
   messagesRef.current = messages
+  const { speak, stop, toggle, enabled: ttsEnabled } = useTTS()
 
   useEffect(() => {
     const supabase = createBrowserSupabaseClient()
@@ -103,6 +105,8 @@ export default function ChatPage() {
 
       if (assembled === '') {
         setMessages([...withUser, { role: 'assistant', content: errorMsg || FALLBACK_ERROR }])
+      } else {
+        speak(assembled)
       }
     } catch {
       setMessages([...withUser, { role: 'assistant', content: FALLBACK_ERROR }])
@@ -114,6 +118,14 @@ export default function ChatPage() {
   return (
     <main className="chat-page">
       <DisclaimerBadge />
+      <button
+        onClick={() => { toggle(); stop() }}
+        className="tts-toggle"
+        title={ttsEnabled ? 'Mute voice' : 'Unmute voice'}
+        aria-label={ttsEnabled ? 'Mute voice' : 'Unmute voice'}
+      >
+        {ttsEnabled ? '🔊' : '🔇'}
+      </button>
       <ChatWindow messages={messages} onSend={handleSend} loading={loading} />
     </main>
   )
