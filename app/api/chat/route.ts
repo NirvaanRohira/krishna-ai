@@ -63,6 +63,7 @@ export async function POST(req: Request) {
 
   ;(async () => {
     try {
+      const t0 = Date.now()
       // ── All independent pre-retrieval work fires at once ──────────
       const recentHistory = (history as Message[]).slice(-40)
       const retrievalQuery = buildRetrievalQuery(message, recentHistory)
@@ -77,14 +78,15 @@ export async function POST(req: Request) {
         contextVector,
         retrievedSources,
       ] = await Promise.all([
-        classifyMessage(message),
+        classifyMessage(message).then(r => { console.log(`[timing] guardrail: ${Date.now()-t0}ms`); return r }),
         supabase.from('sessions').select('turn_count').eq('id', sessionId).single(),
-        classifyComplexity(message),
-        loadAndInjectProfile(user.id, supabase),
-        queryStructuralLookup(keywords, { supabaseClient: supabase }),
-        getContextVector(user.id, { supabaseClient: supabase }),
-        parallelRetrieve(retrievalQuery, { supabaseClient: supabase }),
+        classifyComplexity(message).then(r => { console.log(`[timing] complexity: ${Date.now()-t0}ms`); return r }),
+        loadAndInjectProfile(user.id, supabase).then(r => { console.log(`[timing] profile: ${Date.now()-t0}ms`); return r }),
+        queryStructuralLookup(keywords, { supabaseClient: supabase }).then(r => { console.log(`[timing] lookup: ${Date.now()-t0}ms`); return r }),
+        getContextVector(user.id, { supabaseClient: supabase }).then(r => { console.log(`[timing] ctx-vec: ${Date.now()-t0}ms`); return r }),
+        parallelRetrieve(retrievalQuery, { supabaseClient: supabase }).then(r => { console.log(`[timing] retrieve: ${Date.now()-t0}ms`); return r }),
       ])
+      console.log(`[timing] fan-out done: ${Date.now()-t0}ms, complexity=${complexity}`)
 
       // ── Guardrail gate (checked after parallel fan-out) ────────
       const fixedResponse = getGuardrailResponse(category)
@@ -115,7 +117,9 @@ export async function POST(req: Request) {
 
         const prompt = buildPrompt(sources, recentHistory, message, systemPrompt, anchors)
         let fullResponse = ''
+        let firstChunk = true
         for await (const chunk of generateTextStream(prompt)) {
+          if (firstChunk) { console.log(`[timing] SIMPLE first token: ${Date.now()-t0}ms`); firstChunk = false }
           fullResponse += chunk
           await writer.write(sseChunk({ t: 'c', v: chunk }))
         }
@@ -133,6 +137,7 @@ export async function POST(req: Request) {
             anchors,
             prefetchedSources: retrievedSources,
             onChunk: async (chunk) => {
+              if (!chunksEmitted) console.log(`[timing] CRAG first token: ${Date.now()-t0}ms`)
               chunksEmitted = true
               await writer.write(sseChunk({ t: 'c', v: chunk }))
             },

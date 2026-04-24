@@ -34,6 +34,7 @@ export async function runCRAG(
   let bestSources: RRFResult[] = []
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const t = Date.now()
     const sources = attempt === 0 && options.prefetchedSources
       ? options.prefetchedSources
       : await parallelRetrieve(currentQuery, options)
@@ -41,6 +42,7 @@ export async function runCRAG(
     if (sources.length > 0 && bestSources.length === 0) bestSources = sources
 
     const relevant = await checkRelevance(currentQuery, sources)
+    console.log(`[timing] CRAG attempt ${attempt}: relevance=${relevant} (${Date.now()-t}ms)`)
     if (relevant) {
       const prompt = buildPrompt(sources, history, query, options.systemPrompt, options.anchors)
       const response = await generate(prompt, options.onChunk)
