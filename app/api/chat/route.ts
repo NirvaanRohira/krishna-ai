@@ -1,3 +1,5 @@
+export const maxDuration = 60
+
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { classifyComplexity } from '@/lib/retrieval/complexityRouter'
@@ -6,7 +8,7 @@ import { getGuardrailResponse } from '@/lib/guardrails/responses'
 import { parallelRetrieve } from '@/lib/retrieval/parallelRetrieval'
 import { runCRAG } from '@/lib/crag/loop'
 import { buildPrompt } from '@/lib/prompts/chat'
-import { generateText, generateTextStream } from '@/lib/llm'
+import { generateTextStream } from '@/lib/llm'
 import { startSession, saveExchange, endSession } from '@/lib/session'
 import { loadAndInjectProfile } from '@/lib/memory/profileInjector'
 import { queryStructuralLookup } from '@/lib/retrieval/structuralLookup'
