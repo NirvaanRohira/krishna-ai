@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
 
-export async function transcribeAudio(audio: Blob, _filename = 'audio.webm'): Promise<string> {
+export async function transcribeAudio(audio: Blob): Promise<string> {
   const base64 = Buffer.from(await audio.arrayBuffer()).toString('base64')
   const result = await model.generateContent([
     { inlineData: { mimeType: audio.type || 'audio/webm', data: base64 } },

@@ -35,8 +35,7 @@ export function InputBar({ onSubmit, loading = false }: InputBarProps) {
       return
     }
 
-    const SR = (window as typeof window & { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition
-      ?? (window as typeof window & { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition
+    const SR = window.SpeechRecognition ?? window.webkitSpeechRecognition
 
     if (!SR) {
       alert('Your browser does not support voice input. Try Chrome or Edge.')
