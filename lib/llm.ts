@@ -26,6 +26,12 @@ const PROVIDERS: Record<string, ProviderConfig> = {
     generationModel: 'deepseek-v4-flash',
     classifyModel: 'deepseek-v4-flash',
   },
+  gemini: {
+    baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+    apiKey: () => process.env.GEMINI_API_KEY!,
+    generationModel: 'gemini-2.0-flash',
+    classifyModel: 'gemini-2.0-flash-lite',
+  },
 }
 
 export const ACTIVE_PROVIDER = process.env.LLM_PROVIDER ?? 'groq'
