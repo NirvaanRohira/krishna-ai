@@ -1,7 +1,7 @@
 export function DisclaimerBadge() {
   return (
-    <div className="disclaimer-badge">
-      This is an AI drawing from Sanskrit texts. It is not a spiritual authority.
+    <div className="disclaimer-badge" role="note">
+      AI · draws from Sanskrit texts · not a spiritual authority
     </div>
   )
 }

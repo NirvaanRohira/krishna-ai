@@ -2,25 +2,28 @@ import Link from 'next/link'
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-8 p-8">
-      <div className="text-center space-y-4">
-        <h1 className="text-4xl font-light tracking-wide">Krishna AI</h1>
-        <p className="text-neutral-500 text-sm max-w-sm">
-          A voice that draws on the Bhagavad Gita and the Upanishads to offer
-          perspective on your life.
-        </p>
-      </div>
+    <main className="landing-page">
+      {/* Flame icon — SVG, no emoji */}
+      <svg className="landing-icon fade-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M12 2C12 2 7 8 7 13a5 5 0 0 0 10 0c0-5-5-11-5-11z"/>
+        <path d="M12 12c0 0-2 1.5-2 3a2 2 0 0 0 4 0c0-1.5-2-3-2-3z"/>
+      </svg>
 
-      <Link
-        href="/login"
-        className="px-6 py-3 bg-neutral-900 text-white text-sm rounded-full hover:bg-neutral-700 transition-colors"
-      >
+      <h1 className="landing-title fade-up fade-up-delay-1">Kanha</h1>
+      <p className="landing-subtitle fade-up fade-up-delay-1">A voice from the sacred texts</p>
+
+      <p className="landing-description fade-up fade-up-delay-2">
+        Wisdom drawn from the Bhagavad Gita, Upanishads,<br />
+        Yoga Sutras, and Bhagavatam —<br />
+        offered in the spirit of a yogi who has lived them.
+      </p>
+
+      <Link href="/login" className="landing-begin fade-up fade-up-delay-3">
         Begin
       </Link>
 
-      <p className="text-xs text-neutral-400 text-center max-w-xs">
-        This is an AI drawing from Sanskrit texts. It is not a spiritual
-        authority.
+      <p className="landing-disclaimer">
+        This is an AI drawing from Sanskrit texts. It is not a spiritual authority.
       </p>
     </main>
   )
