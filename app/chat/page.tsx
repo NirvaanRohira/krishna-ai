@@ -46,7 +46,7 @@ export default function ChatPage() {
   const router = useRouter()
   const messagesRef = useRef(messages)
   messagesRef.current = messages
-  const { speak, enqueue, stop, toggle, enabled: ttsEnabled } = useTTS()
+  const { enqueue, stop, toggle, enabled: ttsEnabled } = useTTS()
   const sentenceBufferRef = useRef('')
 
   useEffect(() => {
