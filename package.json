@@ -13,6 +13,7 @@
     "ingest:gita": "npx tsx --env-file=.env.local scripts/ingest-gita.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-polly": "^3.1037.0",
     "@google/generative-ai": "^0.24.1",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.3",

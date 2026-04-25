@@ -46,7 +46,8 @@ export default function ChatPage() {
   const router = useRouter()
   const messagesRef = useRef(messages)
   messagesRef.current = messages
-  const { speak, stop, toggle, enabled: ttsEnabled } = useTTS()
+  const { speak, enqueue, stop, toggle, enabled: ttsEnabled } = useTTS()
+  const sentenceBufferRef = useRef('')
 
   useEffect(() => {
     const supabase = createBrowserSupabaseClient()
@@ -65,6 +66,8 @@ export default function ChatPage() {
     // Placeholder so user sees something immediately
     const withPlaceholder: Message[] = [...withUser, { role: 'assistant', content: '' }]
     setMessages(withPlaceholder)
+    stop()
+    sentenceBufferRef.current = ''
 
     try {
       const res = await fetch('/api/chat', {
@@ -91,6 +94,14 @@ export default function ChatPage() {
         res,
         (chunk) => {
           assembled += chunk
+          sentenceBufferRef.current += chunk
+          // Enqueue completed sentences to Polly mid-stream
+          const boundary = sentenceBufferRef.current.search(/[.!?]\s/)
+          if (boundary !== -1) {
+            const sentence = sentenceBufferRef.current.slice(0, boundary + 1)
+            sentenceBufferRef.current = sentenceBufferRef.current.slice(boundary + 2)
+            enqueue(sentence)
+          }
           flushSync(() => {
             setMessages([...withUser, { role: 'assistant', content: assembled }])
           })
@@ -106,7 +117,9 @@ export default function ChatPage() {
       if (assembled === '') {
         setMessages([...withUser, { role: 'assistant', content: errorMsg || FALLBACK_ERROR }])
       } else {
-        speak(assembled)
+        // Flush any remaining partial sentence
+        if (sentenceBufferRef.current.trim()) enqueue(sentenceBufferRef.current.trim())
+        sentenceBufferRef.current = ''
       }
     } catch {
       setMessages([...withUser, { role: 'assistant', content: FALLBACK_ERROR }])
