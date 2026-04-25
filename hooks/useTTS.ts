@@ -49,6 +49,19 @@ export function useTTS() {
     }
   }, [])
 
+  // Unlock iOS Safari audio — call during a user gesture (e.g. send button)
+  const unlockAudio = useCallback(() => {
+    const AudioCtx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+    if (!AudioCtx) return
+    const ctx = new AudioCtx()
+    const buf = ctx.createBuffer(1, 1, 22050)
+    const src = ctx.createBufferSource()
+    src.buffer = buf
+    src.connect(ctx.destination)
+    src.start(0)
+    ctx.resume().catch(() => {})
+  }, [])
+
   // Enqueue a sentence — starts playing immediately if idle
   const enqueue = useCallback((text: string) => {
     if (!enabledRef.current || !text.trim()) return
@@ -62,5 +75,5 @@ export function useTTS() {
     enqueue(text)
   }, [stop, enqueue])
 
-  return { speak, enqueue, stop, toggle, enabled }
+  return { speak, enqueue, stop, toggle, enabled, unlockAudio }
 }

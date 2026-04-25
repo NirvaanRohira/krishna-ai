@@ -1,4 +1,17 @@
 import { SYSTEM_PROMPT_V0 } from '@/lib/prompts/system_v0'
+
+function formatRef(source: string, bookChapter: string | number, verse: string | number): string {
+  const src = String(source)
+  const ch = Number(bookChapter)
+  if (src === 'srimad_bhagavatam' && ch >= 1000) {
+    const skandha = Math.floor(ch / 1000)
+    const chapter = ch % 1000
+    return `srimad_bhagavatam Skandha ${skandha} Chapter ${chapter} verse ${verse}`
+  }
+  if (src === 'bhagavad_gita') return `bhagavad_gita chapter ${bookChapter} verse ${verse}`
+  if (src === 'yoga_sutras') return `yoga_sutras ${bookChapter}.${verse}`
+  return `${src} ${bookChapter}.${verse}`
+}
 import type { RRFResult } from '@/lib/retrieval/rrfMerge'
 import type { LookupResult } from '@/lib/retrieval/structuralLookup'
 
@@ -16,7 +29,7 @@ export function buildPrompt(
     : ''
 
   const contextBlock = sources
-    .map((s, i) => `[${i + 1}] ${s.text_source} ${s.book_chapter}.${s.verse}: ${s.text}`)
+    .map((s, i) => `[${i + 1}] ${formatRef(s.text_source, s.book_chapter, s.verse)}: ${s.text}`)
     .join('\n')
 
   const historyBlock = history

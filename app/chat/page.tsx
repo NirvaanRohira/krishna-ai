@@ -46,7 +46,7 @@ export default function ChatPage() {
   const router = useRouter()
   const messagesRef = useRef(messages)
   messagesRef.current = messages
-  const { enqueue, stop, toggle, enabled: ttsEnabled } = useTTS()
+  const { enqueue, stop, toggle, enabled: ttsEnabled, unlockAudio } = useTTS()
   const sentenceBufferRef = useRef('')
 
   useEffect(() => {
@@ -57,6 +57,7 @@ export default function ChatPage() {
   }, [router])
 
   async function handleSend(message: string) {
+    unlockAudio()
     // Capture history before any state mutations
     const priorMessages = [...messagesRef.current]
     const withUser: Message[] = [...priorMessages, { role: 'user', content: message }]
