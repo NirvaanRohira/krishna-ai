@@ -43,6 +43,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [videoMode, setVideoMode] = useState(false)
   const router = useRouter()
   const messagesRef = useRef(messages)
   messagesRef.current = messages
@@ -179,7 +180,35 @@ export default function ChatPage() {
           </svg>
         )}
       </button>
-      <ChatWindow messages={messages} onSend={handleSend} loading={loading} />
+      <button
+        onClick={() => setVideoMode(v => !v)}
+        className={`tts-toggle video-toggle${videoMode ? ' tts-toggle--active' : ''}`}
+        title="Video call (Coming Soon)"
+        aria-label="Video call"
+        type="button"
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <polygon points="23 7 16 12 23 17 23 7"/>
+          <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+        </svg>
+      </button>
+      {videoMode ? (
+        <div className="coming-soon-panel">
+          <div className="coming-soon-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polygon points="23 7 16 12 23 17 23 7"/>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+            </svg>
+          </div>
+          <p className="coming-soon-title">Coming Soon</p>
+          <p className="coming-soon-subtitle">Video calls with an interactive avatar are in development. Stay in text mode for now.</p>
+          <button className="coming-soon-dismiss" onClick={() => setVideoMode(false)} type="button">
+            Back to chat
+          </button>
+        </div>
+      ) : (
+        <ChatWindow messages={messages} onSend={handleSend} loading={loading} />
+      )}
     </main>
   )
 }

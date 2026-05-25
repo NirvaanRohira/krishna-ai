@@ -131,6 +131,48 @@ body::before {
 }
 .tts-toggle--active { color: var(--accent); }
 
+/* Video toggle — sits to the left of the TTS toggle */
+.video-toggle {
+  right: 2.75rem;
+}
+
+/* ── Coming Soon panel ────────────────────────────────────────────────────── */
+.coming-soon-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem;
+  text-align: center;
+  color: var(--fg-muted);
+}
+.coming-soon-icon { opacity: 0.35; }
+.coming-soon-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--fg);
+  letter-spacing: 0.04em;
+}
+.coming-soon-subtitle {
+  font-size: 0.85rem;
+  max-width: 22rem;
+  line-height: 1.55;
+}
+.coming-soon-dismiss {
+  margin-top: 0.5rem;
+  padding: 0.5rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: none;
+  color: var(--fg-muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: color 0.2s, border-color 0.2s;
+}
+.coming-soon-dismiss:hover { color: var(--fg); border-color: var(--fg-muted); }
+
 /* ── Chat window ──────────────────────────────────────────────────────────── */
 .chat-window {
   display: flex;
