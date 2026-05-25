@@ -136,6 +136,7 @@ export async function POST(req: Request) {
             systemPrompt,
             anchors,
             prefetchedSources: retrievedSources,
+            originalMessage: message,
             onChunk: async (chunk) => {
               if (!chunksEmitted) console.log(`[timing] CRAG first token: ${Date.now()-t0}ms`)
               chunksEmitted = true

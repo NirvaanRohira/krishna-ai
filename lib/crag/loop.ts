@@ -27,7 +27,7 @@ async function generate(
 export async function runCRAG(
   query: string,
   history: Message[],
-  options: { topN?: number; supabaseClient?: SupabaseClient; systemPrompt?: string; anchors?: LookupResult[]; onChunk?: (chunk: string) => Promise<void>; prefetchedSources?: RRFResult[] }
+  options: { topN?: number; supabaseClient?: SupabaseClient; systemPrompt?: string; anchors?: LookupResult[]; onChunk?: (chunk: string) => Promise<void>; prefetchedSources?: RRFResult[]; originalMessage?: string }
 ): Promise<{ response: string; sources: RRFResult[] }> {
   const MAX_RETRIES = 1
   let currentQuery = query
@@ -44,7 +44,8 @@ export async function runCRAG(
     const relevant = await checkRelevance(currentQuery, sources)
     console.log(`[timing] CRAG attempt ${attempt}: relevance=${relevant} (${Date.now()-t}ms)`)
     if (relevant) {
-      const prompt = buildPrompt(sources, history, query, options.systemPrompt, options.anchors)
+      const displayMessage = options.originalMessage ?? query
+      const prompt = buildPrompt(sources, history, displayMessage, options.systemPrompt, options.anchors)
       const response = await generate(prompt, options.onChunk)
       return { response, sources }
     }
@@ -56,7 +57,8 @@ export async function runCRAG(
 
   // Soft fallback: we have sources but none passed relevance — still generate from best
   if (bestSources.length > 0) {
-    const prompt = buildPrompt(bestSources, history, query, options.systemPrompt, options.anchors)
+    const displayMessage = options.originalMessage ?? query
+    const prompt = buildPrompt(bestSources, history, displayMessage, options.systemPrompt, options.anchors)
     const response = await generate(prompt, options.onChunk)
     return { response, sources: bestSources }
   }

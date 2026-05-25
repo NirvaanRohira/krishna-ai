@@ -119,4 +119,18 @@ describe('runCRAG', () => {
     })
     expect(chunks.length).toBeGreaterThan(0)
   })
+
+  it('uses originalMessage in the prompt instead of enriched retrieval query', async () => {
+    const { runCRAG } = await import('@/lib/crag/loop')
+    const enrichedQuery = 'prior context appended for retrieval current message assistant summary'
+    const originalMessage = 'current message'
+    await runCRAG(enrichedQuery, [], {
+      originalMessage,
+      onChunk: async () => {},
+    })
+    const promptArg = generateTextStream.mock.calls[0][0] as string
+    // Seeker line must show the user's real message, not the enriched blob
+    expect(promptArg).toContain(`Seeker: ${originalMessage}`)
+    expect(promptArg).not.toContain('prior context appended for retrieval')
+  })
 })
