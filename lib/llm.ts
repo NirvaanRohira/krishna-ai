@@ -44,6 +44,11 @@ const fallbackCfg = FALLBACK_PROVIDER ? PROVIDERS[FALLBACK_PROVIDER] : undefined
 export const GENERATION_MODEL = process.env.LLM_GENERATION_MODEL ?? primary.generationModel
 export const CLASSIFY_MODEL = process.env.LLM_CLASSIFY_MODEL ?? primary.classifyModel
 
+const DEFAULT_TIMEOUT_GEN = 15_000
+const DEFAULT_TIMEOUT_CLASSIFY = 5_000
+
+export type LLMOptions = { timeoutMs?: number }
+
 function makeClient(cfg: ProviderConfig): OpenAI {
   return new OpenAI({ apiKey: cfg.apiKey(), baseURL: cfg.baseURL })
 }
@@ -61,8 +66,22 @@ function getFallbackClient() {
   return _fallbackClient
 }
 
+function raceTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => {
+        const err = Object.assign(new Error(`LLM timeout after ${ms}ms`), { isTimeout: true })
+        reject(err)
+      }, ms)
+    ),
+  ])
+}
+
 function shouldFallback(err: unknown): boolean {
   if (err instanceof Error) {
+    // Never fall back on self-imposed timeouts — the fallback would also time out
+    if ((err as { isTimeout?: boolean }).isTimeout) return false
     const msg = err.message.toLowerCase()
     return (
       msg.includes('429') ||
@@ -92,26 +111,27 @@ async function withFallback<T>(fn: (c: OpenAI, model: string, classifyModel: str
   }
 }
 
-export async function generateText(prompt: string): Promise<string> {
+export async function generateText(prompt: string, opts: LLMOptions = {}): Promise<string> {
+  const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_GEN
   return withFallback(async (c, model) => {
-    const completion = await c.chat.completions.create({
-      model,
-      messages: [{ role: 'user', content: prompt }],
-    })
+    const completion = await raceTimeout(
+      c.chat.completions.create({ model, messages: [{ role: 'user', content: prompt }] }),
+      timeoutMs
+    )
     return completion.choices[0]?.message?.content ?? ''
   })
 }
 
-export async function* generateTextStream(prompt: string): AsyncGenerator<string> {
+export async function* generateTextStream(prompt: string, opts: LLMOptions = {}): AsyncGenerator<string> {
   const messages = [{ role: 'user' as const, content: prompt }]
+  const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_GEN
   let yieldedAny = false
 
   try {
-    const stream = await getClient().chat.completions.create({
-      model: GENERATION_MODEL,
-      messages,
-      stream: true,
-    })
+    const stream = await raceTimeout(
+      getClient().chat.completions.create({ model: GENERATION_MODEL, messages, stream: true }),
+      timeoutMs
+    )
     for await (const chunk of stream) {
       const text = chunk.choices[0]?.delta?.content ?? ''
       if (text) { yieldedAny = true; yield text }
@@ -135,13 +155,13 @@ export async function* generateTextStream(prompt: string): AsyncGenerator<string
   }
 }
 
-export async function classify(prompt: string): Promise<string> {
+export async function classify(prompt: string, opts: LLMOptions = {}): Promise<string> {
+  const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_CLASSIFY
   return withFallback(async (c, _gen, classifyModel) => {
-    const completion = await c.chat.completions.create({
-      model: classifyModel,
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 10,
-    })
+    const completion = await raceTimeout(
+      c.chat.completions.create({ model: classifyModel, messages: [{ role: 'user', content: prompt }], max_tokens: 10 }),
+      timeoutMs
+    )
     return (completion.choices[0]?.message?.content ?? '').trim()
   })
 }

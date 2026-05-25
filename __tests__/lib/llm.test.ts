@@ -18,6 +18,7 @@ beforeAll(() => {
 })
 
 beforeEach(() => {
+  mockCreate.mockReset()
   mockCreate.mockResolvedValue({
     choices: [{ message: { content: 'mocked response' }, delta: { content: '' } }],
   })
@@ -54,6 +55,26 @@ describe('lib/llm', () => {
     const mod = await import('@/lib/llm')
     expect(typeof mod.ACTIVE_PROVIDER).toBe('string')
   })
+
+  it('generateText rejects with a timeout error when the API call hangs beyond the generation timeout', async () => {
+    // Simulate a hung API call — never resolves
+    mockCreate.mockImplementationOnce(() => new Promise(() => {}))
+    const mod = await import('@/lib/llm')
+    await expect(mod.generateText('test', { timeoutMs: 50 })).rejects.toThrow(/timeout|abort/i)
+  }, 200)
+
+  it('classify rejects with a timeout error when the API call hangs beyond the classify timeout', async () => {
+    mockCreate.mockImplementationOnce(() => new Promise(() => {}))
+    const mod = await import('@/lib/llm')
+    await expect(mod.classify('test', { timeoutMs: 50 })).rejects.toThrow(/timeout|abort/i)
+  }, 200)
+
+  it('generateTextStream rejects with a timeout error when the API call hangs', async () => {
+    mockCreate.mockImplementationOnce(() => new Promise(() => {}))
+    const mod = await import('@/lib/llm')
+    const gen = mod.generateTextStream('test', { timeoutMs: 50 })
+    await expect(gen.next()).rejects.toThrow(/timeout|abort/i)
+  }, 200)
 
   it('generateTextStream falls back to secondary provider when stream iteration throws a rate-limit error', async () => {
     // First create() call returns a generator that immediately throws 429
