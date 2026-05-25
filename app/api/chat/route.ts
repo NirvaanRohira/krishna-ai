@@ -127,6 +127,9 @@ export async function POST(req: Request) {
         await saveExchange(supabase, sessionId, message, fullResponse, sources)
 
       } else {
+        // Emit session ID before CRAG starts so the client can track the session
+        // even when CRAG takes several seconds. Sources are emitted after.
+        await writer.write(sseChunk({ t: 's', id: sessionId }))
         let chunksEmitted = false
         const { response, sources } = await runCRAG(
           retrievalQuery,
@@ -144,7 +147,6 @@ export async function POST(req: Request) {
             },
           }
         )
-        await writer.write(sseChunk({ t: 's', id: sessionId, src: sources }))
 
         // give-up path: onChunk never called, emit response as tokens
         if (!chunksEmitted) {

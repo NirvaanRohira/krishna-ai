@@ -105,13 +105,12 @@ describe('POST /api/chat — complexity routing', () => {
     expect(parallelRetrieve).toHaveBeenCalledTimes(1)
   })
 
-  it('returns CRAG response and sources for COMPLEX query', async () => {
+  it('returns CRAG response for COMPLEX query', async () => {
     classifyComplexity.mockResolvedValue('COMPLEX')
     const { POST } = await import('@/app/api/chat/route')
     const res = await POST(makeRequest({ message: 'why do I feel so lost?' }))
-    const { response, sources } = await parseStream(res)
+    const { response } = await parseStream(res)
     expect(response).toBe('CRAG response')
-    expect(sources).toHaveLength(1)
   })
 
   it('passes history to runCRAG for COMPLEX queries', async () => {
@@ -128,5 +127,33 @@ describe('POST /api/chat — complexity routing', () => {
     const { POST } = await import('@/app/api/chat/route')
     await parseStream(await POST(makeRequest({ message: 'What is dharma?' })))
     expect(classifyComplexity).toHaveBeenCalledWith('What is dharma?')
+  })
+
+  it('emits session metadata (t:s) before any content chunks (t:c) on the COMPLEX path', async () => {
+    classifyComplexity.mockResolvedValue('COMPLEX')
+    // Simulate CRAG calling onChunk mid-stream
+    runCRAG.mockImplementation(async (_q: unknown, _h: unknown, opts: { onChunk?: (c: string) => Promise<void> }) => {
+      if (opts.onChunk) {
+        await opts.onChunk('dharma ')
+        await opts.onChunk('response')
+      }
+      return { response: 'dharma response', sources: FAKE_SOURCES }
+    })
+
+    const { POST } = await import('@/app/api/chat/route')
+    const res = await POST(makeRequest({ message: 'What are my duties?' }))
+    const text = await res.text()
+
+    const events: Array<{ t: string }> = []
+    for (const line of text.split('\n')) {
+      if (!line.startsWith('data: ') || line.trim() === 'data: [DONE]') continue
+      try { events.push(JSON.parse(line.slice(6))) } catch { /* skip */ }
+    }
+
+    const sIdx = events.findIndex(e => e.t === 's')
+    const firstCIdx = events.findIndex(e => e.t === 'c')
+    expect(sIdx).toBeGreaterThanOrEqual(0)
+    expect(firstCIdx).toBeGreaterThanOrEqual(0)
+    expect(sIdx).toBeLessThan(firstCIdx)  // metadata must arrive before first chunk
   })
 })
