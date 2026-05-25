@@ -62,4 +62,16 @@ describe('POST /api/session/end', () => {
     const res = await POST(makeRequest({}))
     expect(res.status).toBe(400)
   })
+
+  it('accepts sendBeacon text/plain body and returns 200', async () => {
+    const { POST } = await import('@/app/api/session/end/route')
+    const req = new Request('http://localhost/api/session/end', {
+      method: 'POST',
+      body: JSON.stringify({ sessionId: FAKE_SESSION_ID }),
+      headers: { 'Content-Type': 'text/plain' },
+    })
+    const res = await POST(req)
+    expect(res.status).toBe(200)
+    expect(endSession).toHaveBeenCalledWith(expect.anything(), FAKE_SESSION_ID)
+  })
 })

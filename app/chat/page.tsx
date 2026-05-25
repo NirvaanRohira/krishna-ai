@@ -46,6 +46,10 @@ export default function ChatPage() {
   const router = useRouter()
   const messagesRef = useRef(messages)
   messagesRef.current = messages
+  // Keep a ref in sync so the beforeunload/visibilitychange closure always
+  // sees the current sessionId without needing to re-register the listener.
+  const sessionIdRef = useRef<string | null>(null)
+  sessionIdRef.current = sessionId
   const { enqueue, stop, toggle, enabled: ttsEnabled, unlockAudio } = useTTS()
   const sentenceBufferRef = useRef('')
 
@@ -55,6 +59,28 @@ export default function ChatPage() {
       if (!user) router.push('/login')
     })
   }, [router])
+
+  // End the session when the user closes or hides the tab so post-session
+  // profile extraction fires. sendBeacon works on tab close; fetch does not.
+  useEffect(() => {
+    const endSession = () => {
+      const id = sessionIdRef.current
+      if (!id) return
+      navigator.sendBeacon(
+        '/api/session/end',
+        new Blob([JSON.stringify({ sessionId: id })], { type: 'application/json' })
+      )
+    }
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') endSession()
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    window.addEventListener('beforeunload', endSession)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      window.removeEventListener('beforeunload', endSession)
+    }
+  }, [])
 
   async function handleSend(message: string) {
     unlockAudio()
