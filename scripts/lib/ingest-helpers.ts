@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { tagVerse } from './keyword-tagger'
 import type { ParsedVerse } from './gretil-parser'
 
+
 export async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 8): Promise<T> {
   let lastErr: unknown
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -55,14 +56,13 @@ export function makeClients() {
 }
 
 type EmbeddingModel = ReturnType<GoogleGenerativeAI['getGenerativeModel']>
-type SupabaseClient = ReturnType<typeof createClient>
 
 export async function ingestSource(
   textSource: string,
   verses: ParsedVerse[],
   canonicalCount: number,
   embeddingModel: EmbeddingModel,
-  supabase: SupabaseClient
+  supabase: any
 ) {
   // Resume mode: paginate to get ALL already-embedded verses.
   // PostgREST max_rows=1000 is a server-side cap — .limit() alone can't exceed it.
@@ -103,7 +103,7 @@ export async function ingestSource(
 
     const embedResult = await withRetry(() =>
       embeddingModel.batchEmbedContents({
-        requests: chunk.map(v => ({ content: { parts: [{ text: v.text }] } })),
+        requests: chunk.map(v => ({ content: { role: 'user', parts: [{ text: v.text }] } })),
       })
     )
 
