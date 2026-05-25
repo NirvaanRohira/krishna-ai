@@ -97,6 +97,12 @@ export default function ChatPage() {
     stop()
     sentenceBufferRef.current = ''
 
+    // After 700ms with no content, enqueue a thinking sound if TTS is enabled
+    let firstChunkReceived = false
+    const thinkingTimer = ttsEnabled
+      ? setTimeout(() => { if (!firstChunkReceived) enqueue('Hmm...') }, 700)
+      : undefined
+
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
@@ -121,6 +127,10 @@ export default function ChatPage() {
       await consumeStream(
         res,
         (chunk) => {
+          if (!firstChunkReceived) {
+            firstChunkReceived = true
+            if (thinkingTimer !== undefined) clearTimeout(thinkingTimer)
+          }
           assembled += chunk
           sentenceBufferRef.current += chunk
           // Enqueue completed sentences to Polly mid-stream
@@ -152,6 +162,7 @@ export default function ChatPage() {
     } catch {
       setMessages([...withUser, { role: 'assistant', content: FALLBACK_ERROR }])
     } finally {
+      if (thinkingTimer !== undefined) clearTimeout(thinkingTimer)
       setLoading(false)
     }
   }

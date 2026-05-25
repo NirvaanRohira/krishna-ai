@@ -27,4 +27,20 @@ describe('MessageBubble', () => {
     const assistantClass = (assistantContainer.firstChild as HTMLElement).className
     expect(userClass).not.toBe(assistantClass)
   })
+
+  it('shows a thinking indicator when streaming with no content yet', () => {
+    const { container } = render(<MessageBubble role="assistant" content="" streaming={true} />)
+    const bubble = container.firstChild as HTMLElement
+    // Bubble should have a thinking class or contain a thinking indicator element
+    const hasThinkingClass = bubble.className.includes('thinking')
+    const hasThinkingChild = bubble.querySelector('[data-thinking]') !== null
+    expect(hasThinkingClass || hasThinkingChild).toBe(true)
+  })
+
+  it('does not show thinking indicator when content has arrived', () => {
+    const { container } = render(<MessageBubble role="assistant" content="The Gita teaches..." streaming={true} />)
+    const bubble = container.firstChild as HTMLElement
+    expect(bubble.className).not.toContain('thinking')
+    expect(bubble.querySelector('[data-thinking]')).toBeNull()
+  })
 })

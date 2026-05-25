@@ -5,15 +5,21 @@ interface MessageBubbleProps {
 }
 
 export function MessageBubble({ role, content, streaming = false }: MessageBubbleProps) {
+  const isThinking = role === 'assistant' && streaming && content === ''
   const cls = [
     'message-bubble',
     `message-bubble--${role}`,
-    role === 'assistant' && streaming ? 'streaming' : '',
+    streaming && !isThinking ? 'streaming' : '',
+    isThinking ? 'message-bubble--thinking' : '',
   ].filter(Boolean).join(' ')
 
   return (
     <div className={cls}>
-      {content}
+      {isThinking ? (
+        <span className="thinking-dots" data-thinking="true" aria-label="Thinking">
+          <span /><span /><span />
+        </span>
+      ) : content}
     </div>
   )
 }
