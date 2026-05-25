@@ -103,16 +103,35 @@ export async function generateText(prompt: string): Promise<string> {
 }
 
 export async function* generateTextStream(prompt: string): AsyncGenerator<string> {
-  const stream = await withFallback(async (c, model) =>
-    c.chat.completions.create({
-      model,
-      messages: [{ role: 'user', content: prompt }],
+  const messages = [{ role: 'user' as const, content: prompt }]
+  let yieldedAny = false
+
+  try {
+    const stream = await getClient().chat.completions.create({
+      model: GENERATION_MODEL,
+      messages,
       stream: true,
     })
-  )
-  for await (const chunk of stream) {
-    const text = chunk.choices[0]?.delta?.content ?? ''
-    if (text) yield text
+    for await (const chunk of stream) {
+      const text = chunk.choices[0]?.delta?.content ?? ''
+      if (text) { yieldedAny = true; yield text }
+    }
+  } catch (err) {
+    const fb = getFallbackClient()
+    if (!yieldedAny && fb && fallbackCfg && shouldFallback(err)) {
+      console.warn('[llm] stream error on', ACTIVE_PROVIDER, '— falling back to', FALLBACK_PROVIDER)
+      const fallbackStream = await fb.chat.completions.create({
+        model: fallbackCfg.generationModel,
+        messages,
+        stream: true,
+      })
+      for await (const chunk of fallbackStream) {
+        const text = chunk.choices[0]?.delta?.content ?? ''
+        if (text) yield text
+      }
+    } else {
+      throw err
+    }
   }
 }
 

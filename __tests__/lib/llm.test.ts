@@ -1,9 +1,8 @@
-import { describe, it, expect, beforeAll, vi } from 'vitest'
+import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest'
+
+const mockCreate = vi.fn()
 
 vi.mock('openai', () => {
-  const mockCreate = vi.fn().mockResolvedValue({
-    choices: [{ message: { content: 'mocked response' }, delta: { content: '' } }],
-  })
   class MockOpenAI {
     chat = { completions: { create: mockCreate } }
   }
@@ -12,9 +11,16 @@ vi.mock('openai', () => {
 
 beforeAll(() => {
   vi.stubEnv('LLM_PROVIDER', 'groq')
+  vi.stubEnv('LLM_FALLBACK', 'nvidia')
   vi.stubEnv('GROQ_API_KEY', 'test-groq-key')
   vi.stubEnv('NVIDIA_API_KEY', 'test-nvidia-key')
   vi.stubEnv('DEEPSEEK_API_KEY', 'test-deepseek-key')
+})
+
+beforeEach(() => {
+  mockCreate.mockResolvedValue({
+    choices: [{ message: { content: 'mocked response' }, delta: { content: '' } }],
+  })
 })
 
 describe('lib/llm', () => {
@@ -47,5 +53,31 @@ describe('lib/llm', () => {
   it('exports ACTIVE_PROVIDER string', async () => {
     const mod = await import('@/lib/llm')
     expect(typeof mod.ACTIVE_PROVIDER).toBe('string')
+  })
+
+  it('generateTextStream falls back to secondary provider when stream iteration throws a rate-limit error', async () => {
+    // First create() call returns a generator that immediately throws 429
+    async function* failingStream() {
+      throw new Error('429 rate limit exceeded')
+      // eslint-disable-next-line no-unreachable
+      yield { choices: [{ delta: { content: '' } }] }
+    }
+    // Second create() call (fallback client) returns good content
+    async function* fallbackStream() {
+      yield { choices: [{ delta: { content: 'from' } }] }
+      yield { choices: [{ delta: { content: ' fallback' } }] }
+    }
+    mockCreate
+      .mockResolvedValueOnce(failingStream())
+      .mockResolvedValueOnce(fallbackStream())
+
+    const mod = await import('@/lib/llm')
+    const chunks: string[] = []
+    for await (const chunk of mod.generateTextStream('test')) {
+      chunks.push(chunk)
+    }
+    // Two create() calls means fallback fired; content comes from fallback
+    expect(mockCreate).toHaveBeenCalledTimes(2)
+    expect(chunks.join('')).toBe('from fallback')
   })
 })
