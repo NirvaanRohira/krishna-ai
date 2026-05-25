@@ -1,4 +1,4 @@
-import { SYSTEM_PROMPT_V0 } from '@/lib/prompts/system_v0'
+import { SYSTEM_PROMPT_V1 } from '@/lib/prompts/system_v1'
 
 function formatRef(source: string, bookChapter: string | number, verse: string | number): string {
   const src = String(source)
@@ -37,7 +37,7 @@ export function buildPrompt(
     .join('\n')
 
   return [
-    systemPrompt ?? SYSTEM_PROMPT_V0,
+    systemPrompt ?? SYSTEM_PROMPT_V1,
     '',
     '--- Retrieved context ---',
     anchorBlock,
