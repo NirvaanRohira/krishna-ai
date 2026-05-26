@@ -72,12 +72,19 @@ export default function ChatPage() {
         new Blob([JSON.stringify({ sessionId: id })], { type: 'application/json' })
       )
     }
+    let visibilityTimer: ReturnType<typeof setTimeout> | undefined
     const onVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') endSession()
+      if (document.visibilityState === 'hidden') {
+        // Grace period: cancel if the user comes back within 30s
+        visibilityTimer = setTimeout(endSession, 30_000)
+      } else {
+        if (visibilityTimer !== undefined) clearTimeout(visibilityTimer)
+      }
     }
     document.addEventListener('visibilitychange', onVisibilityChange)
     window.addEventListener('beforeunload', endSession)
     return () => {
+      if (visibilityTimer !== undefined) clearTimeout(visibilityTimer)
       document.removeEventListener('visibilitychange', onVisibilityChange)
       window.removeEventListener('beforeunload', endSession)
     }
@@ -97,10 +104,25 @@ export default function ChatPage() {
     stop()
     sentenceBufferRef.current = ''
 
-    // After 700ms with no content, enqueue a thinking sound if TTS is enabled
+    // After 700ms with no content, enqueue thinking phrases every few seconds
     let firstChunkReceived = false
+    const thinkingPhrases = [
+      'Hmm...',
+      'Let me reflect on this...',
+      'The texts speak to this...',
+      'Give me a moment...',
+    ]
+    let thinkingIndex = 0
+    let thinkingInterval: ReturnType<typeof setInterval> | undefined
     const thinkingTimer = ttsEnabled
-      ? setTimeout(() => { if (!firstChunkReceived) enqueue('Hmm...') }, 700)
+      ? setTimeout(() => {
+          if (firstChunkReceived) return
+          enqueue(thinkingPhrases[thinkingIndex++ % thinkingPhrases.length])
+          thinkingInterval = setInterval(() => {
+            if (firstChunkReceived) { clearInterval(thinkingInterval); return }
+            enqueue(thinkingPhrases[thinkingIndex++ % thinkingPhrases.length])
+          }, 4000)
+        }, 700)
       : undefined
 
     try {
@@ -130,6 +152,7 @@ export default function ChatPage() {
           if (!firstChunkReceived) {
             firstChunkReceived = true
             if (thinkingTimer !== undefined) clearTimeout(thinkingTimer)
+            if (thinkingInterval !== undefined) clearInterval(thinkingInterval)
           }
           assembled += chunk
           sentenceBufferRef.current += chunk
@@ -163,6 +186,7 @@ export default function ChatPage() {
       setMessages([...withUser, { role: 'assistant', content: FALLBACK_ERROR }])
     } finally {
       if (thinkingTimer !== undefined) clearTimeout(thinkingTimer)
+      if (thinkingInterval !== undefined) clearInterval(thinkingInterval)
       setLoading(false)
     }
   }
