@@ -108,10 +108,10 @@ describe('POST /api/chat — L3 structural lookup + L4 context retrieval + real 
     )
   })
 
-  it('SIMPLE path calls getContextVector with the authenticated user id', async () => {
+  it('SIMPLE path does not call getContextVector (removed dead code — was always voided)', async () => {
     const { POST } = await import('@/app/api/chat/route')
     await parseStream(await POST(makeRequest({ message: 'Who am I' })))
-    expect(getContextVector).toHaveBeenCalledWith('user-123', expect.anything())
+    expect(getContextVector).not.toHaveBeenCalled()
   })
 
   it('SIMPLE path uses generateTextStream (real streaming) instead of generateText', async () => {
@@ -139,12 +139,12 @@ describe('POST /api/chat — L3 structural lookup + L4 context retrieval + real 
     expect(queryStructuralLookup).toHaveBeenCalled()
   })
 
-  it('COMPLEX path also calls getContextVector', async () => {
+  it('COMPLEX path does not call getContextVector (removed dead code — was always voided)', async () => {
     const router = await import('@/lib/retrieval/complexityRouter')
     vi.mocked(router.classifyComplexity).mockResolvedValue('COMPLEX')
     const { POST } = await import('@/app/api/chat/route')
     await parseStream(await POST(makeRequest({ message: 'deep existential question' })))
-    expect(getContextVector).toHaveBeenCalledWith('user-123', expect.anything())
+    expect(getContextVector).not.toHaveBeenCalled()
   })
 
   it('works correctly when getContextVector returns null (user has no stored summary)', async () => {

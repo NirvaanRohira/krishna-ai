@@ -12,7 +12,6 @@ import { generateTextStream } from '@/lib/llm'
 import { startSession, saveExchange, endSession } from '@/lib/session'
 import { loadAndInjectProfile } from '@/lib/memory/profileInjector'
 import { queryStructuralLookup } from '@/lib/retrieval/structuralLookup'
-import { getContextVector } from '@/lib/retrieval/contextRetrieval'
 
 type Message = { role: 'user' | 'assistant'; content: string }
 
@@ -41,6 +40,13 @@ function buildRetrievalQuery(message: string, history: Message[]): string {
   return [lastUser, message, lastAssistant].filter(Boolean).join(' ')
 }
 
+const GREETING_RE = /^(hi|hey|hello|how are you|good morning|namaste|hare krishna)/i
+
+function isGreetingMessage(message: string): boolean {
+  const words = message.trim().split(/\s+/)
+  return words.length <= 4 && GREETING_RE.test(message.trim())
+}
+
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
   const { message, history = [], sessionId: existingSessionId } = body
@@ -57,6 +63,7 @@ export async function POST(req: Request) {
   }
 
   const sessionId: string = existingSessionId ?? await startSession(supabase, user.id)
+  const recentHistory = (history as Message[]).slice(-40)
 
   const stream = new TransformStream<Uint8Array, Uint8Array>()
   const writer = stream.writable.getWriter()
@@ -64,8 +71,24 @@ export async function POST(req: Request) {
   ;(async () => {
     try {
       const t0 = Date.now()
+
+      // ── Greeting fast path: skip all LLM pre-processing ──────────
+      if (isGreetingMessage(message)) {
+        const systemPrompt = await loadAndInjectProfile(user.id, supabase)
+        const prompt = buildPrompt([], recentHistory, message, systemPrompt, [])
+        await writer.write(sseChunk({ t: 's', id: sessionId, src: [] }))
+        let fullResponse = ''
+        for await (const chunk of generateTextStream(prompt)) {
+          fullResponse += chunk
+          await writer.write(sseChunk({ t: 'c', v: chunk }))
+        }
+        console.log(`[timing] greeting response: ${Date.now()-t0}ms`)
+        await saveExchange(supabase, sessionId, message, fullResponse, [])
+        await writer.write(sseChunk('[DONE]'))
+        return
+      }
+
       // ── All independent pre-retrieval work fires at once ──────────
-      const recentHistory = (history as Message[]).slice(-40)
       const retrievalQuery = buildRetrievalQuery(message, recentHistory)
       const keywords = extractKeywords(message)
 
@@ -75,7 +98,6 @@ export async function POST(req: Request) {
         complexity,
         systemPrompt,
         anchors,
-        contextVector,
         retrievedSources,
       ] = await Promise.all([
         classifyMessage(message).then(r => { console.log(`[timing] guardrail: ${Date.now()-t0}ms`); return r }),
@@ -83,7 +105,6 @@ export async function POST(req: Request) {
         classifyComplexity(message).then(r => { console.log(`[timing] complexity: ${Date.now()-t0}ms`); return r }),
         loadAndInjectProfile(user.id, supabase).then(r => { console.log(`[timing] profile: ${Date.now()-t0}ms`); return r }),
         queryStructuralLookup(keywords, { supabaseClient: supabase }).then(r => { console.log(`[timing] lookup: ${Date.now()-t0}ms`); return r }),
-        getContextVector(user.id, { supabaseClient: supabase }).then(r => { console.log(`[timing] ctx-vec: ${Date.now()-t0}ms`); return r }),
         parallelRetrieve(retrievalQuery, { supabaseClient: supabase }).then(r => { console.log(`[timing] retrieve: ${Date.now()-t0}ms`); return r }),
       ])
       console.log(`[timing] fan-out done: ${Date.now()-t0}ms, complexity=${complexity}`)
@@ -109,7 +130,6 @@ export async function POST(req: Request) {
       if (turnCount >= 15) {
         console.log('[persona-drift-check] turn', turnCount, '— injecting drift reminder')
       }
-      void contextVector // reserved for L4 future use: pass to dense retrieval as secondary vector
 
       if (complexity === 'SIMPLE') {
         const sources = retrievedSources

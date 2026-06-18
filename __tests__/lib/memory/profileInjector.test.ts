@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('@/lib/prompts/system_v0', () => ({
-  SYSTEM_PROMPT_V0: 'BASE_SYSTEM_PROMPT',
+  SYSTEM_PROMPT_V0: 'V0_SYSTEM_PROMPT',
+}))
+
+vi.mock('@/lib/prompts/system_v2', () => ({
+  SYSTEM_PROMPT_V2: 'V2_SYSTEM_PROMPT',
 }))
 
 const FAKE_USER_PROFILE = {
@@ -47,17 +51,24 @@ describe('loadAndInjectProfile', () => {
     vi.clearAllMocks()
   })
 
-  it('returns base system prompt when user has no profile data', async () => {
+  it('uses SYSTEM_PROMPT_V2 (not V0) — V2 has Light/Personal/Deep tiers that handle greetings correctly', async () => {
     const { loadAndInjectProfile } = await import('@/lib/memory/profileInjector')
     const prompt = await loadAndInjectProfile('user-1', makeSupabase(null, null) as never)
-    expect(prompt).toBe('BASE_SYSTEM_PROMPT')
+    expect(prompt).toBe('V2_SYSTEM_PROMPT')
+    expect(prompt).not.toContain('V0_SYSTEM_PROMPT')
+  })
+
+  it('returns V2 system prompt when user has no profile data', async () => {
+    const { loadAndInjectProfile } = await import('@/lib/memory/profileInjector')
+    const prompt = await loadAndInjectProfile('user-1', makeSupabase(null, null) as never)
+    expect(prompt).toBe('V2_SYSTEM_PROMPT')
   })
 
   it('prepends profile context block to system prompt when user has data', async () => {
     const { loadAndInjectProfile } = await import('@/lib/memory/profileInjector')
     const prompt = await loadAndInjectProfile('user-1', makeSupabase() as never)
-    expect(prompt).toContain('BASE_SYSTEM_PROMPT')
-    expect(prompt.indexOf('BASE_SYSTEM_PROMPT')).toBeGreaterThan(0) // context comes first
+    expect(prompt).toContain('V2_SYSTEM_PROMPT')
+    expect(prompt.indexOf('V2_SYSTEM_PROMPT')).toBeGreaterThan(0) // context comes first
   })
 
   it('includes life_context from user_profiles in the injected block', async () => {
@@ -88,6 +99,6 @@ describe('loadAndInjectProfile', () => {
     const { loadAndInjectProfile } = await import('@/lib/memory/profileInjector')
     const prompt = await loadAndInjectProfile('user-1', makeSupabase(FAKE_USER_PROFILE, null) as never)
     expect(prompt).toContain('career change')
-    expect(prompt).toContain('BASE_SYSTEM_PROMPT')
+    expect(prompt).toContain('V2_SYSTEM_PROMPT')
   })
 })

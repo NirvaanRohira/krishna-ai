@@ -24,6 +24,36 @@ beforeEach(() => {
   })
 })
 
+describe('lib/llm — classify provider isolation', () => {
+  it('CLASSIFY_PROVIDER defaults to groq even when LLM_PROVIDER=deepseek', async () => {
+    vi.resetModules()
+    vi.stubEnv('LLM_PROVIDER', 'deepseek')
+    vi.stubEnv('LLM_CLASSIFY_PROVIDER', '')
+    vi.stubEnv('DEEPSEEK_API_KEY', 'test-deepseek-key')
+    vi.stubEnv('GROQ_API_KEY', 'test-groq-key')
+    const mod = await import('@/lib/llm')
+    expect(mod.CLASSIFY_PROVIDER).toBe('groq')
+    expect(mod.CLASSIFY_MODEL).toBe('llama-3.1-8b-instant')
+    // Restore to match beforeAll stubs so subsequent tests aren't affected
+    vi.stubEnv('LLM_PROVIDER', 'groq')
+    vi.stubEnv('LLM_CLASSIFY_PROVIDER', '')
+    vi.resetModules()
+  })
+
+  it('CLASSIFY_PROVIDER respects LLM_CLASSIFY_PROVIDER override', async () => {
+    vi.resetModules()
+    vi.stubEnv('LLM_PROVIDER', 'deepseek')
+    vi.stubEnv('LLM_CLASSIFY_PROVIDER', 'nvidia')
+    vi.stubEnv('DEEPSEEK_API_KEY', 'test-deepseek-key')
+    vi.stubEnv('NVIDIA_API_KEY', 'test-nvidia-key')
+    const mod = await import('@/lib/llm')
+    expect(mod.CLASSIFY_PROVIDER).toBe('nvidia')
+    vi.stubEnv('LLM_PROVIDER', 'groq')
+    vi.stubEnv('LLM_CLASSIFY_PROVIDER', '')
+    vi.resetModules()
+  })
+})
+
 describe('lib/llm', () => {
   it('exports generateText function', async () => {
     const mod = await import('@/lib/llm')

@@ -1,4 +1,4 @@
-import { SYSTEM_PROMPT_V0 } from '@/lib/prompts/system_v0'
+import { SYSTEM_PROMPT_V2 } from '@/lib/prompts/system_v2'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 export async function loadAndInjectProfile(
@@ -12,7 +12,7 @@ export async function loadAndInjectProfile(
 
   const hasData = userProfile?.life_context || spiritualProfile?.primary_attachments?.length
 
-  if (!hasData) return SYSTEM_PROMPT_V0
+  if (!hasData) return SYSTEM_PROMPT_V2
 
   const lines: string[] = ['## About this person (from prior sessions)']
 
@@ -32,5 +32,5 @@ export async function loadAndInjectProfile(
     lines.push(`Recurring themes: ${(spiritualProfile.recurring_themes as string[]).join(', ')}`)
   }
 
-  return `${lines.join('\n')}\n\n${SYSTEM_PROMPT_V0}`
+  return `${lines.join('\n')}\n\n${SYSTEM_PROMPT_V2}`
 }

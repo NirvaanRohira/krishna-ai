@@ -40,9 +40,13 @@ const FALLBACK_PROVIDER = process.env.LLM_FALLBACK
 const primary = PROVIDERS[ACTIVE_PROVIDER] ?? PROVIDERS.groq
 const fallbackCfg = FALLBACK_PROVIDER ? PROVIDERS[FALLBACK_PROVIDER] : undefined
 
-// Override individual models without changing provider — set in .env.local
 export const GENERATION_MODEL = process.env.LLM_GENERATION_MODEL ?? primary.generationModel
-export const CLASSIFY_MODEL = process.env.LLM_CLASSIFY_MODEL ?? primary.classifyModel
+
+// Classify is always pinned to Groq by default — fast 8B model, ~150ms regardless of generation provider.
+// Override both provider and model via LLM_CLASSIFY_PROVIDER / LLM_CLASSIFY_MODEL in .env.local.
+export const CLASSIFY_PROVIDER = process.env.LLM_CLASSIFY_PROVIDER || 'groq'
+const classifyProviderCfg = PROVIDERS[CLASSIFY_PROVIDER] ?? PROVIDERS.groq
+export const CLASSIFY_MODEL = process.env.LLM_CLASSIFY_MODEL ?? classifyProviderCfg.classifyModel
 
 const DEFAULT_TIMEOUT_GEN = 15_000
 const DEFAULT_TIMEOUT_CLASSIFY = 5_000
@@ -55,6 +59,7 @@ function makeClient(cfg: ProviderConfig): OpenAI {
 
 let _client: OpenAI | undefined
 let _fallbackClient: OpenAI | undefined
+let _classifyClient: OpenAI | undefined
 
 function getClient() {
   if (!_client) _client = makeClient(primary)
@@ -64,6 +69,11 @@ function getClient() {
 function getFallbackClient() {
   if (!_fallbackClient && fallbackCfg) _fallbackClient = makeClient(fallbackCfg)
   return _fallbackClient
+}
+
+function getClassifyClient() {
+  if (!_classifyClient) _classifyClient = makeClient(classifyProviderCfg)
+  return _classifyClient
 }
 
 function raceTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -98,14 +108,14 @@ function shouldFallback(err: unknown): boolean {
   return false
 }
 
-async function withFallback<T>(fn: (c: OpenAI, model: string, classifyModel: string) => Promise<T>): Promise<T> {
+async function withFallback<T>(fn: (c: OpenAI, model: string) => Promise<T>): Promise<T> {
   try {
-    return await fn(getClient(), GENERATION_MODEL, CLASSIFY_MODEL)
+    return await fn(getClient(), GENERATION_MODEL)
   } catch (err) {
     const fb = getFallbackClient()
     if (fb && fallbackCfg && shouldFallback(err)) {
       console.warn('[llm] rate limit on', ACTIVE_PROVIDER, '— falling back to', FALLBACK_PROVIDER)
-      return fn(fb, fallbackCfg.generationModel, fallbackCfg.classifyModel)
+      return fn(fb, fallbackCfg.generationModel)
     }
     throw err
   }
@@ -157,11 +167,13 @@ export async function* generateTextStream(prompt: string, opts: LLMOptions = {})
 
 export async function classify(prompt: string, opts: LLMOptions = {}): Promise<string> {
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_CLASSIFY
-  return withFallback(async (c, _gen, classifyModel) => {
-    const completion = await raceTimeout(
-      c.chat.completions.create({ model: classifyModel, messages: [{ role: 'user', content: prompt }], max_tokens: 10 }),
-      timeoutMs
-    )
-    return (completion.choices[0]?.message?.content ?? '').trim()
-  })
+  const completion = await raceTimeout(
+    getClassifyClient().chat.completions.create({
+      model: CLASSIFY_MODEL,
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 10,
+    }),
+    timeoutMs
+  )
+  return (completion.choices[0]?.message?.content ?? '').trim()
 }

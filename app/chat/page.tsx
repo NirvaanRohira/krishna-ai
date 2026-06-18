@@ -104,7 +104,7 @@ export default function ChatPage() {
     stop()
     sentenceBufferRef.current = ''
 
-    // After 700ms with no content, enqueue thinking phrases every few seconds
+    // After 700ms with no content, show a thinking phrase in text and speak it (if TTS on)
     let firstChunkReceived = false
     const thinkingPhrases = [
       'Hmm...',
@@ -114,16 +114,22 @@ export default function ChatPage() {
     ]
     let thinkingIndex = 0
     let thinkingInterval: ReturnType<typeof setInterval> | undefined
-    const thinkingTimer = ttsEnabled
-      ? setTimeout(() => {
-          if (firstChunkReceived) return
-          enqueue(thinkingPhrases[thinkingIndex++ % thinkingPhrases.length])
-          thinkingInterval = setInterval(() => {
-            if (firstChunkReceived) { clearInterval(thinkingInterval); return }
-            enqueue(thinkingPhrases[thinkingIndex++ % thinkingPhrases.length])
-          }, 4000)
-        }, 700)
-      : undefined
+
+    const showThinkingPhrase = () => {
+      if (firstChunkReceived) return
+      const phrase = thinkingPhrases[thinkingIndex++ % thinkingPhrases.length]
+      if (ttsEnabled) enqueue(phrase)
+      flushSync(() => setMessages([...withUser, { role: 'assistant', content: phrase }]))
+    }
+
+    const thinkingTimer = setTimeout(() => {
+      if (firstChunkReceived) return
+      showThinkingPhrase()
+      thinkingInterval = setInterval(() => {
+        if (firstChunkReceived) { clearInterval(thinkingInterval); return }
+        showThinkingPhrase()
+      }, 4000)
+    }, 1500)
 
     try {
       const res = await fetch('/api/chat', {
