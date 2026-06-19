@@ -4,6 +4,7 @@ import { flushSync } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { ChatWindow } from '@/components/ChatWindow'
 import { DisclaimerBadge } from '@/components/DisclaimerBadge'
+import AnamVideoPanel, { type AnamVideoHandle } from '@/components/AnamVideoPanel'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 import { useTTS } from '@/hooks/useTTS'
 
@@ -44,6 +45,7 @@ export default function ChatPage() {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [videoMode, setVideoMode] = useState(false)
+  const anamRef = useRef<AnamVideoHandle | null>(null)
   const router = useRouter()
   const messagesRef = useRef(messages)
   messagesRef.current = messages
@@ -103,6 +105,8 @@ export default function ChatPage() {
     setMessages(withPlaceholder)
     stop()
     sentenceBufferRef.current = ''
+    // Interrupt avatar if it's still speaking from the last turn
+    if (videoMode) anamRef.current?.interrupt()
 
     // After 700ms with no content, show a thinking phrase in text and speak it (if TTS on)
     let firstChunkReceived = false
@@ -151,6 +155,7 @@ export default function ChatPage() {
 
       let assembled = ''
       let errorMsg = ''
+      const chunks: string[] = []
 
       await consumeStream(
         res,
@@ -161,13 +166,20 @@ export default function ChatPage() {
             if (thinkingInterval !== undefined) clearInterval(thinkingInterval)
           }
           assembled += chunk
+          chunks.push(chunk)
+          // Stream chunk to avatar in real-time
+          if (videoMode && anamRef.current) {
+            anamRef.current.streamChunk(chunk, false).catch(() => {})
+          }
           sentenceBufferRef.current += chunk
-          // Enqueue completed sentences to Polly mid-stream
-          const boundary = sentenceBufferRef.current.search(/[.!?]\s/)
-          if (boundary !== -1) {
-            const sentence = sentenceBufferRef.current.slice(0, boundary + 1)
-            sentenceBufferRef.current = sentenceBufferRef.current.slice(boundary + 2)
-            enqueue(sentence)
+          // Enqueue completed sentences to Polly mid-stream (text mode only)
+          if (!videoMode) {
+            const boundary = sentenceBufferRef.current.search(/[.!?]\s/)
+            if (boundary !== -1) {
+              const sentence = sentenceBufferRef.current.slice(0, boundary + 1)
+              sentenceBufferRef.current = sentenceBufferRef.current.slice(boundary + 2)
+              enqueue(sentence)
+            }
           }
           flushSync(() => {
             setMessages([...withUser, { role: 'assistant', content: assembled }])
@@ -184,8 +196,12 @@ export default function ChatPage() {
       if (assembled === '') {
         setMessages([...withUser, { role: 'assistant', content: errorMsg || FALLBACK_ERROR }])
       } else {
-        // Flush any remaining partial sentence
-        if (sentenceBufferRef.current.trim()) enqueue(sentenceBufferRef.current.trim())
+        if (videoMode && anamRef.current && chunks.length > 0) {
+          // Signal end-of-speech to avatar with the last chunk
+          anamRef.current.streamChunk('', true).catch(() => {})
+        }
+        // Flush any remaining partial sentence for TTS (text mode only)
+        if (!videoMode && sentenceBufferRef.current.trim()) enqueue(sentenceBufferRef.current.trim())
         sentenceBufferRef.current = ''
       }
     } catch {
@@ -234,19 +250,7 @@ export default function ChatPage() {
         </svg>
       </button>
       {videoMode ? (
-        <div className="coming-soon-panel">
-          <div className="coming-soon-icon">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <polygon points="23 7 16 12 23 17 23 7"/>
-              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
-            </svg>
-          </div>
-          <p className="coming-soon-title">Coming Soon</p>
-          <p className="coming-soon-subtitle">Video calls with an interactive avatar are in development. Stay in text mode for now.</p>
-          <button className="coming-soon-dismiss" onClick={() => setVideoMode(false)} type="button">
-            Back to chat
-          </button>
-        </div>
+        <AnamVideoPanel ref={anamRef} onClose={() => setVideoMode(false)} />
       ) : (
         <ChatWindow messages={messages} onSend={handleSend} loading={loading} />
       )}

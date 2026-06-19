@@ -17,6 +17,11 @@ vi.mock('@/components/ChatWindow', () => ({
 vi.mock('@/components/DisclaimerBadge', () => ({
   DisclaimerBadge: () => React.createElement('div', { 'data-testid': 'disclaimer' }),
 }))
+vi.mock('@/components/AnamVideoPanel', () => ({
+  default: React.forwardRef((_props: { onClose: () => void }, _ref: React.Ref<unknown>) =>
+    React.createElement('div', { 'data-testid': 'anam-panel' }, 'Connecting to Krishna...')
+  ),
+}))
 
 describe('ChatPage video toggle', () => {
   it('renders a video mode toggle button', async () => {
@@ -27,13 +32,13 @@ describe('ChatPage video toggle', () => {
     expect(btn).toBeTruthy()
   })
 
-  it('shows a Coming Soon message when the video toggle is clicked', async () => {
+  it('shows the Anam video panel when the video toggle is clicked', async () => {
     vi.resetModules()
     const { default: ChatPage } = await import('@/app/chat/page')
     await act(async () => { render(<ChatPage />) })
     const btn = screen.getByRole('button', { name: /video/i })
     fireEvent.click(btn)
-    expect(screen.getByText(/coming soon/i)).toBeTruthy()
+    expect(screen.getByTestId('anam-panel')).toBeTruthy()
   })
 
   it('does not render a video element by default (text chat is the default mode)', async () => {
