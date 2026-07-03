@@ -47,8 +47,11 @@ function makeSupabase(
 }
 
 describe('loadAndInjectProfile', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
+    // Profile is cached per-user in-process; reset between tests for isolation.
+    const mod = await import('@/lib/memory/profileInjector')
+    mod.__clearProfileCache()
   })
 
   it('uses SYSTEM_PROMPT_V2 (not V0) — V2 has Light/Personal/Deep tiers that handle greetings correctly', async () => {
@@ -100,5 +103,42 @@ describe('loadAndInjectProfile', () => {
     const prompt = await loadAndInjectProfile('user-1', makeSupabase(FAKE_USER_PROFILE, null) as never)
     expect(prompt).toContain('career change')
     expect(prompt).toContain('V2_SYSTEM_PROMPT')
+  })
+
+  it('injects when only current_life_stage is saved (no life_context, no attachments)', async () => {
+    const { loadAndInjectProfile } = await import('@/lib/memory/profileInjector')
+    const spiritualOnlyStage = { primary_attachments: [], current_life_stage: 'vanaprastha', recurring_themes: [] }
+    const prompt = await loadAndInjectProfile('user-stage', makeSupabase(null, spiritualOnlyStage) as never)
+    expect(prompt).toContain('vanaprastha')
+    expect(prompt).not.toBe('V2_SYSTEM_PROMPT')
+  })
+
+  it('injects when only recurring_themes are saved', async () => {
+    const { loadAndInjectProfile } = await import('@/lib/memory/profileInjector')
+    const spiritualOnlyThemes = { primary_attachments: [], current_life_stage: null, recurring_themes: ['grief', 'doubt'] }
+    const prompt = await loadAndInjectProfile('user-themes', makeSupabase(null, spiritualOnlyThemes) as never)
+    expect(prompt).toContain('grief')
+    expect(prompt).not.toBe('V2_SYSTEM_PROMPT')
+  })
+
+  it('caches the profile per user — a second call within TTL does not re-query the DB', async () => {
+    const { loadAndInjectProfile } = await import('@/lib/memory/profileInjector')
+    const sb = makeSupabase()
+    await loadAndInjectProfile('user-cache', sb as never)
+    const callsAfterFirst = (sb.from as ReturnType<typeof vi.fn>).mock.calls.length
+    await loadAndInjectProfile('user-cache', sb as never)
+    const callsAfterSecond = (sb.from as ReturnType<typeof vi.fn>).mock.calls.length
+    expect(callsAfterFirst).toBeGreaterThan(0)
+    expect(callsAfterSecond).toBe(callsAfterFirst) // no additional DB round-trip
+  })
+
+  it('caches separately per user', async () => {
+    const { loadAndInjectProfile } = await import('@/lib/memory/profileInjector')
+    const sbA = makeSupabase(FAKE_USER_PROFILE, null)
+    const sbB = makeSupabase({ life_context: 'grieving a loss', previous_guidance: [] }, null)
+    const a = await loadAndInjectProfile('user-A', sbA as never)
+    const b = await loadAndInjectProfile('user-B', sbB as never)
+    expect(a).toContain('career change')
+    expect(b).toContain('grieving a loss')
   })
 })

@@ -51,4 +51,13 @@ describe('checkRelevance', () => {
     expect(result).toBe(false)
     expect(classify).not.toHaveBeenCalled()
   })
+
+  it('returns true (proceed to generate) when classify throws, instead of erroring', async () => {
+    // A classify hiccup (Groq 429/outage/timeout) must NOT take down chat.
+    // Safe default: proceed to generate from retrieved sources.
+    classify.mockRejectedValue(new Error('429 rate limit exceeded'))
+    const { checkRelevance } = await import('@/lib/crag/relevanceCheck')
+    const result = await checkRelevance('some query', FAKE_SOURCES)
+    expect(result).toBe(true)
+  })
 })

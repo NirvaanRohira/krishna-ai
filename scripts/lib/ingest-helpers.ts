@@ -2,6 +2,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import { createClient } from '@supabase/supabase-js'
 import { tagVerse } from './keyword-tagger'
 import type { ParsedVerse } from './gretil-parser'
+import { BATCH_OUTPUT_DIM } from './batchEmbedder'
 
 
 export async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 8): Promise<T> {
@@ -64,26 +65,45 @@ export async function ingestSource(
   embeddingModel: EmbeddingModel,
   supabase: any
 ) {
+  // Fail fast if the parser dropped verses. Validate the FULL parsed set against
+  // the canonical count BEFORE any embedding or DB write. This runs ahead of the
+  // resume filtering below, so it checks parse completeness independent of how
+  // many rows are already embedded.
+  if (verses.length !== canonicalCount) {
+    const missing = canonicalCount - verses.length
+    throw new Error(
+      `[${textSource}] Verse count mismatch: expected ${canonicalCount}, got ${verses.length} (missing ${missing})`
+    )
+  }
+
   // Resume mode: paginate to get ALL already-embedded verses.
   // PostgREST max_rows=1000 is a server-side cap — .limit() alone can't exceed it.
-  type ExistingRow = { book_chapter: number; verse: number }
+  type ExistingRow = { id: number; book_chapter: number; verse: number }
   const doneKeys = new Set<string>()
   const PAGE = 1000
   let from = 0
   while (true) {
-    const { data: page } = await supabase
+    // .order('id') makes pagination stable: without a deterministic sort, PostgREST
+    // may return overlapping/skipped rows across .range() pages, which can seed a
+    // duplicate into an upsert batch ("ON CONFLICT ... cannot affect row a second
+    // time") or silently miss already-done verses and re-embed them.
+    const { data: page, error } = await supabase
       .from('krishna_corpus')
-      .select('book_chapter, verse')
+      .select('id, book_chapter, verse')
       .eq('text_source', textSource)
       .not('embedding', 'is', null)
+      .order('id')
       .range(from, from + PAGE - 1)
+    // Surface transient query failures instead of treating them as "no rows",
+    // which would wrongly conclude nothing is done and trigger a full re-embed.
+    if (error) throw error
     if (!page || page.length === 0) break
     for (const r of page as ExistingRow[]) doneKeys.add(`${r.book_chapter}:${r.verse}`)
     if (page.length < PAGE) break
     from += PAGE
   }
   // Deduplicate by chapter:verse — keep last occurrence (later in file wins)
-  const deduped = [...new Map(verses.map(v => [`${v.chapter}:${v.verse}`, v])).values()]
+  const deduped = Array.from(new Map(verses.map(v => [`${v.chapter}:${v.verse}`, v])).values())
   const toEmbed = deduped.filter(v => !doneKeys.has(`${v.chapter}:${v.verse}`))
 
   if (toEmbed.length === 0) {
@@ -103,7 +123,12 @@ export async function ingestSource(
 
     const embedResult = await withRetry(() =>
       embeddingModel.batchEmbedContents({
-        requests: chunk.map(v => ({ content: { role: 'user', parts: [{ text: v.text }] } })),
+        // outputDimensionality MUST be 1536 to match vector(1536); the default
+        // (3072) is rejected by the column. Matches reembed-corpus / batchEmbedder.
+        requests: chunk.map(v => ({
+          content: { role: 'user', parts: [{ text: v.text }] },
+          outputDimensionality: BATCH_OUTPUT_DIM,
+        })),
       })
     )
 

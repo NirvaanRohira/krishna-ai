@@ -36,10 +36,20 @@ export async function saveExchange(
   if (rpcError) throw new Error(rpcError.message)
 }
 
-export async function endSession(supabase: SupabaseClient, sessionId: string): Promise<void> {
-  const { error } = await supabase
+/**
+ * Ends a session by stamping `ended_at`, but only if it has not already ended.
+ * Guarding on `ended_at is null` makes this idempotent: a duplicate end request
+ * (e.g. pagehide + visibilitychange beacons both firing) affects zero rows the
+ * second time. Returns whether this call is the one that newly ended the
+ * session, so callers can run post-session work exactly once.
+ */
+export async function endSession(supabase: SupabaseClient, sessionId: string): Promise<boolean> {
+  const { data, error } = await supabase
     .from('sessions')
     .update({ ended_at: new Date().toISOString() })
     .eq('id', sessionId)
+    .is('ended_at', null)
+    .select('id')
   if (error) throw new Error(error.message)
+  return (data?.length ?? 0) > 0
 }

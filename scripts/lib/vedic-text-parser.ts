@@ -41,6 +41,7 @@ function cleanVerse(raw: string): string {
     .replace(/\$|&|%/g, '')   // prosodic markers
     .replace(/\s*\/\s*\n/g, ' ') // Sanskrit metre half-verse breaks
     .replace(/\s*\/\s*$/gm, '') // trailing / on lines
+    .replace(/\s*\|\s*/g, ' ') // internal single dandas (Aitareya prose clause separators)
     .replace(/\s+/g, ' ')
     .trim()
 }
@@ -101,7 +102,11 @@ export function parseGretilBlock(fullText: string, prefix: string): ParsedVerse[
 // Encodes book_chapter as adhyaya * 10 + section
 export function parseAitareya(fullText: string): ParsedVerse[] {
   const body = stripHeader(fullText)
-  const re = /([^\|]*?)\s*\|\|\s*aitup_(\d+),(\d+)\.(\d+)\s*\|\|/g
+  // Aitareya is prose with internal single dandas (|) separating clauses.
+  // Use [\s\S]*? (non-greedy across dandas) like the other parsers so the full
+  // mantra text is captured; [^\|]*? would drop everything before the last
+  // internal danda. cleanVerse() strips the surviving internal | characters.
+  const re = /([\s\S]*?)\s*\|\|\s*aitup_(\d+),(\d+)\.(\d+)\s*\|\|/g
 
   const results: ParsedVerse[] = []
   let match: RegExpExecArray | null

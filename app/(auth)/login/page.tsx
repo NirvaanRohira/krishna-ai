@@ -6,20 +6,31 @@ import { createBrowserSupabaseClient } from '@/lib/supabase'
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setError(null)
     const supabase = createBrowserSupabaseClient()
-    await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=/chat` } })
+    const { error: otpError } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=/chat` } })
+    if (otpError) {
+      // Do NOT claim success when the link was never sent (rate limits, provider errors).
+      setError(otpError.message || 'Could not send the sign-in link. Please try again.')
+      return
+    }
     setSubmitted(true)
   }
 
   async function handleGoogle() {
+    setError(null)
     const supabase = createBrowserSupabaseClient()
-    await supabase.auth.signInWithOAuth({
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/auth/callback?next=/chat` },
     })
+    if (oauthError) {
+      setError(oauthError.message || 'Could not start Google sign-in. Please try again.')
+    }
   }
 
   if (submitted) {
@@ -80,6 +91,12 @@ export default function LoginPage() {
             Send magic link
           </button>
         </form>
+
+        {error && (
+          <p role="alert" style={{ fontSize: '0.75rem', color: 'var(--danger, #c0392b)', textAlign: 'center', margin: 0 }}>
+            {error}
+          </p>
+        )}
 
         <p style={{ fontSize: '0.65rem', color: 'var(--fg-dim)', textAlign: 'center', margin: 0, lineHeight: 1.6 }}>
           By signing in you acknowledge this is an AI drawing from Sanskrit texts,

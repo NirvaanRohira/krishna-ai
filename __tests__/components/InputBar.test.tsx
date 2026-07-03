@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, act } from '@testing-library/react'
+import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
 import { InputBar } from '@/components/InputBar'
 
 let mockRecognitionInstance: {
@@ -45,7 +45,7 @@ describe('InputBar', () => {
   it('renders a text input, send button, and mic button', () => {
     render(<InputBar onSubmit={vi.fn()} />)
     expect(screen.getByRole('textbox')).toBeTruthy()
-    expect(screen.getByText('Send')).toBeTruthy()
+    expect(screen.getByLabelText('Send message')).toBeTruthy()
     expect(screen.getByLabelText('Start voice input')).toBeTruthy()
   })
 
@@ -54,7 +54,7 @@ describe('InputBar', () => {
     render(<InputBar onSubmit={onSubmit} />)
     const input = screen.getByRole('textbox')
     fireEvent.change(input, { target: { value: 'I feel lost' } })
-    fireEvent.click(screen.getByText('Send'))
+    fireEvent.click(screen.getByLabelText('Send message'))
     expect(onSubmit).toHaveBeenCalledWith('I feel lost')
   })
 
@@ -62,14 +62,14 @@ describe('InputBar', () => {
     render(<InputBar onSubmit={vi.fn()} />)
     const input = screen.getByRole('textbox') as HTMLInputElement
     fireEvent.change(input, { target: { value: 'some message' } })
-    fireEvent.click(screen.getByText('Send'))
+    fireEvent.click(screen.getByLabelText('Send message'))
     expect(input.value).toBe('')
   })
 
   it('does not call onSubmit when input is empty', () => {
     const onSubmit = vi.fn()
     render(<InputBar onSubmit={onSubmit} />)
-    fireEvent.click(screen.getByText('Send'))
+    fireEvent.click(screen.getByLabelText('Send message'))
     expect(onSubmit).not.toHaveBeenCalled()
   })
 
@@ -102,7 +102,7 @@ describe('InputBar', () => {
 
   it('send button and mic button are both disabled while loading', () => {
     render(<InputBar onSubmit={vi.fn()} loading />)
-    expect(screen.getByText('Send')).toHaveProperty('disabled', true)
+    expect(screen.getByLabelText('Send message')).toHaveProperty('disabled', true)
     expect(screen.getByLabelText('Start voice input')).toHaveProperty('disabled', true)
   })
 
@@ -154,5 +154,46 @@ describe('InputBar', () => {
     fireEvent.click(screen.getByLabelText('Start voice input'))
     act(() => { mockRecognitionInstance.onend!() })
     expect(screen.getByLabelText('Start voice input')).toBeTruthy()
+  })
+
+  it('does not resurrect already-sent speech after submit (bug 1)', () => {
+    const onSubmit = vi.fn()
+    render(<InputBar onSubmit={onSubmit} />)
+    fireEvent.click(screen.getByLabelText('Start voice input'))
+
+    // First utterance becomes final and is submitted.
+    act(() => { mockRecognitionInstance.onresult!(makeSpeechEvent('what is dharma', true)) })
+    fireEvent.click(screen.getByLabelText('Send message'))
+    expect(onSubmit).toHaveBeenCalledWith('what is dharma')
+
+    const input = screen.getByRole('textbox') as HTMLInputElement
+    expect(input.value).toBe('')
+
+    // Continued dictation after submit must NOT rebuild the old text.
+    act(() => { mockRecognitionInstance.onresult!(makeSpeechEvent('a new thought', true)) })
+    expect(input.value).toBe('a new thought')
+    expect(input.value).not.toContain('what is dharma')
+  })
+
+  it('keeps manual typing during recording instead of clobbering it (bug 1)', () => {
+    render(<InputBar onSubmit={vi.fn()} />)
+    const input = screen.getByRole('textbox') as HTMLInputElement
+    fireEvent.click(screen.getByLabelText('Start voice input'))
+
+    // User types manually while the mic is live.
+    fireEvent.change(input, { target: { value: 'typed text ' } })
+    // A final speech result arrives — it should append, not erase the typed text.
+    act(() => { mockRecognitionInstance.onresult!(makeSpeechEvent('spoken', true)) })
+
+    expect(input.value).toContain('typed text ')
+    expect(input.value).toContain('spoken')
+  })
+
+  it('stops recognition when unmounted mid-recording (bug 2)', () => {
+    const { unmount } = render(<InputBar onSubmit={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Start voice input'))
+    expect(mockRecognitionInstance.start).toHaveBeenCalledOnce()
+    unmount()
+    expect(mockRecognitionInstance.stop).toHaveBeenCalled()
   })
 })

@@ -50,8 +50,9 @@ export const CLASSIFY_MODEL = process.env.LLM_CLASSIFY_MODEL ?? classifyProvider
 
 const DEFAULT_TIMEOUT_GEN = 15_000
 const DEFAULT_TIMEOUT_CLASSIFY = 5_000
+const DEFAULT_STREAM_IDLE = 20_000
 
-export type LLMOptions = { timeoutMs?: number }
+export type LLMOptions = { timeoutMs?: number; streamIdleMs?: number }
 
 function makeClient(cfg: ProviderConfig): OpenAI {
   return new OpenAI({ apiKey: cfg.apiKey(), baseURL: cfg.baseURL })
@@ -77,15 +78,59 @@ function getClassifyClient() {
 }
 
 function raceTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<never>((_, reject) =>
-      setTimeout(() => {
-        const err = Object.assign(new Error(`LLM timeout after ${ms}ms`), { isTimeout: true })
-        reject(err)
-      }, ms)
-    ),
-  ])
+  // Capture the timer id and clear it once the race settles. Without this the timeout
+  // stays live (up to `ms`) after the underlying promise wins, keeping a serverless
+  // instance awake and leaking a timer per call.
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      const err = Object.assign(new Error(`LLM timeout after ${ms}ms`), { isTimeout: true })
+      reject(err)
+    }, ms)
+  })
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) clearTimeout(timer)
+  })
+}
+
+/**
+ * Wrap a chunk stream with an inactivity watchdog. Only stream CREATION is guarded by
+ * raceTimeout; a provider that opens the stream then stalls mid-generation would hang
+ * indefinitely. This races each pull against an idle timer and throws a timeout error
+ * if no chunk arrives within `idleMs`.
+ */
+async function* withStreamIdleTimeout<T>(
+  stream: AsyncIterable<T>,
+  idleMs: number
+): AsyncGenerator<T> {
+  const iterator = stream[Symbol.asyncIterator]()
+  try {
+    while (true) {
+      let timer: ReturnType<typeof setTimeout> | undefined
+      const idle = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          const err = Object.assign(
+            new Error(`LLM stream inactivity timeout after ${idleMs}ms`),
+            { isTimeout: true }
+          )
+          reject(err)
+        }, idleMs)
+      })
+      let result: IteratorResult<T>
+      try {
+        result = await Promise.race([iterator.next(), idle])
+      } finally {
+        if (timer) clearTimeout(timer)
+      }
+      if (result.done) return
+      yield result.value
+    }
+  } finally {
+    // Best-effort: release the underlying stream. Do NOT await — if the provider stalled
+    // mid-chunk, its pending next() blocks return() from ever settling, which would hang
+    // the request forever instead of surfacing the idle-timeout error.
+    iterator.return?.()?.catch(() => {})
+  }
 }
 
 function shouldFallback(err: unknown): boolean {
@@ -135,6 +180,7 @@ export async function generateText(prompt: string, opts: LLMOptions = {}): Promi
 export async function* generateTextStream(prompt: string, opts: LLMOptions = {}): AsyncGenerator<string> {
   const messages = [{ role: 'user' as const, content: prompt }]
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_GEN
+  const idleMs = opts.streamIdleMs ?? DEFAULT_STREAM_IDLE
   let yieldedAny = false
 
   try {
@@ -142,7 +188,10 @@ export async function* generateTextStream(prompt: string, opts: LLMOptions = {})
       getClient().chat.completions.create({ model: GENERATION_MODEL, messages, stream: true }),
       timeoutMs
     )
-    for await (const chunk of stream) {
+    // Watchdog the consumption too: a stream that opens then stalls mid-generation
+    // would otherwise hang forever. The idle-timeout error is tagged isTimeout, so
+    // shouldFallback() returns false for it — a stall surfaces rather than re-racing.
+    for await (const chunk of withStreamIdleTimeout(stream, idleMs)) {
       const text = chunk.choices[0]?.delta?.content ?? ''
       if (text) { yieldedAny = true; yield text }
     }
@@ -155,7 +204,7 @@ export async function* generateTextStream(prompt: string, opts: LLMOptions = {})
         messages,
         stream: true,
       })
-      for await (const chunk of fallbackStream) {
+      for await (const chunk of withStreamIdleTimeout(fallbackStream, idleMs)) {
         const text = chunk.choices[0]?.delta?.content ?? ''
         if (text) yield text
       }

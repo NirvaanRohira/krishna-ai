@@ -2,6 +2,7 @@ export const maxDuration = 60
 
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { checkRateLimit, rateLimitKey } from '@/lib/rateLimit'
 import { classifyComplexity } from '@/lib/retrieval/complexityRouter'
 import { classifyMessage } from '@/lib/guardrails/classifier'
 import { getGuardrailResponse } from '@/lib/guardrails/responses'
@@ -60,6 +61,11 @@ export async function POST(req: Request) {
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const { allowed, retryAfterSec } = checkRateLimit(rateLimitKey(req, user.id), { limit: 30, windowMs: 60_000 })
+  if (!allowed) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: { 'Retry-After': String(retryAfterSec) } })
   }
 
   const sessionId: string = existingSessionId ?? await startSession(supabase, user.id)

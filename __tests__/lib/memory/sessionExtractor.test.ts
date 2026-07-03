@@ -72,4 +72,39 @@ describe('extractSessionProfile', () => {
     const result = await extractSessionProfile(FAKE_TRANSCRIPT)
     expect(result).toEqual({})
   })
+
+  it('returns empty object when valid JSON is not an object (e.g. an array)', async () => {
+    generateText.mockResolvedValue('["duty", "attachment"]')
+    const { extractSessionProfile } = await import('@/lib/memory/sessionExtractor')
+    const result = await extractSessionProfile(FAKE_TRANSCRIPT)
+    expect(result).toEqual({})
+  })
+
+  it('drops string fields that are not strings', async () => {
+    generateText.mockResolvedValue(JSON.stringify({ life_context: 42, current_life_stage: ['x'] }))
+    const { extractSessionProfile } = await import('@/lib/memory/sessionExtractor')
+    const result = await extractSessionProfile(FAKE_TRANSCRIPT)
+    expect(result.life_context).toBeUndefined()
+    expect(result.current_life_stage).toBeUndefined()
+  })
+
+  it('drops array fields that are not arrays and filters non-string members', async () => {
+    generateText.mockResolvedValue(
+      JSON.stringify({ recurring_themes: 'duty', primary_attachments: ['career', 5, null, 'family'] })
+    )
+    const { extractSessionProfile } = await import('@/lib/memory/sessionExtractor')
+    const result = await extractSessionProfile(FAKE_TRANSCRIPT)
+    expect(result.recurring_themes).toBeUndefined()
+    expect(result.primary_attachments).toEqual(['career', 'family'])
+  })
+
+  it('drops a malformed previous_guidance_entry (missing string topic)', async () => {
+    generateText.mockResolvedValue(
+      JSON.stringify({ life_context: 'ok', previous_guidance_entry: { texts_cited: ['Gita 2.47'] } })
+    )
+    const { extractSessionProfile } = await import('@/lib/memory/sessionExtractor')
+    const result = await extractSessionProfile(FAKE_TRANSCRIPT)
+    expect(result.life_context).toBe('ok')
+    expect(result.previous_guidance_entry).toBeUndefined()
+  })
 })

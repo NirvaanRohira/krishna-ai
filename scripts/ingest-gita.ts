@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import { parseGitaHtml } from './lib/gretil-parser'
 import { validateAndIngest } from './lib/ingest-pipeline'
 import { tagVerse } from './lib/keyword-tagger'
+import { BATCH_OUTPUT_DIM } from './lib/batchEmbedder'
 
 async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 8): Promise<T> {
   let lastErr: unknown

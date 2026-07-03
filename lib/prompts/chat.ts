@@ -3,7 +3,10 @@ import { SYSTEM_PROMPT_V2 } from '@/lib/prompts/system_v2'
 function formatRef(source: string, bookChapter: string | number, verse: string | number): string {
   const src = String(source)
   const ch = Number(bookChapter)
-  if (src === 'srimad_bhagavatam' && ch >= 1000) {
+  // The corpus stores the Bhagavatam under text_source 'bhagavatam' with the chapter
+  // skandha-encoded as skandha*1000 + chapter (e.g. 11002). Decode it and render the
+  // human label the system prompts describe ('srimad_bhagavatam Skandha X Chapter Y ...').
+  if (src === 'bhagavatam' && ch >= 1000) {
     const skandha = Math.floor(ch / 1000)
     const chapter = ch % 1000
     return `srimad_bhagavatam Skandha ${skandha} Chapter ${chapter} verse ${verse}`

@@ -4,6 +4,10 @@ import { endSession } from '@/lib/session'
 import { extractSessionProfile } from '@/lib/memory/sessionExtractor'
 import { updateDharmaProfile } from '@/lib/memory/dharmaProfileExtractor'
 
+// Extraction (transcript read + LLM call + profile writes) can take several
+// seconds; give the function headroom so it isn't cut off mid-write.
+export const maxDuration = 30
+
 async function runPostSessionExtraction(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   sessionId: string,
@@ -24,8 +28,8 @@ async function runPostSessionExtraction(
 
     const extracted = await extractSessionProfile(transcript)
     await updateDharmaProfile(userId, extracted, supabase)
-  } catch {
-    // background — never throw
+  } catch (err) {
+    console.error('[session-end] extraction failed', err)
   }
 }
 
@@ -45,9 +49,16 @@ export async function POST(req: Request) {
   }
 
   try {
-    await endSession(supabase, sessionId)
-    // Fire extraction without awaiting — returns 200 immediately
-    void runPostSessionExtraction(supabase, sessionId, user.id)
+    const newlyEnded = await endSession(supabase, sessionId)
+    // Await extraction so it actually runs: on serverless the function freezes
+    // once the response is returned, which killed the old fire-and-forget path.
+    // The response is consumed by navigator.sendBeacon, which ignores the body,
+    // so awaiting is free user-facing. Only extract if THIS call ended the
+    // session — a duplicate beacon (pagehide + visibilitychange) must not
+    // double-extract.
+    if (newlyEnded) {
+      await runPostSessionExtraction(supabase, sessionId, user.id)
+    }
     return NextResponse.json({ ok: true })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error'

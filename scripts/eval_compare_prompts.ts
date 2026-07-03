@@ -241,7 +241,7 @@ async function structuralLookup(keywords: string[], supabase: ReturnType<typeof 
 }
 
 function formatRef(source: string, bookChapter: number, verse: number): string {
-  if (source === 'srimad_bhagavatam' && bookChapter >= 1000) {
+  if (source === 'bhagavatam' && bookChapter >= 1000) {
     const sk = Math.floor(bookChapter / 1000); const ch = bookChapter % 1000
     return `srimad_bhagavatam Skandha ${sk} Chapter ${ch} verse ${verse}`
   }

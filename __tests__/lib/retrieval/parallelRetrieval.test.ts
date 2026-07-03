@@ -56,6 +56,35 @@ describe('parallelRetrieve', () => {
     expect(results[0].id).toBe(2)
   })
 
+  it('degrades to sparse-only when the dense leg rejects (embedding failure)', async () => {
+    // A Gemini embedding failure in the dense leg must NOT throw away good sparse (DB-only) results.
+    denseRetrieve.mockRejectedValue(new Error('embed timeout'))
+    const { parallelRetrieve } = await import('@/lib/retrieval/parallelRetrieval')
+    const results = await parallelRetrieve('karma', { supabaseClient: mockSupabase })
+    expect(Array.isArray(results)).toBe(true)
+    expect(results.length).toBeGreaterThan(0)
+    // Only sparse ids should survive
+    const ids = results.map((r) => r.id).sort()
+    expect(ids).toEqual([2, 3])
+  })
+
+  it('degrades to dense-only when the sparse leg rejects (DB failure)', async () => {
+    sparseRetrieve.mockRejectedValue(new Error('db error'))
+    const { parallelRetrieve } = await import('@/lib/retrieval/parallelRetrieval')
+    const results = await parallelRetrieve('karma', { supabaseClient: mockSupabase })
+    expect(results.length).toBeGreaterThan(0)
+    const ids = results.map((r) => r.id).sort()
+    expect(ids).toEqual([1, 2])
+  })
+
+  it('returns empty array when both legs reject', async () => {
+    denseRetrieve.mockRejectedValue(new Error('embed timeout'))
+    sparseRetrieve.mockRejectedValue(new Error('db error'))
+    const { parallelRetrieve } = await import('@/lib/retrieval/parallelRetrieval')
+    const results = await parallelRetrieve('karma', { supabaseClient: mockSupabase })
+    expect(results).toEqual([])
+  })
+
   it('runs dense and sparse concurrently (both called before either resolves)', async () => {
     let denseStarted = false
     let sparseStarted = false

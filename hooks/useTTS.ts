@@ -7,18 +7,30 @@ export function useTTS() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const queueRef = useRef<string[]>([])
   const processingRef = useRef(false)
+  // Bumped on every stop(). Any in-flight processNext whose captured generation no longer
+  // matches must bail before constructing/playing audio — otherwise a stale sentence plays
+  // over the new response, and a second processNext chain overlaps the first (bug 3).
+  const generationRef = useRef(0)
+  // The object URL currently owned by audioRef. stop() sets audio.src = '' which suppresses
+  // onended/onerror, so their revoke never runs — we revoke this directly instead (bug 5).
+  const currentUrlRef = useRef<string | null>(null)
 
   const toggle = useCallback(() => {
     setEnabled(e => { enabledRef.current = !e; return !e })
   }, [])
 
   const stop = useCallback(() => {
+    generationRef.current++
     queueRef.current = []
     processingRef.current = false
     if (audioRef.current) {
       audioRef.current.pause()
       audioRef.current.src = ''
       audioRef.current = null
+    }
+    if (currentUrlRef.current) {
+      URL.revokeObjectURL(currentUrlRef.current)
+      currentUrlRef.current = null
     }
   }, [])
 
@@ -28,6 +40,7 @@ export function useTTS() {
       return
     }
     processingRef.current = true
+    const gen = generationRef.current
     const text = queueRef.current.shift()!
     try {
       const res = await fetch('/api/tts', {
@@ -35,16 +48,26 @@ export function useTTS() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
       })
+      // A stop() during the fetch invalidates this generation — drop the stale result.
+      if (gen !== generationRef.current) return
       if (!res.ok || !enabledRef.current) { processNext(); return }
       const blob = await res.blob()
+      if (gen !== generationRef.current) return
       if (!enabledRef.current) { processNext(); return }
       const url = URL.createObjectURL(blob)
+      currentUrlRef.current = url
       const audio = new Audio(url)
       audioRef.current = audio
-      audio.onended = () => { URL.revokeObjectURL(url); processNext() }
-      audio.onerror = () => { URL.revokeObjectURL(url); processNext() }
-      audio.play()
+      const release = () => {
+        URL.revokeObjectURL(url)
+        if (currentUrlRef.current === url) currentUrlRef.current = null
+      }
+      audio.onended = () => { release(); processNext() }
+      audio.onerror = () => { release(); processNext() }
+      // play() can reject (autoplay policy) — recover the queue instead of stalling (bug 4).
+      audio.play().catch(() => { release(); processNext() })
     } catch {
+      if (gen !== generationRef.current) return
       processNext()
     }
   }, [])

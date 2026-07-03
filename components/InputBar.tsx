@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
 interface InputBarProps {
   onSubmit: (message: string) => void
@@ -45,12 +45,23 @@ export function InputBar({ onSubmit, loading = false }: InputBarProps) {
   const baseValueRef = useRef('')
   const committedRef = useRef('')
 
+  // Stop recognition if the component unmounts mid-recording so the mic doesn't stay live
+  // and onresult can't setState on an unmounted component (bug 2).
+  useEffect(() => () => {
+    const r = recognitionRef.current
+    if (r) { r.onresult = null; r.onend = null; r.onerror = null; r.stop() }
+  }, [])
+
   function submit() {
     const text = (value + interim).trim()
     if (!text) return
     onSubmit(text)
     setValue('')
     setInterim('')
+    // Reset the speech accumulators so continued dictation after a send starts clean
+    // instead of resurrecting (and re-sending) the already-sent text (bug 1).
+    committedRef.current = ''
+    baseValueRef.current = ''
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -58,6 +69,14 @@ export function InputBar({ onSubmit, loading = false }: InputBarProps) {
     if (e.shiftKey) return
     e.preventDefault()
     submit()
+  }
+
+  function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    setValue(e.target.value)
+    // Manual edits become the new base for subsequent speech, and reset the committed-speech
+    // buffer so dictation appends to (not clobbers) what the user typed (bug 1).
+    baseValueRef.current = e.target.value
+    committedRef.current = ''
   }
 
   function toggleRecording() {
@@ -105,7 +124,7 @@ export function InputBar({ onSubmit, loading = false }: InputBarProps) {
       <textarea
         rows={1}
         value={displayValue}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={handleChange}
         onKeyDown={handleKeyDown}
         placeholder={recording ? 'Listening…' : 'Speak your mind…'}
         disabled={loading}

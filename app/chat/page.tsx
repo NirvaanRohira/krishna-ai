@@ -53,6 +53,13 @@ export default function ChatPage() {
   // sees the current sessionId without needing to re-register the listener.
   const sessionIdRef = useRef<string | null>(null)
   sessionIdRef.current = sessionId
+  // Tracks the session id whose end-beacon has already been sent, so the same
+  // end fires the beacon at most once even though pagehide + visibilitychange +
+  // beforeunload can all fire in sequence. Reset when a new session begins.
+  const beaconSentForRef = useRef<string | null>(null)
+  if (sessionId && beaconSentForRef.current !== null && beaconSentForRef.current !== sessionId) {
+    beaconSentForRef.current = null
+  }
   const { enqueue, stop, toggle, enabled: ttsEnabled, unlockAudio } = useTTS()
   const sentenceBufferRef = useRef('')
 
@@ -65,29 +72,34 @@ export default function ChatPage() {
 
   // End the session when the user closes or hides the tab so post-session
   // profile extraction fires. sendBeacon works on tab close; fetch does not.
+  //
+  // Mobile browsers freeze JS the instant the tab is hidden and fire
+  // `beforeunload` unreliably, so a delayed timer never runs. We must send the
+  // beacon *synchronously* on the first reliable signal. `pagehide` is the
+  // canonical mobile signal; `visibilitychange → hidden` covers backgrounding;
+  // `beforeunload` covers desktop tab/window close. A ref-based guard keyed to
+  // the session id ensures the beacon body is sent at most once per session
+  // even though several of these events can fire in a row. No timers/polling.
   useEffect(() => {
     const endSession = () => {
       const id = sessionIdRef.current
       if (!id) return
+      if (beaconSentForRef.current === id) return // already sent for this session
+      beaconSentForRef.current = id
       navigator.sendBeacon(
         '/api/session/end',
         new Blob([JSON.stringify({ sessionId: id })], { type: 'application/json' })
       )
     }
-    let visibilityTimer: ReturnType<typeof setTimeout> | undefined
     const onVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        // Grace period: cancel if the user comes back within 30s
-        visibilityTimer = setTimeout(endSession, 30_000)
-      } else {
-        if (visibilityTimer !== undefined) clearTimeout(visibilityTimer)
-      }
+      if (document.visibilityState === 'hidden') endSession()
     }
     document.addEventListener('visibilitychange', onVisibilityChange)
+    window.addEventListener('pagehide', endSession)
     window.addEventListener('beforeunload', endSession)
     return () => {
-      if (visibilityTimer !== undefined) clearTimeout(visibilityTimer)
       document.removeEventListener('visibilitychange', onVisibilityChange)
+      window.removeEventListener('pagehide', endSession)
       window.removeEventListener('beforeunload', endSession)
     }
   }, [])
@@ -196,6 +208,16 @@ export default function ChatPage() {
       if (assembled === '') {
         setMessages([...withUser, { role: 'assistant', content: errorMsg || FALLBACK_ERROR }])
       } else {
+        // The model streamed partial content and *then* the server emitted an
+        // error event. Without a visible marker the user (and TTS) would treat
+        // the truncated reply as a complete answer. Append an inline notice so
+        // it's clear the response was cut off.
+        if (errorMsg) {
+          assembled += '\n\n_(response interrupted — please try again)_'
+          flushSync(() => {
+            setMessages([...withUser, { role: 'assistant', content: assembled }])
+          })
+        }
         if (videoMode && anamRef.current && chunks.length > 0) {
           // Signal end-of-speech to avatar with the last chunk
           anamRef.current.streamChunk('', true).catch(() => {})
@@ -210,6 +232,39 @@ export default function ChatPage() {
       if (thinkingTimer !== undefined) clearTimeout(thinkingTimer)
       if (thinkingInterval !== undefined) clearInterval(thinkingInterval)
       setLoading(false)
+    }
+  }
+
+  // Video mode: Anam's brain is off, so when the panel hands us the user's transcribed
+  // speech, run it through the same RAG pipeline and stream the answer to the avatar.
+  async function handleVideoMessage(text: string) {
+    const priorMessages = [...messagesRef.current]
+    setMessages([...priorMessages, { role: 'user', content: text }])
+    anamRef.current?.interrupt() // barge-in: stop any in-progress reply
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text, history: priorMessages, sessionId }),
+      })
+      if (res.status === 401) { router.push('/login'); return }
+      if (!res.ok || !res.body) return
+      let assembled = ''
+      await consumeStream(
+        res,
+        (chunk) => {
+          assembled += chunk
+          anamRef.current?.streamChunk(chunk, false).catch(() => {})
+        },
+        (id) => { if (!sessionId) setSessionId(id) },
+        () => {},
+      )
+      if (assembled) {
+        anamRef.current?.streamChunk('', true).catch(() => {})
+        setMessages([...priorMessages, { role: 'user', content: text }, { role: 'assistant', content: assembled }])
+      }
+    } catch {
+      /* avatar stays silent on error */
     }
   }
 
@@ -250,7 +305,7 @@ export default function ChatPage() {
         </svg>
       </button>
       {videoMode ? (
-        <AnamVideoPanel ref={anamRef} onClose={() => setVideoMode(false)} />
+        <AnamVideoPanel ref={anamRef} onClose={() => setVideoMode(false)} onUserMessage={handleVideoMessage} />
       ) : (
         <ChatWindow messages={messages} onSend={handleSend} loading={loading} />
       )}

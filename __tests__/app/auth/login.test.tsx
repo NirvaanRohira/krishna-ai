@@ -54,4 +54,34 @@ describe('LoginPage', () => {
       expect(screen.getByText(/check your email/i)).toBeDefined()
     })
   })
+
+  it('does NOT show success when the OTP send fails (bug 7)', async () => {
+    mockSignInWithOtp.mockResolvedValueOnce({ error: { message: 'rate limit exceeded' } })
+    const { default: LoginPage } = await import('@/app/(auth)/login/page')
+    render(<LoginPage />)
+    fireEvent.change(screen.getByRole('textbox', { name: /email/i }), {
+      target: { value: 'test@example.com' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /send/i }))
+    await waitFor(() => {
+      expect(mockSignInWithOtp).toHaveBeenCalled()
+    })
+    // Success screen must not appear on error.
+    expect(screen.queryByText(/check your email/i)).toBeNull()
+    // The form stays usable so the user can retry.
+    expect(screen.getByRole('textbox', { name: /email/i })).toBeDefined()
+  })
+
+  it('surfaces an inline error message when the send fails (bug 7)', async () => {
+    mockSignInWithOtp.mockResolvedValueOnce({ error: { message: 'rate limit exceeded' } })
+    const { default: LoginPage } = await import('@/app/(auth)/login/page')
+    render(<LoginPage />)
+    fireEvent.change(screen.getByRole('textbox', { name: /email/i }), {
+      target: { value: 'test@example.com' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /send/i }))
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeDefined()
+    })
+  })
 })

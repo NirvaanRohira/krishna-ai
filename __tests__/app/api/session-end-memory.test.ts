@@ -44,7 +44,8 @@ describe('POST /api/session/end — memory extraction', () => {
 
     const session = await import('@/lib/session')
     endSession = vi.mocked(session.endSession)
-    endSession.mockResolvedValue(undefined)
+    // true = this call newly ended the session (extraction should run)
+    endSession.mockResolvedValue(true)
 
     const extractor = await import('@/lib/memory/sessionExtractor')
     extractSessionProfile = vi.mocked(extractor.extractSessionProfile)
@@ -83,5 +84,15 @@ describe('POST /api/session/end — memory extraction', () => {
       expect.objectContaining({ life_context: 'feeling lost' }),
       expect.anything()
     )
+  })
+
+  it('does NOT extract when the session was already ended (duplicate beacon)', async () => {
+    endSession.mockResolvedValue(false)
+    const { POST } = await import('@/app/api/session/end/route')
+    const res = await POST(makeRequest({ sessionId: FAKE_SESSION_ID }))
+    await new Promise(r => setTimeout(r, 10))
+    expect(res.status).toBe(200)
+    expect(extractSessionProfile).not.toHaveBeenCalled()
+    expect(updateDharmaProfile).not.toHaveBeenCalled()
   })
 })

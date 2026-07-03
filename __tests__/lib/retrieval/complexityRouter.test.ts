@@ -46,4 +46,13 @@ describe('classifyComplexity', () => {
     const promptArg = classify.mock.calls[0][0] as string
     expect(promptArg).toContain('What is yoga?')
   })
+
+  it('defaults to COMPLEX (safer path) when classify throws, instead of rejecting', async () => {
+    // classifyComplexity runs inside the chat route Promise.all fan-out; a classify
+    // failure must degrade to the thorough path, never reject the whole request.
+    classify.mockRejectedValue(new Error('GROQ_API_KEY missing / 429'))
+    const { classifyComplexity } = await import('@/lib/retrieval/complexityRouter')
+    const result = await classifyComplexity('some query')
+    expect(result).toBe('COMPLEX')
+  })
 })

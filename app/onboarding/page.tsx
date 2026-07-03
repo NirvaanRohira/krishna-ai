@@ -4,17 +4,33 @@ import { useRouter } from 'next/navigation'
 
 export default function OnboardingPage() {
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+
+  async function completeOnboarding(): Promise<boolean> {
+    try {
+      const res = await Promise.race([
+        fetch('/api/onboarding/complete', { method: 'POST' }),
+        new Promise<Response>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
+      ])
+      return (res as Response).ok
+    } catch {
+      return false
+    }
+  }
 
   async function handleAccept() {
     setLoading(true)
-    try {
-      await Promise.race([
-        fetch('/api/onboarding/complete', { method: 'POST' }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
-      ])
-    } catch {
-      // non-blocking — proceed regardless
+    setError(null)
+    // The profile's onboarding flag is set server-side here; if it fails, the middleware
+    // will bounce the user back to /onboarding forever. So verify success (with one retry)
+    // instead of pushing to /chat regardless, which created a silent redirect loop.
+    let ok = await completeOnboarding()
+    if (!ok) ok = await completeOnboarding()
+    if (!ok) {
+      setError('Something went wrong saving your preferences. Please try again.')
+      setLoading(false)
+      return
     }
     router.push('/chat')
   }
@@ -62,6 +78,12 @@ export default function OnboardingPage() {
         >
           {loading ? 'Entering…' : 'I understand — begin'}
         </button>
+
+        {error && (
+          <p role="alert" style={{ fontSize: '0.75rem', color: 'var(--danger, #c0392b)', textAlign: 'center', marginTop: '0.75rem' }}>
+            {error}
+          </p>
+        )}
       </div>
     </main>
   )

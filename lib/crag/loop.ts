@@ -51,7 +51,13 @@ export async function runCRAG(
     }
 
     if (attempt < MAX_RETRIES) {
-      currentQuery = expandQuery(query)
+      const expanded = expandQuery(query)
+      // expandQuery only rewrites queries containing Sanskrit terms. For a typical
+      // English query it returns the same string, so the retry would repeat the exact
+      // same retrieval + relevance check for an identical verdict — doubled latency and
+      // cost. Skip the retry in that case and fall through to the soft fallback.
+      if (expanded === currentQuery) break
+      currentQuery = expanded
     }
   }
 

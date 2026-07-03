@@ -1,7 +1,12 @@
--- ivfflat was dropped when we moved to vector(3072) (ivfflat max is 2000 dims).
--- With 15k+ rows a sequential scan times out. HNSW supports any dimension.
--- m=16 ef_construction=64 are pgvector defaults; sufficient for 15k rows.
-create index concurrently if not exists krishna_corpus_embedding_hnsw
-  on krishna_corpus
-  using hnsw (embedding vector_cosine_ops)
-  with (m = 16, ef_construction = 64);
+-- (Replay-safety fix) This migration originally ran:
+--   create index concurrently ... using hnsw (embedding vector_cosine_ops)
+-- while `embedding` was still vector(3072). That fails on a fresh replay for two reasons:
+--   1. pgvector's HNSW index type caps at 2000 dimensions, so it errors at 3072.
+--   2. CREATE INDEX CONCURRENTLY cannot run inside the transaction that `supabase db push`
+--      wraps each migration in.
+--
+-- The corpus was subsequently re-dimensioned to vector(1536) and the HNSW index is created
+-- correctly at that dimension in 20260421030000_vector_1536_hnsw.sql, which supersedes this
+-- migration. This file is intentionally a no-op so the migration chain replays cleanly on a
+-- fresh database (supabase db reset / CI / disaster recovery).
+select 1;

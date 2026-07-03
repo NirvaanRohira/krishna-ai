@@ -147,6 +147,23 @@ nāsike nirabhidyetām || aitup_1,2.1 ||
     expect(verses[1].verse).toBe(2)
     expect(verses[3].verse).toBe(1)
   })
+
+  it('preserves prose text before internal dandas (does not truncate at |)', () => {
+    // Aitareya is prose with internal single dandas separating clauses.
+    // The full mantra text must survive, not just the fragment after the last danda.
+    const verses = parseAitareya(SAMPLE)
+    expect(verses[0].text).toContain('ātmā vā idam eka')
+    expect(verses[0].text).toContain('nānyat kiñcana miṣat')
+    expect(verses[0].text).toContain('sa īkṣata lokān nu sṛjā iti')
+  })
+
+  it('does not leak the marker prefix from the previous verse into the next capture', () => {
+    // With [\s\S]*? the capture is non-greedy up to the next marker, so verse 2
+    // should be exactly its own clause, not everything since the file start.
+    const verses = parseAitareya(SAMPLE)
+    expect(verses[1].text).toContain('sa imāṃl lokān asṛjata')
+    expect(verses[1].text).not.toContain('ātmā vā idam')
+  })
 })
 
 // ── parseBhagavatam ────────────────────────────────────────────────

@@ -52,6 +52,18 @@ describe('runCRAG', () => {
     expect(parallelRetrieve).toHaveBeenCalledTimes(2)
   })
 
+  it('skips the retry when expandQuery yields the identical query (no Sanskrit terms)', async () => {
+    // Plain English query: expandQuery cannot change it, so re-running retrieval
+    // would repeat identical work for the same verdict. Retrieve exactly once, then soft-fall-back.
+    checkRelevance.mockResolvedValue(false)
+    const { runCRAG } = await import('@/lib/crag/loop')
+    const result = await runCRAG('why is my life so hard right now', [], {})
+    expect(parallelRetrieve).toHaveBeenCalledTimes(1)
+    // Still degrades gracefully to soft fallback rather than giving up
+    expect(generateText).toHaveBeenCalled()
+    expect(result.sources.length).toBeGreaterThan(0)
+  })
+
   it('soft-falls back to generation from best sources when relevance fails all retries', async () => {
     // Sources exist but relevance check always returns false
     checkRelevance.mockResolvedValue(false)

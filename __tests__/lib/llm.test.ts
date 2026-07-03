@@ -106,6 +106,36 @@ describe('lib/llm', () => {
     await expect(gen.next()).rejects.toThrow(/timeout|abort/i)
   }, 200)
 
+  it('clears the race timeout timer after generateText resolves (no leaked timer)', async () => {
+    const clearSpy = vi.spyOn(globalThis, 'clearTimeout')
+    mockCreate.mockResolvedValueOnce({
+      choices: [{ message: { content: 'quick answer' } }],
+    })
+    const mod = await import('@/lib/llm')
+    const result = await mod.generateText('test', { timeoutMs: 10_000 })
+    expect(result).toBe('quick answer')
+    // The 10s timer must be cleared once the underlying promise settles,
+    // otherwise it stays live on serverless keep-alive.
+    expect(clearSpy).toHaveBeenCalled()
+    clearSpy.mockRestore()
+  })
+
+  it('generateTextStream rejects when the stream opens but stalls mid-generation (inactivity watchdog)', async () => {
+    // Stream creation succeeds, yields one chunk, then hangs forever.
+    async function* stallingStream() {
+      yield { choices: [{ delta: { content: 'partial' } }] }
+      await new Promise(() => {}) // never resolves — provider stalled mid-stream
+    }
+    mockCreate.mockResolvedValueOnce(stallingStream())
+    const mod = await import('@/lib/llm')
+    const gen = mod.generateTextStream('test', { streamIdleMs: 50 })
+    // First chunk arrives fine
+    const first = await gen.next()
+    expect(first.value).toBe('partial')
+    // Next pull stalls — the inactivity watchdog must reject rather than hang
+    await expect(gen.next()).rejects.toThrow(/timeout|inactiv|stall|abort/i)
+  }, 500)
+
   it('generateTextStream falls back to secondary provider when stream iteration throws a rate-limit error', async () => {
     // First create() call returns a generator that immediately throws 429
     async function* failingStream() {

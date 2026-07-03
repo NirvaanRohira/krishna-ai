@@ -12,14 +12,22 @@ export async function POST(_request: Request) {
   const apiKey = process.env.ANAM_API_KEY
   if (!apiKey) return NextResponse.json({ error: 'Anam not configured' }, { status: 500 })
 
-  const personaConfig = {
-    personaId: process.env.ANAM_PERSONA_ID || 'placeholder',
-    name: process.env.ANAM_PERSONA_NAME || 'Krishna',
-    avatarId: process.env.ANAM_AVATAR_ID || 'placeholder',
-    voiceId: process.env.ANAM_VOICE_ID || 'placeholder',
-    systemPrompt: 'You are a wise yogi and spiritual teacher drawing from the Bhagavad Gita and Upanishads. Speak warmly, briefly, and with calm authority.',
-    maxSessionLengthSeconds: 170,
-  }
+  // Anam's built-in brain is disabled via llmId 'CUSTOMER_CLIENT_V1' — our RAG pipeline is
+  // the brain, and the client streams the answer text to the avatar with
+  // createTalkMessageStream(). (No systemPrompt: there is no Anam LLM to prompt.)
+  // Two valid config shapes: reference a saved persona by id, OR build one inline from an
+  // avatar + voice id. We support both so whichever id you have works by setting its env var.
+  const LLM_ID = 'CUSTOMER_CLIENT_V1'
+  const personaId = process.env.ANAM_PERSONA_ID
+  const personaConfig = personaId
+    ? { personaId, llmId: LLM_ID, maxSessionLengthSeconds: 170 }
+    : {
+        name: process.env.ANAM_PERSONA_NAME || 'Krishna',
+        avatarId: process.env.ANAM_AVATAR_ID || 'placeholder',
+        voiceId: process.env.ANAM_VOICE_ID || 'placeholder',
+        llmId: LLM_ID,
+        maxSessionLengthSeconds: 170,
+      }
 
   const res = await fetch(ANAM_SESSION_URL, {
     method: 'POST',

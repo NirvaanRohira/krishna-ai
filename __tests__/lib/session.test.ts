@@ -9,7 +9,11 @@ function makeSupabaseMock() {
   const mockSelectChain = vi.fn(() => ({ single: mockSingle }))
   const mockSessionInsert = vi.fn(() => ({ select: mockSelectChain }))
 
-  const mockEq = vi.fn().mockResolvedValue({ error: null })
+  // endSession now guards on `ended_at is null` and selects the affected row:
+  //   .update({...}).eq('id', sessionId).is('ended_at', null).select('id')
+  const mockUpdateSelect = vi.fn().mockResolvedValue({ data: [{ id: FAKE_SESSION_ID }], error: null })
+  const mockIs = vi.fn(() => ({ select: mockUpdateSelect }))
+  const mockEq = vi.fn(() => ({ is: mockIs }))
   const mockSessionUpdate = vi.fn(() => ({ eq: mockEq }))
 
   const mockMessageInsert = vi.fn().mockResolvedValue({ error: null })
@@ -28,6 +32,8 @@ function makeSupabaseMock() {
     mockSessionInsert,
     mockMessageInsert,
     mockEq,
+    mockIs,
+    mockUpdateSelect,
     mockRpc,
     mockFrom,
   }
@@ -109,9 +115,31 @@ describe('endSession', () => {
     expect(mockEq).toHaveBeenCalledWith('id', FAKE_SESSION_ID)
   })
 
+  it('only ends a session that has not already ended (ended_at is null)', async () => {
+    const { supabase, mockIs } = makeSupabaseMock()
+    const { endSession } = await import('@/lib/session')
+    await endSession(supabase, FAKE_SESSION_ID)
+    expect(mockIs).toHaveBeenCalledWith('ended_at', null)
+  })
+
+  it('returns true when a row was newly ended', async () => {
+    const { supabase } = makeSupabaseMock()
+    const { endSession } = await import('@/lib/session')
+    const newlyEnded = await endSession(supabase, FAKE_SESSION_ID)
+    expect(newlyEnded).toBe(true)
+  })
+
+  it('returns false when the session was already ended (no rows affected)', async () => {
+    const { supabase, mockUpdateSelect } = makeSupabaseMock()
+    mockUpdateSelect.mockResolvedValue({ data: [], error: null })
+    const { endSession } = await import('@/lib/session')
+    const newlyEnded = await endSession(supabase, FAKE_SESSION_ID)
+    expect(newlyEnded).toBe(false)
+  })
+
   it('throws when the update returns an error', async () => {
-    const { supabase, mockEq } = makeSupabaseMock()
-    mockEq.mockResolvedValue({ error: { message: 'update failed' } })
+    const { supabase, mockUpdateSelect } = makeSupabaseMock()
+    mockUpdateSelect.mockResolvedValue({ data: null, error: { message: 'update failed' } })
     const { endSession } = await import('@/lib/session')
     await expect(endSession(supabase, FAKE_SESSION_ID)).rejects.toThrow('update failed')
   })

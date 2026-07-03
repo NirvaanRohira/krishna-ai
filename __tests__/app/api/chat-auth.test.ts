@@ -73,6 +73,11 @@ describe('POST /api/chat — auth and persistence', () => {
     createServerSupabaseClient = vi.mocked(supabaseLib.createServerSupabaseClient)
     createServerSupabaseClient.mockResolvedValue(makeMockSupabase() as never)
 
+    // Reset the shared in-memory rate-limit store so the per-user gate added to
+    // the chat route doesn't accumulate counts across tests.
+    const { __resetRateLimitStore } = await import('@/lib/rateLimit')
+    __resetRateLimitStore()
+
     const session = await import('@/lib/session')
     startSession = vi.mocked(session.startSession)
     startSession.mockResolvedValue(FAKE_SESSION_ID)

@@ -64,7 +64,7 @@ describe('updateDharmaProfile', () => {
     // user_profiles should be updated twice (upsert for life_context + update for guidance)
     // or at least from('user_profiles') is called
     const userProfileCalls = (sb.from as ReturnType<typeof vi.fn>).mock.calls.filter(
-      ([t]: [string]) => t === 'user_profiles'
+      (call: unknown[]) => call[0] === 'user_profiles'
     )
     expect(userProfileCalls.length).toBeGreaterThan(0)
   })
@@ -73,5 +73,42 @@ describe('updateDharmaProfile', () => {
     const sb = makeSupabase()
     const { updateDharmaProfile } = await import('@/lib/memory/dharmaProfileExtractor')
     await expect(updateDharmaProfile(FAKE_USER_ID, {}, sb as never)).resolves.not.toThrow()
+  })
+
+  it('logs an error when the life_context upsert fails (does not swallow silently)', async () => {
+    const sb = makeSupabase()
+    sb.upsertMock.mockResolvedValue({ error: { message: 'permission denied for table user_profiles' } })
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { updateDharmaProfile } = await import('@/lib/memory/dharmaProfileExtractor')
+    await updateDharmaProfile(FAKE_USER_ID, { life_context: 'x' }, sb as never)
+    expect(errSpy).toHaveBeenCalled()
+    errSpy.mockRestore()
+  })
+
+  it('logs an error when reading previous_guidance fails', async () => {
+    const upsertMock = vi.fn().mockResolvedValue({ error: null })
+    const single = vi.fn().mockResolvedValue({ data: null, error: { message: 'select failed' } })
+    const fromMock = vi.fn().mockImplementation((table: string) => {
+      if (table === 'user_profiles') {
+        return {
+          upsert: upsertMock,
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single,
+          update: vi.fn().mockReturnThis(),
+        }
+      }
+      return { upsert: upsertMock }
+    })
+    const sb = { from: fromMock }
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { updateDharmaProfile } = await import('@/lib/memory/dharmaProfileExtractor')
+    await updateDharmaProfile(
+      FAKE_USER_ID,
+      { previous_guidance_entry: { topic: 't', texts_cited: [], summary: 's' } },
+      sb as never
+    )
+    expect(errSpy).toHaveBeenCalled()
+    errSpy.mockRestore()
   })
 })
