@@ -37,7 +37,7 @@ export default function Home() {
 
           <p className="landing-disclaimer">
             Kanha is an AI drawing from Sanskrit texts. It is not God, not Krishna, and not a spiritual
-            authority. <Link href="/privacy">Privacy</Link> · <Link href="/terms">Terms</Link>
+            authority. <Link href="/pricing">Plans</Link> · <Link href="/privacy">Privacy</Link> · <Link href="/terms">Terms</Link>
           </p>
         </div>
       </section>

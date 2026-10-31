@@ -8,12 +8,14 @@ const supabaseOrigin = (() => {
 // 'wasm-unsafe-eval' is for the avatar's mesh decoder.
 const csp = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
+  // Razorpay Checkout (pricing page only): its script, its payment iframe and its API.
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://checkout.razorpay.com",
+  "frame-src https://api.razorpay.com https://checkout.razorpay.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
-  "img-src 'self' data: blob:",
+  "img-src 'self' data: blob: https://cdn.razorpay.com",
   "media-src 'self' blob:",
-  `connect-src 'self' ${supabaseOrigin} ${supabaseOrigin.replace('https://', 'wss://')}`.trim(),
+  `connect-src 'self' ${supabaseOrigin} ${supabaseOrigin.replace('https://', 'wss://')} https://api.razorpay.com https://lumberjack.razorpay.com`.trim(),
   "worker-src 'self' blob:",
   "frame-ancestors 'none'",
   "object-src 'none'",
@@ -26,8 +28,8 @@ const securityHeaders = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-  // Microphone for voice input only; no camera, location, or payment APIs from the page.
-  { key: 'Permissions-Policy', value: 'microphone=(self), camera=(), geolocation=(), payment=(), usb=(), interest-cohort=()' },
+  // Microphone for voice input only; payment only for the Razorpay checkout frame.
+  { key: 'Permissions-Policy', value: 'microphone=(self), camera=(), geolocation=(), payment=(self "https://api.razorpay.com" "https://checkout.razorpay.com"), usb=(), interest-cohort=()' },
   { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
   { key: 'Content-Security-Policy-Report-Only', value: csp },
 ]

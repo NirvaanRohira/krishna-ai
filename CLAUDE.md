@@ -4,7 +4,7 @@ Before building or editing **anything** (routes, DB, prompts, avatar, payments, 
 
 Always:
 - The AI is **not God and not Krishna**. Krishna's figure is an artistic, AI-animated depiction. Never weaken that framing in prompts, guardrails or UI.
-- Use the user-scoped Supabase client with RLS. The service-role key is only used in `app/api/account/delete`.
+- Use the user-scoped Supabase client with RLS. The service-role key is only used in `app/api/account/delete`, `app/api/cron` and `app/api/payments/*` (see `lib/supabase-admin.ts`).
 - Validate inputs on the server. Never trust client-sent history, IDs or prices. Never return internal error text.
 - Keep the static system prompt first in every LLM prompt (prompt caching). Cap the size of every paid call.
 - UI changes follow `docs/DESIGN.md` (tokens, type, motion, the AI label rules).

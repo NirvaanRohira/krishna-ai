@@ -14,6 +14,7 @@ type Memory = {
   past_topics: { topic: string; date: string }[]
   marketing_opt_in: boolean
   plan: string
+  plan_until: string | null
 }
 
 export default function AccountPage() {
@@ -75,7 +76,13 @@ export default function AccountPage() {
     <main className="legal-page">
       <p><Link href="/chat">← Back to chat</Link></p>
       <h1>Your account</h1>
-      {memory && <p>Plan: <strong style={{ textTransform: 'capitalize' }}>{memory.plan}</strong></p>}
+      {memory && (
+        <p>
+          Plan: <strong style={{ textTransform: 'capitalize' }}>{memory.plan}</strong>
+          {memory.plan_until && <> · until {new Date(memory.plan_until).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</>}
+          {' · '}<Link href="/pricing">{memory.plan === 'free' ? 'See plans' : 'Extend'}</Link>
+        </p>
+      )}
 
       <h2>What Kanha remembers about you</h2>
       <p>Kanha keeps a short summary of past conversations so it doesn&rsquo;t ask you to repeat yourself. You can see it here and erase it at any time.</p>

@@ -22,7 +22,9 @@ export default function TermsPage() {
       <p>Do not use the service to harass anyone, to generate content that insults any religion or community, to impersonate others, or to try to break or misuse the AI.</p>
 
       <h2>Subscriptions</h2>
-      <p>[Plan details, auto-renewal, cancellation and refund terms will be added before paid plans launch.]</p>
+      <p>Paid plans (Plus and Premium) are one-time passes for 30 days or one year, paid through Razorpay. Prices are shown in Indian rupees and include any applicable taxes. <strong>Nothing renews automatically</strong>: when a pass ends you return to the free plan unless you buy again. Buying again adds the new days to the time you have left.</p>
+      <p><strong>Refunds.</strong> If you were charged twice, charged for a pass you did not receive, or the service did not work for you, write to the grievance contact below within 7 days of payment and we will refund you to the original payment method. Refunds take 5–7 working days to reach you. A refunded pass ends early by the days it covered.</p>
+      <p>[Draft: to be reviewed by a lawyer before launch.]</p>
 
       <h2>Liability</h2>
       <p>[To be drafted by counsel.]</p>

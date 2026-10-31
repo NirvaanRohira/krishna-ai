@@ -203,3 +203,89 @@ describe('advisor fixes (20261101010000)', () => {
     expect(still.rows).toHaveLength(1)
   })
 })
+
+describe('payments (20261102000000)', () => {
+  const P = '66666666-6666-4666-8666-666666666666'
+  const Q = '77777777-7777-4777-8777-777777777777'
+  beforeAll(async () => {
+    await db.query('insert into auth.users (id) values ($1), ($2)', [P, Q])
+  })
+  const asService = async <T>(fn: () => Promise<T>) => {
+    await db.exec('set role service_role')
+    try { return await fn() } finally { await db.exec('reset role') }
+  }
+  const newOrder = (order: string, user: string, plan = 'plus', days = 30, amount = 19900) =>
+    asService(() => db.query('insert into payments (order_id, user_id, sku, plan, days, amount_paise) values ($1,$2,$3,$4,$5,$6)', [order, user, `${plan}_${days}`, plan, days, amount]))
+  const apply = (order: string, pay: string, amount: number) =>
+    asService(async () => (await db.query<{ r: { ok: boolean; reason?: string; plan?: string; valid_until?: string; already?: boolean } }>('select apply_payment($1,$2,$3) as r', [order, pay, amount])).rows[0].r)
+  const ent = async (user: string) => (await db.query<{ plan: string; valid_until: string | null }>('select plan, valid_until from entitlements where user_id = $1', [user])).rows[0]
+  const daysLeft = (iso: string | null) => Math.round((new Date(iso!).getTime() - Date.now()) / 86_400_000)
+
+  it('a verified payment grants the plan, and applying it again changes nothing (idempotent)', async () => {
+    await newOrder('order_P1', P)
+    expect(await apply('order_P1', 'pay_P1', 19900)).toMatchObject({ ok: true, plan: 'plus' })
+    expect(daysLeft((await ent(P)).valid_until)).toBe(30)
+    expect(await apply('order_P1', 'pay_P1', 19900)).toMatchObject({ ok: true, already: true })
+    expect(daysLeft((await ent(P)).valid_until)).toBe(30)
+    // A different payment id cannot re-use a paid order
+    expect(await apply('order_P1', 'pay_OTHER', 19900)).toMatchObject({ ok: false, reason: 'order_already_paid' })
+  })
+
+  it('buying the same plan again extends from the current end date', async () => {
+    await newOrder('order_P2', P)
+    await apply('order_P2', 'pay_P2', 19900)
+    expect(daysLeft((await ent(P)).valid_until)).toBe(60)
+  })
+
+  it('upgrading to Premium switches plan and keeps the remaining time', async () => {
+    await newOrder('order_P3', P, 'premium', 30, 49900)
+    expect(await apply('order_P3', 'pay_P3', 49900)).toMatchObject({ ok: true, plan: 'premium' })
+    const e = await ent(P)
+    expect(e.plan).toBe('premium')
+    expect(daysLeft(e.valid_until)).toBe(90)
+  })
+
+  it('rejects a wrong amount and unknown orders, and grants nothing', async () => {
+    await newOrder('order_Q1', Q)
+    expect(await apply('order_Q1', 'pay_Q1', 100)).toMatchObject({ ok: false, reason: 'amount_mismatch' })
+    expect(await apply('order_NOPE', 'pay_Q1', 19900)).toMatchObject({ ok: false, reason: 'unknown_order' })
+    expect(await ent(Q)).toBeUndefined()
+  })
+
+  it('a permanent grant is never shortened by a purchase', async () => {
+    await db.query(`insert into entitlements (user_id, plan, source) values ($1, 'premium', 'grant')`, [Q])
+    await newOrder('order_Q2', Q)
+    expect(await apply('order_Q2', 'pay_Q2', 19900)).toMatchObject({ ok: true, plan: 'premium' })
+    expect(await ent(Q)).toMatchObject({ plan: 'premium', valid_until: null })
+  })
+
+  it('a refund marks the payment and takes back its days', async () => {
+    const r = await asService(async () => (await db.query<{ r: { ok: boolean } }>(`select refund_payment('pay_P3') as r`)).rows[0].r)
+    expect(r.ok).toBe(true)
+    expect(daysLeft((await ent(P)).valid_until)).toBe(60)
+    const again = await asService(async () => (await db.query<{ r: { already?: boolean } }>(`select refund_payment('pay_P3') as r`)).rows[0].r)
+    expect(again.already).toBe(true)
+  })
+
+  it('users can read only their own payments and can never write payments or plans', async () => {
+    const mine = await asUser(db, P, () => db.query('select order_id from payments order by order_id'))
+    expect(mine.rows.map((r) => (r as { order_id: string }).order_id)).toEqual(['order_P1', 'order_P2', 'order_P3'])
+    const theirs = await asUser(db, Q, () => db.query(`select * from payments where user_id = $1`, [P]))
+    expect(theirs.rows).toHaveLength(0)
+    await expect(asUser(db, P, () => db.query(`insert into payments (order_id, user_id, sku, plan, days, amount_paise) values ('order_X', $1, 'x', 'premium', 400, 100)`, [P]))).rejects.toThrow()
+    await asUser(db, Q, () => db.query(`update payments set status = 'paid' where order_id = 'order_Q1'`))
+    expect((await db.query<{ status: string }>(`select status from payments where order_id = 'order_Q1'`)).rows[0].status).toBe('created')
+    await expect(asUser(db, P, () => db.query(`select apply_payment('order_Q1', 'pay_Z', 19900)`))).rejects.toThrow()
+    await expect(asUser(db, P, () => db.query(`select refund_payment('pay_P1')`))).rejects.toThrow()
+    await expect(asUser(db, null, () => db.query(`select mark_payment_failed('order_Q1')`))).rejects.toThrow()
+    await expect(asUser(db, P, () => db.query(`select * from payment_events`))).resolves.toMatchObject({ rows: [] })
+  })
+
+  it('consume_quota honours a purchased plan until it expires', async () => {
+    const r = await asUser(db, P, async () => (await db.query<{ r: { plan: string } }>(`select consume_quota('message') as r`)).rows[0].r)
+    expect(r.plan).toBe('premium')
+    await db.query(`update entitlements set valid_until = now() - interval '1 minute' where user_id = $1`, [P])
+    const after = await asUser(db, P, async () => (await db.query<{ r: { plan: string } }>(`select consume_quota('message') as r`)).rows[0].r)
+    expect(after.plan).toBe('free')
+  })
+})

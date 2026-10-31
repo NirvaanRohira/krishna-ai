@@ -772,3 +772,16 @@ p { text-wrap: pretty; }
   position: absolute; top: 0.25rem; right: 0.25rem;
   font-size: 0.75rem; color: var(--ink-3); font-variant-numeric: tabular-nums;
 }
+
+/* ── Pricing ─────────────────────────────────────────────── */
+.pricing-page { max-width: 60rem; }
+.plan-grid { display: grid; gap: 1rem; margin-top: 1.5rem; grid-template-columns: 1fr; }
+@media (min-width: 760px) { .plan-grid { grid-template-columns: repeat(3, 1fr); } }
+.plan-card { display: flex; flex-direction: column; gap: 0.6rem; padding: 1.4rem 1.25rem; border: 1px solid var(--hairline); border-radius: var(--radius-m); background: var(--night-2); }
+.plan-card h2 { margin: 0; font-size: 1.5rem; }
+.plan-card ul { flex: 1; margin: 0.25rem 0 0.75rem; }
+.plan-card-featured { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold-soft); }
+.plan-blurb { margin: 0; color: var(--ink-3); }
+.plan-price { margin: 0; font-size: 1.2rem; color: var(--ink); }
+.pricing-status { margin: 1.25rem 0 0; text-align: left; }
+.pricing-status-ok { color: var(--peacock); }

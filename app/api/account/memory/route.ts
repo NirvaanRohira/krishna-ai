@@ -26,7 +26,11 @@ export async function GET() {
     attachments: spiritual.data?.primary_attachments ?? [],
     past_topics: guidance.map((g) => ({ topic: g.topic ?? '', date: g.date ?? '' })).slice(-10),
     marketing_opt_in: profile.data?.marketing_opt_in ?? false,
-    plan: plan.data?.plan ?? 'free',
+    // An expired pass reads as free (consume_quota applies the same rule).
+    ...(() => {
+      const active = plan.data && (!plan.data.valid_until || new Date(plan.data.valid_until) > new Date())
+      return { plan: active ? plan.data!.plan : 'free', plan_until: active ? plan.data!.valid_until ?? null : null }
+    })(),
   }, { headers: { 'Cache-Control': 'no-store' } })
 }
 
