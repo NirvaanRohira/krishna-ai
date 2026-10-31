@@ -37,8 +37,39 @@ export function parseGuardrailCategory(raw: string): GuardrailCategory {
   return FAILSAFE_DEFAULT
 }
 
+// Used only when the classifier itself is unavailable (provider outage, retired model, empty
+// reply). Catches crisis language in English, Hindi and Hinglish so a person in danger still
+// gets helplines; everything else proceeds. Failing every message during an outage would
+// take the product down, and calling every message CRISIS would make it useless.
+const CRISIS_PATTERNS: RegExp[] = [
+  /\b(kill|hurt|harm)\s+my\s*self\b/i,
+  /\bsuicid/i,
+  /\bend\s+(my|this)\s+life\b/i,
+  /\b(want|wanna|going)\s+to\s+die\b/i,
+  /\bno\s+(reason|point)\s+(to|in)\s+(live|living)\b/i,
+  /\bself[-\s]?harm/i,
+  /\bcut(ting)?\s+my\s*self\b/i,
+  /\b(khud\s*kushi|khudkushi|aatmhatya|atmahatya)\b/i,
+  /\bmarna\s+(chahta|chahti|hai)\b/i,
+  /\bjeena\s+nahi\b/i,
+  /आत्महत्या|ख़ुदकुशी|खुदकुशी|मरना\s*चाहत|जीना\s*नहीं|जान\s*दे\s*द/,
+]
+
+export function localCrisisCheck(message: string): GuardrailCategory {
+  return CRISIS_PATTERNS.some((re) => re.test(message)) ? 'CRISIS' : 'SAFE'
+}
+
 export async function classifyMessage(message: string): Promise<GuardrailCategory> {
   const prompt = buildGuardrailPrompt(message)
-  const result = await classify(prompt)
+  let result: string
+  try {
+    result = await classify(prompt)
+  } catch (err) {
+    console.error('[guardrail] classifier unavailable — using local crisis check:', err instanceof Error ? err.message : err)
+    return localCrisisCheck(message)
+  }
+  // An empty reply means the classifier didn't answer (e.g. a reasoning model ran out of
+  // room): an outage, not a verdict. Garbage text still fails safe to CRISIS below.
+  if (!result.trim()) return localCrisisCheck(message)
   return parseGuardrailCategory(result)
 }

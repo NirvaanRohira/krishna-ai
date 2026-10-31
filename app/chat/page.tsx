@@ -36,7 +36,7 @@ async function consumeStream(
         const d = JSON.parse(line.slice(6))
         if (d.t === 's') onMeta(d.id, 'src' in d ? cleanSources(d.src) : null)
         if (d.t === 'c') onChunk(d.v)
-        if (d.t === 'e') onError(d.msg ?? FALLBACK_ERROR)
+        if (d.t === 'e') onError((d.msg ?? FALLBACK_ERROR) + (typeof d.code === 'string' && /^[a-z_]{2,20}$/.test(d.code) ? ` (code: ${d.code})` : ''))
       } catch { /* skip malformed lines */ }
     }
   }

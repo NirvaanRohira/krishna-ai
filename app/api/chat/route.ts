@@ -9,7 +9,7 @@ import { getGuardrailResponse } from '@/lib/guardrails/responses'
 import { parallelRetrieve } from '@/lib/retrieval/parallelRetrieval'
 import { runCRAG } from '@/lib/crag/loop'
 import { buildPrompt } from '@/lib/prompts/chat'
-import { generateTextStream } from '@/lib/llm'
+import { generateTextStream, errorCode } from '@/lib/llm'
 import { startSession, saveExchange, endSession, resumeSession } from '@/lib/session'
 import { loadAndInjectProfile } from '@/lib/memory/profileInjector'
 import { queryStructuralLookup } from '@/lib/retrieval/structuralLookup'
@@ -237,8 +237,11 @@ export async function POST(req: Request) {
       await writer.write(sseChunk('[DONE]'))
     } catch (err) {
       // Log the real error server-side; never send provider/DB internals to the browser.
-      log.error('chat', 'stream failed', { sessionId, userId: user.id }, err)
-      await writer.write(sseChunk({ t: 'e', msg: 'Something went wrong. Please try again.' }))
+      // A short category (ai_model, ai_auth, ai_quota…) is safe to show and makes
+      // "something went wrong" diagnosable; the full error stays in the server logs.
+      const code = errorCode(err)
+      log.error('chat', 'stream failed', { sessionId, userId: user.id, code }, err)
+      await writer.write(sseChunk({ t: 'e', msg: 'Something went wrong. Please try again.', code }))
     } finally {
       // After [DONE] has been sent, so it never delays the reply.
       if (usagePromptChars > 0) {

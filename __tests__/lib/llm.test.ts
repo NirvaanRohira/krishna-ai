@@ -33,7 +33,7 @@ describe('lib/llm — classify provider isolation', () => {
     vi.stubEnv('GROQ_API_KEY', 'test-groq-key')
     const mod = await import('@/lib/llm')
     expect(mod.CLASSIFY_PROVIDER).toBe('groq')
-    expect(mod.CLASSIFY_MODEL).toBe('llama-3.1-8b-instant')
+    expect(mod.CLASSIFY_MODEL).toBe('openai/gpt-oss-20b')
     // Restore to match beforeAll stubs so subsequent tests aren't affected
     vi.stubEnv('LLM_PROVIDER', 'groq')
     vi.stubEnv('LLM_CLASSIFY_PROVIDER', '')
@@ -201,5 +201,59 @@ describe('lib/llm — OpenRouter provider', () => {
     const mod = await import('@/lib/llm')
     await mod.generateText('hello')
     expect(mockCreate.mock.calls[0][0]).not.toHaveProperty('provider')
+  })
+})
+
+describe('lib/llm — resilience after model retirements', () => {
+  it('Groq defaults are the current replacements, with short reasoning', async () => {
+    vi.resetModules()
+    vi.stubEnv('LLM_PROVIDER', 'groq')
+    vi.stubEnv('LLM_FALLBACK', 'none')
+    const mod = await import('@/lib/llm')
+    expect(mod.GENERATION_MODEL).toBe('openai/gpt-oss-120b')
+    await mod.generateText('hi')
+    expect(mockCreate.mock.calls[0][0]).toMatchObject({ model: 'openai/gpt-oss-120b', reasoning_effort: 'low' })
+    vi.stubEnv('LLM_FALLBACK', 'nvidia')
+    vi.resetModules()
+  })
+
+  it('falls back to Gemini automatically when the primary model is retired (404)', async () => {
+    vi.resetModules()
+    vi.stubEnv('LLM_PROVIDER', 'groq')
+    vi.stubEnv('LLM_FALLBACK', '')
+    vi.stubEnv('GEMINI_API_KEY', 'g')
+    mockCreate
+      .mockRejectedValueOnce(Object.assign(new Error('404 The model has been decommissioned'), { status: 404 }))
+      .mockResolvedValueOnce({ choices: [{ message: { content: 'from gemini' } }] })
+    const mod = await import('@/lib/llm')
+    expect(await mod.generateText('hi')).toBe('from gemini')
+    expect(mockCreate.mock.calls[1][0].model).toBe('gemini-flash-latest')
+    vi.stubEnv('LLM_FALLBACK', 'nvidia')
+    vi.resetModules()
+  })
+
+  it('the safety classifier also falls back, and gives reasoning models room to answer', async () => {
+    vi.resetModules()
+    vi.stubEnv('LLM_FALLBACK', '')
+    vi.stubEnv('GEMINI_API_KEY', 'g')
+    mockCreate
+      .mockRejectedValueOnce(Object.assign(new Error('model_decommissioned'), { status: 400 }))
+      .mockResolvedValueOnce({ choices: [{ message: { content: 'SAFE' } }] })
+    const mod = await import('@/lib/llm')
+    expect(await mod.classify('x')).toBe('SAFE')
+    expect(mockCreate.mock.calls[0][0].max_tokens).toBe(300)
+    expect(mockCreate.mock.calls[1][0].model).toBe('gemini-flash-lite-latest')
+    vi.stubEnv('LLM_FALLBACK', 'nvidia')
+    vi.resetModules()
+  })
+
+  it('errorCode gives short, non-sensitive categories', async () => {
+    const { errorCode } = await import('@/lib/llm')
+    expect(errorCode({ status: 404 })).toBe('ai_model')
+    expect(errorCode({ status: 401 })).toBe('ai_auth')
+    expect(errorCode({ status: 402 })).toBe('ai_quota')
+    expect(errorCode({ status: 503 })).toBe('ai_unavailable')
+    expect(errorCode({ isTimeout: true })).toBe('ai_timeout')
+    expect(errorCode(new Error('boom'))).toBe('internal')
   })
 })

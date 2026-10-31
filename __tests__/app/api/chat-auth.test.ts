@@ -9,7 +9,7 @@ vi.mock('@/lib/guardrails/classifier', () => ({ classifyMessage: vi.fn() }))
 vi.mock('@/lib/retrieval/structuralLookup', () => ({ queryStructuralLookup: vi.fn() }))
 vi.mock('@/lib/retrieval/contextRetrieval', () => ({ getContextVector: vi.fn() }))
 vi.mock('@/lib/gemini', () => ({ embedText: vi.fn(), EMBEDDING_DIMENSION: 1536 }))
-vi.mock('@/lib/llm', () => ({ generateText: vi.fn(), generateTextStream: vi.fn(), classify: vi.fn() }))
+vi.mock('@/lib/llm', () => ({ generateText: vi.fn(), generateTextStream: vi.fn(), classify: vi.fn(), errorCode: () => 'internal' }))
 
 const FAKE_USER = { id: 'user-abc-123' }
 const FAKE_SESSION_ID = 'sess-xyz-456'

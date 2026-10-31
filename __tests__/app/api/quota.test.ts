@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('@/lib/supabase-server', () => ({ createServerSupabaseClient: vi.fn() }))
 vi.mock('@/lib/session', () => ({ startSession: vi.fn(), saveExchange: vi.fn(), endSession: vi.fn(), resumeSession: vi.fn() }))
-vi.mock('@/lib/llm', () => ({ generateText: vi.fn(), generateTextStream: vi.fn(), classify: vi.fn() }))
+vi.mock('@/lib/llm', () => ({ generateText: vi.fn(), generateTextStream: vi.fn(), classify: vi.fn(), errorCode: () => 'internal' }))
 vi.mock('@/lib/quota', async (orig) => ({ ...(await orig<typeof import('@/lib/quota')>()), consumeQuota: vi.fn(), recordLlmUsage: vi.fn() }))
 vi.mock('@aws-sdk/client-polly', () => ({ PollyClient: class { send = vi.fn() }, SynthesizeSpeechCommand: vi.fn() }))
 

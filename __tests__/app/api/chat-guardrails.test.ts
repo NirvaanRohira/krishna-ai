@@ -9,7 +9,7 @@ vi.mock('@/lib/guardrails/classifier', () => ({ classifyMessage: vi.fn() }))
 vi.mock('@/lib/retrieval/structuralLookup', () => ({ queryStructuralLookup: vi.fn() }))
 vi.mock('@/lib/retrieval/contextRetrieval', () => ({ getContextVector: vi.fn() }))
 vi.mock('@/lib/gemini', () => ({ embedText: vi.fn(), EMBEDDING_DIMENSION: 1536 }))
-vi.mock('@/lib/llm', () => ({ generateText: vi.fn(), generateTextStream: vi.fn(async function* () { yield 'response' }), classify: vi.fn() }))
+vi.mock('@/lib/llm', () => ({ generateText: vi.fn(), generateTextStream: vi.fn(async function* () { yield 'response' }), classify: vi.fn(), errorCode: () => 'internal' }))
 
 function makeRequest(body: object) {
   return new Request('http://localhost/api/chat', {

@@ -99,10 +99,19 @@ describe('classifyMessage', () => {
     expect(await classifyMessage('mixed message')).toBe('CRISIS')
   })
 
-  it('fails to CRISIS (never SAFE) for an empty classifier response', async () => {
+  it('an empty classifier reply is an outage: the local crisis check decides', async () => {
     classify.mockResolvedValue('')
     const { classifyMessage } = await import('@/lib/guardrails/classifier')
-    expect(await classifyMessage('some message')).toBe('CRISIS')
+    expect(await classifyMessage('I want to end my life')).toBe('CRISIS')
+    expect(await classifyMessage('how do I deal with my boss?')).toBe('SAFE')
+  })
+
+  it('when the classifier is down, crisis language is still caught (English, Hindi, Hinglish)', async () => {
+    classify.mockRejectedValue(Object.assign(new Error('404 model not found'), { status: 404 }))
+    const { classifyMessage } = await import('@/lib/guardrails/classifier')
+    for (const m of ['I keep thinking about suicide', 'मैं आत्महत्या करना चाहता हूँ', 'ab jeena nahi hai, marna chahta hoon', 'I want to kill myself'])
+      expect(await classifyMessage(m)).toBe('CRISIS')
+    expect(await classifyMessage('what does the Gita say about duty?')).toBe('SAFE')
   })
 
   it('passes the user message in the classification prompt', async () => {

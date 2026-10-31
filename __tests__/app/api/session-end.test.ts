@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('@/lib/supabase-server', () => ({ createServerSupabaseClient: vi.fn() }))
 vi.mock('@/lib/session', () => ({ endSession: vi.fn() }))
-vi.mock('@/lib/llm', () => ({ generateText: vi.fn(), generateTextStream: vi.fn(), classify: vi.fn() }))
+vi.mock('@/lib/llm', () => ({ generateText: vi.fn(), generateTextStream: vi.fn(), classify: vi.fn(), errorCode: () => 'internal' }))
 
 const FAKE_USER = { id: 'user-abc-123' }
 const FAKE_SESSION_ID = 'sess-xyz-456'
