@@ -177,7 +177,8 @@ export default function ChatPage() {
 
       if (!res.ok || !res.body) {
         const data = await res.json().catch(() => ({}))
-        setMessages([...withUser, { role: 'assistant', content: data.error ?? FALLBACK_ERROR }])
+        // A short status code makes "something went wrong" diagnosable from a screenshot.
+        setMessages([...withUser, { role: 'assistant', content: data.error ?? `${FALLBACK_ERROR} (code: http_${res.status})` }])
         return
       }
 
@@ -218,7 +219,7 @@ export default function ChatPage() {
       )
 
       if (assembled === '') {
-        setMessages([...withUser, { role: 'assistant', content: errorMsg || FALLBACK_ERROR }])
+        setMessages([...withUser, { role: 'assistant', content: errorMsg || `${FALLBACK_ERROR} (code: empty_reply)` }])
       } else {
         // The model streamed partial content and *then* the server emitted an
         // error event. Without a visible marker the user (and TTS) would treat
@@ -239,7 +240,7 @@ export default function ChatPage() {
         sentenceBufferRef.current = ''
       }
     } catch {
-      setMessages([...withUser, { role: 'assistant', content: FALLBACK_ERROR }])
+      setMessages([...withUser, { role: 'assistant', content: `${FALLBACK_ERROR} (code: network)` }])
     } finally {
       if (thinkingTimer !== undefined) clearTimeout(thinkingTimer)
       if (thinkingInterval !== undefined) clearInterval(thinkingInterval)
