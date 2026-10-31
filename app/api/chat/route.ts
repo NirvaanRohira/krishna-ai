@@ -16,6 +16,7 @@ import { queryStructuralLookup } from '@/lib/retrieval/structuralLookup'
 import { withVoiceMode } from '@/lib/prompts/voice'
 import { closeStaleSessions } from '@/lib/memory/postSession'
 import { log } from '@/lib/log'
+import { publicSources } from '@/lib/sources-server'
 import { consumeQuota, quotaMessage, recordLlmUsage, estimateTokens } from '@/lib/quota'
 
 type Message = { role: 'user' | 'assistant'; content: string }
@@ -180,7 +181,7 @@ export async function POST(req: Request) {
 
       if (complexity === 'SIMPLE') {
         const sources = retrievedSources
-        await writer.write(sseChunk({ t: 's', id: sessionId, src: sources }))
+        await writer.write(sseChunk({ t: 's', id: sessionId, src: publicSources(sources) }))
 
         const prompt = buildPrompt(sources, recentHistory, message, systemPrompt, anchors)
         usagePromptChars = prompt.length
@@ -225,6 +226,9 @@ export async function POST(req: Request) {
           }
         }
 
+        // CRAG picks its sources while it runs, so they're sent once it's done (the client
+        // shows "Drawn from" when the reply completes).
+        await writer.write(sseChunk({ t: 's', id: sessionId, src: publicSources(sources) }))
         usagePromptChars = buildPrompt(sources, recentHistory, message, systemPrompt, anchors).length
         usageResponse = response
         await saveExchange(supabase, sessionId, message, response, sources)

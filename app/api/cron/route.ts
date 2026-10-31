@@ -3,7 +3,8 @@ import { timingSafeEqual } from 'node:crypto'
 import { createAdminClient } from '@/lib/supabase-admin'
 import { log } from '@/lib/log'
 
-// Scheduled jobs, called by Google Cloud Scheduler (or a GitHub Actions cron):
+// Scheduled jobs, called by Vercel Cron (vercel.json; it sends GET with the bearer
+// secret automatically when CRON_SECRET is set), Google Cloud Scheduler, or GitHub Actions:
 //   POST /api/cron?task=spend   — hourly: estimate today's AI spend, alert if over budget
 //   POST /api/cron?task=purge   — daily: delete conversations past the retention window
 // Auth: `Authorization: Bearer $CRON_SECRET`. Not reachable without the secret.
@@ -87,3 +88,6 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ error: 'unknown task' }, { status: 400 })
 }
+
+// Vercel Cron calls with GET. Same handler, same bearer-secret check.
+export const GET = POST

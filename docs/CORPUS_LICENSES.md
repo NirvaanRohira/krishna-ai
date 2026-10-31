@@ -22,7 +22,7 @@ The texts themselves (the Gita, the Upanishads, the Bhagavatam, the Yoga Sutras)
 
 1. **Ask.** Email GRETIL (Göttingen), John Smith (Cambridge) for the Mahabharata e-text, and sanskritdocuments.org for permission to use their transcriptions in a commercial app with attribution. Many such projects say yes to attribution plus a link. Keep the replies in `docs/licences/`.
 2. **Replace with clearly-licensed sources**, for example Sanskrit Wikisource (text public domain, site CC BY-SA, attribution required) or public-domain printed editions (pre-1950s publications whose editors died more than 60 years ago, under India's term) that you transcribe or OCR yourselves.
-3. **Until settled:** show only the verse *reference* (e.g. "Gita 2.47"), not the text, by passing `text` as undefined in the client. One line in `lib/sources.ts` → `cleanSources`.
+3. **Until settled (built, and the default):** users see only the verse *reference* (e.g. "Gita 2.47"). The server withholds the verse text unless `SHOW_VERSE_TEXT=true` (`lib/sources-server.ts`). Turn it on once permission is in hand.
 4. **Always:** an "Attributions" section on `/terms` crediting each source and editor.
 
-Owner: founder plus counsel. Status: **open**. It blocks paid launch, not beta.
+Owner: founder plus counsel. Status: **open**. With the text hidden by default, the remaining exposure is the internal use of these editions as model context. Settle that before paid launch.

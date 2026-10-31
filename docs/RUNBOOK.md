@@ -104,8 +104,9 @@ Later, Supabase **Branching** (paid) can create a throwaway DB per pull request 
 | `POST /api/cron?task=spend` | hourly | Estimates today's AI spend from usage counters; posts to `ALERT_WEBHOOK_URL` (Slack, Google Chat or Discord) when over `SPEND_ALERT_USD_PER_DAY` |
 | `POST /api/cron?task=purge` | daily 03:13 IST | Deletes conversations older than `RETENTION_MONTHS` (default 12), as the privacy notice promises |
 
-Both need `Authorization: Bearer $CRON_SECRET` (at least 16 characters). Three ways to run them; pick one:
+Both need `Authorization: Bearer $CRON_SECRET` (at least 16 characters). Ways to run them; pick one:
 
+- **Vercel Cron (set up; best while you're on Vercel):** `vercel.json` schedules both daily. Vercel sends the bearer header itself when `CRON_SECRET` is set. On Pro, change the spend check to hourly (`17 * * * *`).
 - **GitHub Actions (free, already set up):** `.github/workflows/scheduled-jobs.yml`. Add repo secrets `APP_URL` and `CRON_SECRET`.
 - **Google Cloud Scheduler** (if on Cloud Run): create two HTTP jobs with that header.
 - **Supabase pg_cron** for the purge only (Database → Extensions → enable `pg_cron`):
@@ -157,6 +158,7 @@ Keep secrets in the hosting platform's secret store (Vercel env or GCP Secret Ma
 | `ALERT_WEBHOOK_URL` | yes | spend alerts |
 | `SPEND_ALERT_USD_PER_DAY`, `LLM_PRICE_IN_PER_M`, `LLM_PRICE_OUT_PER_M`, `TTS_PRICE_PER_M_CHARS`, `RETENTION_MONTHS` | no | alert thresholds and unit prices for the estimate |
 | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN` | low | error monitoring (leave unset to disable) |
+| `SHOW_VERSE_TEXT` | no | `true` shows verse text under answers; keep unset until `docs/CORPUS_LICENSES.md` is settled |
 | `NEXT_PUBLIC_GRIEVANCE_OFFICER_NAME`, `NEXT_PUBLIC_GRIEVANCE_EMAIL` | no | required on the privacy notice |
 | `KILL_SWITCH` | no | maintenance mode |
 

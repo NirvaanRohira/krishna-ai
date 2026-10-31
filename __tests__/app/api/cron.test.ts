@@ -51,3 +51,17 @@ describe('/api/cron', () => {
     expect(body.result.sessions_deleted).toBe(4)
   })
 })
+
+describe('/api/cron via Vercel Cron (GET)', () => {
+  it('accepts GET with the same bearer secret', async () => {
+    vi.stubEnv('CRON_SECRET', SECRET)
+    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'service')
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://x.supabase.co')
+    rpc.mockResolvedValue({ data: { sessions_deleted: 0, usage_rows_deleted: 0 }, error: null })
+    const { GET } = await import('@/app/api/cron/route')
+    const ok = await GET(new Request('http://x/api/cron?task=purge', { headers: { authorization: `Bearer ${SECRET}` } }))
+    expect(ok.status).toBe(200)
+    const no = await GET(new Request('http://x/api/cron?task=purge'))
+    expect(no.status).toBe(401)
+  })
+})

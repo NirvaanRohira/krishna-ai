@@ -176,3 +176,33 @@ describe('POST /api/chat — complexity routing', () => {
     expect(sIdx).toBeLessThan(firstCIdx)  // metadata must arrive before first chunk
   })
 })
+
+describe('POST /api/chat — sources sent to the browser', () => {
+  const SRC = [{ id: 1, text_source: 'bhagavad_gita', book_chapter: 2, verse: 47, text: 'karmanye vadhikaraste', theme_tags: [], score: 0.8 }]
+  async function sourcesFor(complexity: 'SIMPLE' | 'COMPLEX') {
+    const router = await import('@/lib/retrieval/complexityRouter')
+    vi.mocked(router.classifyComplexity).mockResolvedValue(complexity)
+    const parallel = await import('@/lib/retrieval/parallelRetrieval')
+    vi.mocked(parallel.parallelRetrieve).mockResolvedValue(SRC)
+    const crag = await import('@/lib/crag/loop')
+    vi.mocked(crag.runCRAG).mockResolvedValue({ response: 'answer', sources: SRC })
+    const { POST } = await import('@/app/api/chat/route')
+    const { sources } = await parseStream(await POST(makeRequest({ message: 'how do I handle failure at work?' })))
+    return sources as Array<Record<string, unknown>>
+  }
+
+  it('deep (CRAG) answers now include their sources too', async () => {
+    const src = await sourcesFor('COMPLEX')
+    expect(src).toEqual([{ text_source: 'bhagavad_gita', book_chapter: 2, verse: 47 }])
+  })
+
+  it('verse text is withheld by default and included only when SHOW_VERSE_TEXT=true', async () => {
+    expect((await sourcesFor('SIMPLE'))[0]).not.toHaveProperty('text')
+    vi.stubEnv('SHOW_VERSE_TEXT', 'true')
+    try {
+      expect((await sourcesFor('SIMPLE'))[0].text).toBe('karmanye vadhikaraste')
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+})

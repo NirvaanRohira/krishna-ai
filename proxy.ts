@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { TERMS_VERSION } from '@/lib/legal'
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -50,13 +51,15 @@ export async function proxy(request: NextRequest) {
   }
 
   // ── Onboarding gate ───────────────────────────────────────────
+  // Also catches people who onboarded before the current terms (and the 18+ / consent
+  // boxes) existed: they see onboarding once more and accept the current version.
   const { data: profile } = await supabase
     .from('user_profiles')
-    .select('onboarding_complete')
+    .select('onboarding_complete, terms_version')
     .eq('user_id', user.id)
     .single()
 
-  if (!profile?.onboarding_complete) {
+  if (!profile?.onboarding_complete || profile.terms_version !== TERMS_VERSION) {
     return NextResponse.redirect(new URL('/onboarding', request.url))
   }
 
