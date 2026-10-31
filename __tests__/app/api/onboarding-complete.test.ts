@@ -2,50 +2,79 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('@/lib/supabase-server', () => ({ createServerSupabaseClient: vi.fn() }))
 
-function makeRequest() {
-  return new Request('http://localhost/api/onboarding/complete', { method: 'POST' })
+const ALL_CONSENTS = { ageConfirmed18: true, acceptTerms: true, acceptPrivacy: true, aiDisclosure: true }
+
+function makeRequest(body: object = ALL_CONSENTS) {
+  return new Request('http://localhost/api/onboarding/complete', {
+    method: 'POST',
+    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json' },
+  })
 }
 
 describe('POST /api/onboarding/complete', () => {
-  let updateMock: ReturnType<typeof vi.fn>
+  let upsertMock: ReturnType<typeof vi.fn>
+  let insertMock: ReturnType<typeof vi.fn>
 
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.clearAllMocks()
-    updateMock = vi.fn().mockResolvedValue({ error: null })
+    upsertMock = vi.fn().mockResolvedValue({ error: null })
+    insertMock = vi.fn().mockResolvedValue({ error: null })
   })
 
   function makeSupabase(user: object | null = { id: 'user-123' }) {
     return {
       auth: { getUser: vi.fn().mockResolvedValue({ data: { user }, error: null }) },
-      from: vi.fn().mockReturnValue({
-        upsert: updateMock,
-        update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }),
-      }),
+      from: vi.fn().mockReturnValue({ upsert: upsertMock, insert: insertMock }),
     }
   }
 
-  it('returns 401 for unauthenticated user', async () => {
+  async function post(body?: object, user?: object | null) {
     const { createServerSupabaseClient } = await import('@/lib/supabase-server')
-    vi.mocked(createServerSupabaseClient).mockResolvedValue(makeSupabase(null) as never)
+    const sb = makeSupabase(user === undefined ? { id: 'user-123' } : user)
+    vi.mocked(createServerSupabaseClient).mockResolvedValue(sb as never)
     const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(makeRequest())
+    return { res: await POST(makeRequest(body)), sb }
+  }
+
+  it('returns 401 for unauthenticated user', async () => {
+    const { res } = await post(ALL_CONSENTS, null)
     expect(res.status).toBe(401)
   })
 
-  it('returns 200 for authenticated user', async () => {
-    const { createServerSupabaseClient } = await import('@/lib/supabase-server')
-    vi.mocked(createServerSupabaseClient).mockResolvedValue(makeSupabase() as never)
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    const res = await POST(makeRequest())
-    expect(res.status).toBe(200)
+  it('refuses users who do not confirm they are 18+ (no data written)', async () => {
+    const { res } = await post({ ...ALL_CONSENTS, ageConfirmed18: false })
+    expect(res.status).toBe(403)
+    expect(upsertMock).not.toHaveBeenCalled()
   })
 
-  it('upserts onboarding_complete = true for the authenticated user', async () => {
-    const supabase = makeSupabase()
-    const { createServerSupabaseClient } = await import('@/lib/supabase-server')
-    vi.mocked(createServerSupabaseClient).mockResolvedValue(supabase as never)
-    const { POST } = await import('@/app/api/onboarding/complete/route')
-    await POST(makeRequest())
-    expect(supabase.from).toHaveBeenCalledWith('user_profiles')
+  it('requires every mandatory consent', async () => {
+    const { res } = await post({ ...ALL_CONSENTS, acceptPrivacy: false })
+    expect(res.status).toBe(400)
+    expect(upsertMock).not.toHaveBeenCalled()
+  })
+
+  it('stores consent versions on the profile and records a consent ledger', async () => {
+    const { res, sb } = await post()
+    expect(res.status).toBe(200)
+    expect(sb.from).toHaveBeenCalledWith('user_profiles')
+    expect(upsertMock.mock.calls[0][0]).toMatchObject({
+      user_id: 'user-123', onboarding_complete: true, age_confirmed_18_plus: true, marketing_opt_in: false,
+    })
+    expect(sb.from).toHaveBeenCalledWith('consent_events')
+    const kinds = (insertMock.mock.calls[0][0] as { kind: string }[]).map((r) => r.kind)
+    expect(kinds).toEqual(expect.arrayContaining(['age_18_plus', 'terms', 'privacy', 'ai_disclosure', 'marketing']))
+  })
+
+  it('marketing is opt-in only (false unless explicitly true)', async () => {
+    await post({ ...ALL_CONSENTS, marketingOptIn: 'yes' })
+    expect(upsertMock.mock.calls[0][0].marketing_opt_in).toBe(false)
+  })
+
+  it('does not leak DB error text', async () => {
+    upsertMock.mockResolvedValue({ error: { message: 'relation secret_table does not exist' } })
+    const { res } = await post()
+    expect(res.status).toBe(500)
+    expect(await res.text()).not.toContain('secret_table')
   })
 })

@@ -14,6 +14,15 @@ Reference art: `public/avatar/poster-divine.webp` (the "Divine" look). Outfits p
 
 Recommendation: start with **C** for a working prototype this week, and run **A** in parallel for the launch model.
 
+### Can AI tools build it for us? (Blender MCP, computer use, image-to-3D)
+
+Partly. Here is what each one is good for:
+- **Image-to-3D** (Tripo, Meshy, Hunyuan3D, Rodin, Higgsfield 3D): gives you a textured mesh from the reference art in minutes. Some can auto-rig the body. They **don't** produce the facial shape keys needed for lip-sync, and clothing comes out fused to the body. **Workaround that fits our code:** generate each outfit as a *whole character* (body + clothes) and put each one under its own `outfit_<id>` node, all bound to the same skeleton. The viewer swaps whole characters, so no cloth fitting is needed.
+- **Blender MCP** (lets Claude run Blender through scripts): good for the mechanical, repeatable steps. Importing the meshes, transferring weights to one armature, naming the `outfit_*` nodes, building the five mouth shapes plus blink by script, setting up an Idle action, then exporting and compressing the GLB. It's **not** good at artistic sculpting.
+- **Computer-use agents clicking through the Blender UI**: slow and brittle. Prefer Blender MCP.
+- **Practical AI pipeline:** image-to-3D for each outfit → retopo/cleanup (an artist, or an auto-retopo tool) → Mixamo or the tool's auto-rig → Blender MCP for shape keys, naming and export → `/avatar-preview` to check. Expect 3–10 days with one person who knows basic Blender, versus 2–5 weeks for a commissioned model.
+- **Quality bar:** AI meshes of faces often look uncanny up close. For a religious figure, have the face (at least) cleaned up by an artist before launch.
+
 ## Export contract (what the code expects)
 
 **File:** `public/avatar/krishna.glb`, or a CDN URL in `NEXT_PUBLIC_AVATAR_MODEL_URL`. Blender's glTF exporter with default axes (Y-up, faces +Z), in metres. Krishna as a youth is about 1.3–1.5 m tall. The camera frames the full body automatically.

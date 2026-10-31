@@ -64,6 +64,8 @@ export default function AvatarPanel({ onClose, onSend, loading, caption, getAnal
         </button>
       </div>
 
+      <p className="avatar-ai-label">AI depiction · not divine</p>
+
       {caption && !pickerOpen && (
         <p className="avatar-caption" aria-live="polite">{caption}</p>
       )}

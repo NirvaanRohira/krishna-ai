@@ -29,8 +29,9 @@ const PROVIDERS: Record<string, ProviderConfig> = {
   gemini: {
     baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
     apiKey: () => process.env.GEMINI_API_KEY!,
-    generationModel: 'gemini-2.0-flash',
-    classifyModel: 'gemini-2.0-flash-lite',
+    // Override with LLM_GENERATION_MODEL / LLM_CLASSIFY_MODEL when newer models ship.
+    generationModel: 'gemini-2.5-flash',
+    classifyModel: 'gemini-2.5-flash-lite',
   },
 }
 

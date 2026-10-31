@@ -27,36 +27,13 @@ export async function updateDharmaProfile(
     if (error) console.error('[dharma-profile] life_context upsert failed', error)
   }
 
-  // Append previous_guidance_entry to user_profiles.previous_guidance array.
-  // Read-modify-write is not atomic (a concurrent session could lose an entry);
-  // a fully atomic jsonb append would need an RPC, which is out of scope here.
-  // We at least surface failures and handle the missing-row case.
+  // Append atomically in the DB (append_previous_guidance RPC). The old read-modify-write
+  // could drop an entry when two sessions ended at the same moment; the RPC's UPDATE takes
+  // a row lock, and it keeps only the newest 20 entries so the profile can't grow forever.
   if (extracted.previous_guidance_entry) {
-    const { data: existing, error: selectError } = await supabase
-      .from('user_profiles')
-      .select('previous_guidance')
-      .eq('user_id', userId)
-      .single()
-
-    if (selectError) {
-      // The handle_new_user trigger (+ the INSERT RLS policy) should guarantee a
-      // row exists; if the read fails we log and skip rather than clobber data.
-      console.error('[dharma-profile] failed to read previous_guidance', selectError)
-    } else {
-      if (!existing) {
-        console.error('[dharma-profile] no user_profiles row found for guidance append', { userId })
-      }
-      const current = (existing?.previous_guidance as object[]) ?? []
-      const updated = [
-        ...current,
-        { date: new Date().toISOString().slice(0, 10), ...extracted.previous_guidance_entry },
-      ]
-
-      const { error: updateError } = await supabase
-        .from('user_profiles')
-        .update({ previous_guidance: updated })
-        .eq('user_id', userId)
-      if (updateError) console.error('[dharma-profile] previous_guidance update failed', updateError)
-    }
+    const { error } = await supabase.rpc('append_previous_guidance', {
+      p_entry: { date: new Date().toISOString().slice(0, 10), ...extracted.previous_guidance_entry },
+    })
+    if (error) console.error('[dharma-profile] previous_guidance append failed', error)
   }
 }

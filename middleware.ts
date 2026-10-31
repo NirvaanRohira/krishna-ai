@@ -10,8 +10,19 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/unavailable', request.url))
   }
 
-  // ── Only guard /chat ─────────────────────────────────────────
-  if (!pathname.startsWith('/chat')) {
+  // ── CSRF defence-in-depth for state-changing API calls ─────────
+  // Auth cookies are SameSite=Lax, which already blocks most cross-site POSTs. We also
+  // reject any mutating /api request whose Origin is present and isn't this site.
+  if (pathname.startsWith('/api/') && !['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
+    const origin = request.headers.get('origin')
+    if (origin && origin !== request.nextUrl.origin) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    return NextResponse.next()
+  }
+
+  // ── Only guard /chat and /account ──────────────────────────────
+  if (!pathname.startsWith('/chat') && !pathname.startsWith('/account')) {
     return NextResponse.next()
   }
 
@@ -53,5 +64,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/chat', '/chat/:path*'],
+  matcher: ['/chat', '/chat/:path*', '/account', '/api/:path*'],
 }

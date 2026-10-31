@@ -159,7 +159,8 @@ export default function ChatPage() {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, history: priorMessages, sessionId, mode: videoMode ? 'voice' : 'text' }),
+        // History is loaded server-side from the session; the client only names the session.
+        body: JSON.stringify({ message, sessionId, mode: videoMode ? 'voice' : 'text' }),
       })
 
       if (res.status === 401) {
@@ -187,7 +188,7 @@ export default function ChatPage() {
           assembled += chunk
           sentenceBufferRef.current += chunk
           // Enqueue completed sentences to TTS mid-stream (the avatar lip-syncs to this audio)
-          const boundary = sentenceBufferRef.current.search(/[.!?]\s/)
+          const boundary = sentenceBufferRef.current.search(/[.!?।॥]\s/)
           if (boundary !== -1) {
             const sentence = sentenceBufferRef.current.slice(0, boundary + 1)
             sentenceBufferRef.current = sentenceBufferRef.current.slice(boundary + 2)
@@ -198,7 +199,9 @@ export default function ChatPage() {
           })
         },
         (id) => {
-          if (!sessionId) setSessionId(id)
+          // The server may start a fresh session (e.g. the old one ended when the tab was
+          // hidden, or after a crisis response) — always follow its id.
+          if (id && id !== sessionIdRef.current) setSessionId(id)
         },
         (msg) => {
           errorMsg = msg

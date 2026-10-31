@@ -10,7 +10,7 @@ import { parallelRetrieve } from '@/lib/retrieval/parallelRetrieval'
 import { runCRAG } from '@/lib/crag/loop'
 import { buildPrompt } from '@/lib/prompts/chat'
 import { generateTextStream } from '@/lib/llm'
-import { startSession, saveExchange, endSession } from '@/lib/session'
+import { startSession, saveExchange, endSession, resumeSession } from '@/lib/session'
 import { loadAndInjectProfile } from '@/lib/memory/profileInjector'
 import { queryStructuralLookup } from '@/lib/retrieval/structuralLookup'
 import { withVoiceMode } from '@/lib/prompts/voice'
@@ -22,6 +22,10 @@ type Message = { role: 'user' | 'assistant'; content: string }
 // Long-term context is already carried by the memory profile; 12 messages = the last
 // 6 exchanges, which is plenty for conversational continuity.
 const HISTORY_MESSAGES = Number(process.env.CHAT_HISTORY_MESSAGES) || 12
+
+// Hard cap on a single message. Prevents one request from burning thousands of input
+// tokens (cost DoS) and bounds what we store. ~2,000 chars ≈ a long, heartfelt paragraph.
+const MAX_MESSAGE_CHARS = 2000
 
 const encoder = new TextEncoder()
 
@@ -57,12 +61,16 @@ function isGreetingMessage(message: string): boolean {
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
-  const { message, history = [], sessionId: existingSessionId, mode } = body
+  // `history` from the client is deliberately ignored — see resumeSession().
+  const { message, sessionId: existingSessionId, mode } = body
   // 'voice' = reply will be spoken by the avatar → shorter, conversational answers.
   const voice = mode === 'voice'
 
-  if (!message || typeof message !== 'string') {
+  if (!message || typeof message !== 'string' || !message.trim()) {
     return NextResponse.json({ error: 'message is required' }, { status: 400 })
+  }
+  if (message.length > MAX_MESSAGE_CHARS) {
+    return NextResponse.json({ error: `Message is too long (max ${MAX_MESSAGE_CHARS} characters)` }, { status: 413 })
   }
 
   const supabase = await createServerSupabaseClient()
@@ -77,8 +85,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: { 'Retry-After': String(retryAfterSec) } })
   }
 
-  const sessionId: string = existingSessionId ?? await startSession(supabase, user.id)
-  const recentHistory = (history as Message[]).slice(-HISTORY_MESSAGES)
+  const resumed = await resumeSession(supabase, existingSessionId, HISTORY_MESSAGES)
+  const sessionId: string = resumed?.id ?? await startSession(supabase, user.id)
+  const recentHistory: Message[] = resumed?.history ?? []
+  const turnCount = resumed?.turnCount ?? 0
 
   const stream = new TransformStream<Uint8Array, Uint8Array>()
   const writer = stream.writable.getWriter()
@@ -109,14 +119,12 @@ export async function POST(req: Request) {
 
       const [
         category,
-        { data: sessionRow },
         complexity,
         profilePrompt,
         anchors,
         retrievedSources,
       ] = await Promise.all([
         classifyMessage(message).then(r => { console.log(`[timing] guardrail: ${Date.now()-t0}ms`); return r }),
-        supabase.from('sessions').select('turn_count').eq('id', sessionId).single(),
         classifyComplexity(message).then(r => { console.log(`[timing] complexity: ${Date.now()-t0}ms`); return r }),
         loadAndInjectProfile(user.id, supabase).then(r => { console.log(`[timing] profile: ${Date.now()-t0}ms`); return r }),
         queryStructuralLookup(keywords, { supabaseClient: supabase }).then(r => { console.log(`[timing] lookup: ${Date.now()-t0}ms`); return r }),
@@ -142,7 +150,6 @@ export async function POST(req: Request) {
         return
       }
 
-      const turnCount: number = (sessionRow as { turn_count?: number } | null)?.turn_count ?? 0
       if (turnCount >= 15) {
         console.log('[persona-drift-check] turn', turnCount, '— injecting drift reminder')
       }
@@ -197,8 +204,9 @@ export async function POST(req: Request) {
 
       await writer.write(sseChunk('[DONE]'))
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unknown error'
-      await writer.write(sseChunk({ t: 'e', msg }))
+      // Log the real error server-side; never send provider/DB internals to the browser.
+      console.error('[chat] stream failed:', err)
+      await writer.write(sseChunk({ t: 'e', msg: 'Something went wrong. Please try again.' }))
     } finally {
       await writer.close()
     }

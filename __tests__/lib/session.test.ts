@@ -144,3 +144,32 @@ describe('endSession', () => {
     await expect(endSession(supabase, FAKE_SESSION_ID)).rejects.toThrow('update failed')
   })
 })
+
+describe('resumeSession', () => {
+  function mockSupabase(session: object | null, rows: object[]) {
+    const sessionsChain = { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), maybeSingle: vi.fn().mockResolvedValue({ data: session, error: null }) }
+    const messagesChain = { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), order: vi.fn().mockReturnThis(), limit: vi.fn().mockResolvedValue({ data: rows, error: null }) }
+    return { from: vi.fn((t: string) => (t === 'sessions' ? sessionsChain : messagesChain)) }
+  }
+  const ID = '3f1c2b9e-1a2b-4c3d-8e9f-0a1b2c3d4e5f'
+
+  it('returns null for a non-uuid id without querying', async () => {
+    const { resumeSession } = await import('@/lib/session')
+    const sb = mockSupabase(null, [])
+    expect(await resumeSession(sb as never, 'not-a-uuid', 12)).toBeNull()
+    expect(sb.from).not.toHaveBeenCalled()
+  })
+
+  it("returns null when the session is not visible (someone else's) or has ended", async () => {
+    const { resumeSession } = await import('@/lib/session')
+    expect(await resumeSession(mockSupabase(null, []) as never, ID, 12)).toBeNull()
+    expect(await resumeSession(mockSupabase({ id: ID, turn_count: 3, ended_at: '2026-10-01' }, []) as never, ID, 12)).toBeNull()
+  })
+
+  it('returns history oldest-first for an active owned session', async () => {
+    const { resumeSession } = await import('@/lib/session')
+    const rows = [{ role: 'assistant', content: 'b' }, { role: 'user', content: 'a' }] // DB returns newest first
+    const r = await resumeSession(mockSupabase({ id: ID, turn_count: 1, ended_at: null }, rows) as never, ID, 12)
+    expect(r).toEqual({ id: ID, turnCount: 1, history: [{ role: 'user', content: 'a' }, { role: 'assistant', content: 'b' }] })
+  })
+})

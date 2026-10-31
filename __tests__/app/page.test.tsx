@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest'
+import '@testing-library/jest-dom/vitest'
 import { render, screen } from '@testing-library/react'
 import Page from '@/app/page'
 
 describe('Home page', () => {
   it('renders the product name', () => {
-    // This test fails (RED) because app/page.tsx has create-next-app default content
     render(<Page />)
-    expect(screen.getByText(/krishna ai/i)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: /kanha/i })).toBeInTheDocument()
   })
 
   it('shows a call-to-action link to begin a conversation', () => {

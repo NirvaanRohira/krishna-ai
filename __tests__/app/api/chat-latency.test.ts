@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('@/lib/supabase-server', () => ({ createServerSupabaseClient: vi.fn() }))
-vi.mock('@/lib/session', () => ({ startSession: vi.fn(), saveExchange: vi.fn() }))
+vi.mock('@/lib/session', () => ({ startSession: vi.fn(), saveExchange: vi.fn(), resumeSession: vi.fn() }))
 vi.mock('@/lib/retrieval/complexityRouter', () => ({ classifyComplexity: vi.fn() }))
 vi.mock('@/lib/crag/loop', () => ({ runCRAG: vi.fn() }))
 vi.mock('@/lib/retrieval/parallelRetrieval', () => ({ parallelRetrieve: vi.fn() }))

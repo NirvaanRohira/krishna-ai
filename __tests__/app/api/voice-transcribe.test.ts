@@ -68,4 +68,20 @@ describe('POST /api/voice/transcribe', () => {
     const body = await res.json()
     expect(body.error).toBeDefined()
   })
+
+  it('rejects unsupported file types with 415', async () => {
+    const formData = new FormData()
+    formData.append('audio', new File(['<script>'], 'x.html', { type: 'text/html' }))
+    const { POST } = await import('@/app/api/voice/transcribe/route')
+    const res = await POST(new Request('http://localhost/api/voice/transcribe', { method: 'POST', body: formData }))
+    expect(res.status).toBe(415)
+    expect(transcribeAudio).not.toHaveBeenCalled()
+  })
+
+  it('does not leak provider error text', async () => {
+    transcribeAudio.mockRejectedValueOnce(new Error('Whisper internal key=abc'))
+    const { POST } = await import('@/app/api/voice/transcribe/route')
+    const res = await POST(makeAudioRequest())
+    expect(JSON.stringify(await res.json())).not.toContain('key=abc')
+  })
 })

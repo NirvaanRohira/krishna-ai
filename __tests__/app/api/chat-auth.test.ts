@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('@/lib/supabase-server', () => ({ createServerSupabaseClient: vi.fn() }))
-vi.mock('@/lib/session', () => ({ startSession: vi.fn(), saveExchange: vi.fn() }))
+vi.mock('@/lib/session', () => ({ startSession: vi.fn(), saveExchange: vi.fn(), resumeSession: vi.fn() }))
 vi.mock('@/lib/retrieval/complexityRouter', () => ({ classifyComplexity: vi.fn() }))
 vi.mock('@/lib/retrieval/parallelRetrieval', () => ({ parallelRetrieve: vi.fn() }))
 vi.mock('@/lib/crag/loop', () => ({ runCRAG: vi.fn() }))
@@ -131,11 +131,22 @@ describe('POST /api/chat — auth and persistence', () => {
   })
 
   it('reuses existing sessionId when provided in request body', async () => {
+    const session = await import('@/lib/session')
+    vi.mocked(session.resumeSession).mockResolvedValue({ id: 'existing-sess', turnCount: 1, history: [] })
     const { POST } = await import('@/app/api/chat/route')
     await parseStream(await POST(makeRequest({ message: 'follow-up', sessionId: 'existing-sess' })))
     expect(startSession).not.toHaveBeenCalled()
     const { sessionId } = await parseStream(await POST(makeRequest({ message: 'another', sessionId: 'existing-sess' })))
     expect(sessionId).toBe('existing-sess')
+  })
+
+  it('starts a new session when the supplied sessionId is not resumable (foreign, ended or malformed)', async () => {
+    const session = await import('@/lib/session')
+    vi.mocked(session.resumeSession).mockResolvedValue(null)
+    const { POST } = await import('@/app/api/chat/route')
+    const { sessionId } = await parseStream(await POST(makeRequest({ message: 'hi there friend', sessionId: 'someone-elses' })))
+    expect(startSession).toHaveBeenCalled()
+    expect(sessionId).not.toBe('someone-elses')
   })
 
   it('calls saveExchange with user message, response, and sources', async () => {

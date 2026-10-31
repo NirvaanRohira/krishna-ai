@@ -97,7 +97,10 @@ export function InputBar({ onSubmit, loading = false }: InputBarProps) {
     const recognition = new SR()
     recognition.continuous = true
     recognition.interimResults = true
-    recognition.lang = 'en-US'
+    // Indian English understands Indian accents and names far better than en-US; a phone set
+    // to Hindi/Tamil/etc. (hi-IN, ta-IN...) gets recognition in that language.
+    const navLang = typeof navigator !== 'undefined' ? navigator.language : ''
+    recognition.lang = /-IN$/i.test(navLang) ? navLang : 'en-IN'
     recognitionRef.current = recognition
 
     recognition.onresult = (e: SpeechRecognitionEvent) => {

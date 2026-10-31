@@ -32,7 +32,8 @@ function makeSupabase() {
     return { upsert: upsertMock }
   })
 
-  return { from: fromMock, upsertMock }
+  const rpc = vi.fn().mockResolvedValue({ error: null })
+  return { from: fromMock, upsertMock, rpc }
 }
 
 describe('updateDharmaProfile', () => {
@@ -57,16 +58,13 @@ describe('updateDharmaProfile', () => {
     expect(sb.from).toHaveBeenCalledWith('user_profiles')
   })
 
-  it('appends previous_guidance_entry to the existing guidance array', async () => {
+  it('appends previous_guidance_entry atomically via the append_previous_guidance RPC', async () => {
     const sb = makeSupabase()
     const { updateDharmaProfile } = await import('@/lib/memory/dharmaProfileExtractor')
     await updateDharmaProfile(FAKE_USER_ID, FAKE_EXTRACTED, sb as never)
-    // user_profiles should be updated twice (upsert for life_context + update for guidance)
-    // or at least from('user_profiles') is called
-    const userProfileCalls = (sb.from as ReturnType<typeof vi.fn>).mock.calls.filter(
-      (call: unknown[]) => call[0] === 'user_profiles'
-    )
-    expect(userProfileCalls.length).toBeGreaterThan(0)
+    expect(sb.rpc).toHaveBeenCalledWith('append_previous_guidance', {
+      p_entry: expect.objectContaining({ topic: 'duty conflict', summary: 'Discussed nishkama karma' }),
+    })
   })
 
   it('handles empty extracted profile gracefully without throwing', async () => {
@@ -85,22 +83,9 @@ describe('updateDharmaProfile', () => {
     errSpy.mockRestore()
   })
 
-  it('logs an error when reading previous_guidance fails', async () => {
-    const upsertMock = vi.fn().mockResolvedValue({ error: null })
-    const single = vi.fn().mockResolvedValue({ data: null, error: { message: 'select failed' } })
-    const fromMock = vi.fn().mockImplementation((table: string) => {
-      if (table === 'user_profiles') {
-        return {
-          upsert: upsertMock,
-          select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockReturnThis(),
-          single,
-          update: vi.fn().mockReturnThis(),
-        }
-      }
-      return { upsert: upsertMock }
-    })
-    const sb = { from: fromMock }
+  it('logs an error when the guidance append RPC fails', async () => {
+    const sb = makeSupabase()
+    sb.rpc.mockResolvedValue({ error: { message: 'rpc failed' } })
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const { updateDharmaProfile } = await import('@/lib/memory/dharmaProfileExtractor')
     await updateDharmaProfile(

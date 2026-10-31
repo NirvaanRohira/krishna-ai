@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('@/lib/supabase-server', () => ({ createServerSupabaseClient: vi.fn() }))
-vi.mock('@/lib/session', () => ({ startSession: vi.fn(), saveExchange: vi.fn() }))
+vi.mock('@/lib/session', () => ({ startSession: vi.fn(), saveExchange: vi.fn(), resumeSession: vi.fn() }))
 vi.mock('@/lib/retrieval/complexityRouter', () => ({ classifyComplexity: vi.fn() }))
 vi.mock('@/lib/crag/loop', () => ({ runCRAG: vi.fn() }))
 vi.mock('@/lib/retrieval/parallelRetrieval', () => ({ parallelRetrieve: vi.fn() }))
@@ -117,7 +117,9 @@ describe('POST /api/chat — complexity routing', () => {
     classifyComplexity.mockResolvedValue('COMPLEX')
     const { POST } = await import('@/app/api/chat/route')
     const history = [{ role: 'user', content: 'prior question' }]
-    await parseStream(await POST(makeRequest({ message: 'follow up', history })))
+    const session = await import('@/lib/session')
+    vi.mocked(session.resumeSession).mockResolvedValueOnce({ id: 'sess-123', turnCount: 1, history: history as never })
+    await parseStream(await POST(makeRequest({ message: 'follow up', sessionId: 'sess-123' })))
     // First arg is the (possibly enriched) retrieval query; second is the full history
     expect(runCRAG).toHaveBeenCalledWith(expect.any(String), history, expect.anything())
   })

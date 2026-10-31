@@ -118,9 +118,32 @@ describe('POST /api/tts', () => {
       const res = await POST(makeRequest({ text: 'Namaste' }))
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('audio/mpeg')
+      const [url, init] = fetchMock.mock.calls[0]
+      expect(url).not.toContain('g-key') // API key travels in a header, never the URL
+      expect(init.headers['x-goog-api-key']).toBe('g-key')
+      const body = JSON.parse(init.body)
+      // English text → English (India) variant of the configured voice persona
+      expect(body.voice).toEqual({ languageCode: 'en-IN', name: 'en-IN-Chirp3-HD-Charon' })
+      expect(mockSend).not.toHaveBeenCalled()
+    } finally {
+      vi.unstubAllEnvs()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('speaks Hindi text with the Hindi variant of the configured voice', async () => {
+    vi.stubEnv('TTS_PROVIDER', 'google')
+    vi.stubEnv('GOOGLE_TTS_API_KEY', 'g-key')
+    vi.stubEnv('GOOGLE_TTS_VOICE', 'en-IN-Chirp3-HD-Charon')
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ audioContent: Buffer.from([1]).toString('base64') }), { status: 200 })
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    try {
+      const { POST } = await import('@/app/api/tts/route')
+      await POST(makeRequest({ text: 'कर्म करो, फल की चिंता मत करो।' }))
       const body = JSON.parse(fetchMock.mock.calls[0][1].body)
       expect(body.voice).toEqual({ languageCode: 'hi-IN', name: 'hi-IN-Chirp3-HD-Charon' })
-      expect(mockSend).not.toHaveBeenCalled()
     } finally {
       vi.unstubAllEnvs()
       vi.unstubAllGlobals()

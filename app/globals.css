@@ -697,6 +697,21 @@ body::before {
 .avatar-icon-btn:hover { background: rgba(255, 255, 255, 0.18); }
 .avatar-icon-btn:focus-visible { outline: 1px solid var(--accent); }
 
+.avatar-ai-label {
+  position: absolute;
+  top: max(1.4rem, calc(env(safe-area-inset-top) + 0.65rem));
+  left: 0;
+  right: 0;
+  z-index: 1;
+  margin: 0;
+  text-align: center;
+  font-family: system-ui, sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  color: rgba(233, 236, 255, 0.7);
+  pointer-events: none;
+}
+
 .avatar-caption {
   position: absolute;
   left: 1rem;
@@ -809,3 +824,31 @@ body::before {
 @media (prefers-reduced-motion: reduce) {
   .avatar-poster img { animation: none; }
 }
+
+/* ── Onboarding consents ─────────────────────────────────────────────────── */
+.onboarding-consents {
+  border: none;
+  padding: 0;
+  margin: 0 0 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 28rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--fg-muted);
+}
+.onboarding-consents label { display: flex; gap: 0.6rem; align-items: flex-start; cursor: pointer; }
+.onboarding-consents input { margin-top: 0.25rem; accent-color: var(--accent); flex: 0 0 auto; width: 1rem; height: 1rem; }
+.onboarding-consents a { color: var(--accent); }
+.onboarding-optional { opacity: 0.85; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ── Legal / account pages ───────────────────────────────────────────────── */
+.legal-page { max-width: 44rem; margin: 0 auto; padding: 2.5rem 1rem 4rem; font-size: 0.95rem; }
+.legal-page h1 { font-family: var(--font-display); font-weight: 400; font-size: 2rem; margin: 0 0 0.5rem; }
+.legal-page h2 { font-family: var(--font-display); font-weight: 500; font-size: 1.3rem; margin: 2rem 0 0.5rem; }
+.legal-page a { color: var(--accent); }
+.legal-draft { padding: 0.75rem 1rem; border: 1px solid var(--accent-dim); border-radius: 8px; color: var(--accent); font-size: 0.85rem; }
+.account-actions { display: flex; flex-direction: column; gap: 1rem; margin-top: 1.5rem; }
+.account-actions input { padding: 0.6rem 0.8rem; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-card); color: var(--fg); font: inherit; }

@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { checkRateLimit, rateLimitKey } from '@/lib/rateLimit'
 import { synthesize } from '@/lib/tts'
+import { detectLanguage, ttsLocale } from '@/lib/language'
 
 const MAX_CHARS = 3000
 
@@ -29,7 +30,9 @@ export async function POST(req: Request) {
   if (!text || typeof text !== 'string') return new Response('Bad request', { status: 400 })
 
   try {
-    const { audio, contentType } = await synthesize(text.slice(0, MAX_CHARS))
+    const input = text.slice(0, MAX_CHARS)
+    // Pick the voice language from the text itself, so a Hindi reply is spoken by a Hindi voice.
+    const { audio, contentType } = await synthesize(input, { locale: ttsLocale(detectLanguage(input)) })
     return new Response(new Uint8Array(audio), {
       headers: { 'Content-Type': contentType, 'Cache-Control': 'no-store' },
     })
