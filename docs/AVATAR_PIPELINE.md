@@ -2,7 +2,7 @@
 
 The app loads **one GLB file** and handles everything else: lighting, framing, idle motion, blinking, lip-sync and outfit switching (`components/KrishnaAvatar.tsx`). This page is the brief for whoever builds that file. Hand it to the 3D artist as-is.
 
-Reference art: `public/avatar/poster-divine.webp` (the "Divine" look). Outfits planned for launch: **Divine, Royal, Pastoral, Fusion**.
+Reference art: `public/avatar/poster-divine-v2.webp` (the "Divine" look). Outfits planned for launch: **Divine, Royal, Pastoral, Fusion**.
 
 ## Ways to get the model
 

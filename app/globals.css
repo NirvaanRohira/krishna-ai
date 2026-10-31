@@ -230,11 +230,10 @@ p { text-wrap: pretty; }
   height: 100%;
   width: auto;
   object-fit: contain;
-  mix-blend-mode: screen;
-  /* The artwork has its own dark backdrop: fade all four edges into the night. */
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 14%, #000 86%, transparent), linear-gradient(to bottom, transparent, #000 6%, #000 74%, transparent);
+  /* poster-divine-v2 has a real transparent background; this only softens the edges and feet. */
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 4%, #000 96%, transparent), linear-gradient(to bottom, #000 82%, transparent);
   -webkit-mask-composite: source-in;
-  mask-image: linear-gradient(to right, transparent, #000 14%, #000 86%, transparent), linear-gradient(to bottom, transparent, #000 6%, #000 74%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 4%, #000 96%, transparent), linear-gradient(to bottom, #000 82%, transparent);
   mask-composite: intersect;
   user-select: none;
 }
@@ -610,7 +609,6 @@ p { text-wrap: pretty; }
   max-width: 100%;
   object-fit: contain;
   user-select: none;
-  mix-blend-mode: screen;
   -webkit-mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent), linear-gradient(to bottom, transparent, #000 5%, #000 88%, transparent);
   -webkit-mask-composite: source-in;
   mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent), linear-gradient(to bottom, transparent, #000 5%, #000 88%, transparent);

@@ -20,7 +20,7 @@ export type Outfit = {
 }
 
 export const AVATAR_MODEL_URL = process.env.NEXT_PUBLIC_AVATAR_MODEL_URL || '/avatar/krishna.glb'
-export const AVATAR_POSTER_URL = '/avatar/poster-divine.webp'
+export const AVATAR_POSTER_URL = '/avatar/poster-divine-v2.webp'
 export const OUTFIT_NODE_PREFIX = 'outfit_'
 
 export const OUTFITS: Outfit[] = [

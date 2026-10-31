@@ -8,7 +8,7 @@ export default function Home() {
       <section className="landing-hero">
         <div className="landing-figure fade-up">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/avatar/poster-divine.webp" alt="An artistic, AI-animated depiction of Krishna playing the flute" />
+          <img src="/avatar/poster-divine-v2.webp" alt="An artistic, AI-animated depiction of Krishna playing the flute" />
         </div>
 
         <div className="landing-copy">
