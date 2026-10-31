@@ -25,16 +25,23 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#0a0b1e',
-  colorScheme: 'dark',
+  themeColor: '#fbf6ec',
+  colorScheme: 'light dark',
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
 }
 
+const THEME_SCRIPT = `try{var t=localStorage.getItem('kanha.theme');if(t==='dark'||t==='light'){document.documentElement.dataset.theme=t}}catch(e){}`
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${display.variable} ${body.variable}`}>
+    // Light ("Vrindavan dawn") is the default; a saved choice is applied before first paint
+    // so there is no flash. suppressHydrationWarning: the script may change data-theme.
+    <html lang="en" data-theme="light" className={`${display.variable} ${body.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body>{children}</body>
     </html>
   )

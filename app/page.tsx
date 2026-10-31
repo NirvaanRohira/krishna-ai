@@ -1,10 +1,12 @@
 import Link from 'next/link'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 // The first viewport is the thesis: Krishna's likeness, the promise, and a real-shaped
 // exchange (labelled as an example) so a visitor sees what an answer looks like.
 export default function Home() {
   return (
     <main className="landing-page">
+      <div className="landing-theme"><ThemeToggle /></div>
       <section className="landing-hero">
         <div className="landing-figure fade-up">
           {/* eslint-disable-next-line @next/next/no-img-element */}

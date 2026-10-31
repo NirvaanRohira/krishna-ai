@@ -9,7 +9,8 @@
    Display: Tiro Devanagari Hindi · Text: Mukta (both Latin + Devanagari).
    ════════════════════════════════════════════════════════════════════════════ */
 
-:root {
+:root,
+.theme-night {
   --night-0: #06071a;
   --night-1: #0a0b1e;
   --night-2: #10122b;
@@ -48,11 +49,122 @@
   --fg-muted: var(--ink-2);
   --fg-dim: var(--ink-3);
   --accent: var(--gold);
-  --accent-dim: rgba(233, 187, 98, 0.45);
+  --accent-dim: var(--gold-line);
   --bg: var(--night-1);
   --bg-card: var(--night-2);
   --border: var(--hairline);
+
+  /* Theme-dependent effects (night values). */
+  color-scheme: dark;
+  --gold-text: var(--gold);                       /* gold used as text: links, citations */
+  --peacock-text: var(--peacock);
+  --glow-1: rgba(126, 136, 255, 0.20);
+  --glow-2: rgba(244, 200, 238, 0.08);
+  --stars: 0.55;
+  --selection: rgba(233, 187, 98, 0.32);
+  --selection-ink: #fff;
+  --scroll-thumb: rgba(196, 202, 255, 0.2);
+  --tint: rgba(196, 202, 255, 0.07);
+  --tint-strong: rgba(196, 202, 255, 0.1);
+  --hairline-hover: rgba(196, 202, 255, 0.4);
+  --field-bg: rgba(10, 11, 30, 0.6);
+  --gold-line: rgba(233, 187, 98, 0.45);
+  --gold-glow: rgba(233, 187, 98, 0.55);
+  --halo-a: rgba(146, 166, 255, 0.42);
+  --halo-b: rgba(244, 200, 238, 0.10);
+  --glass: rgba(10, 11, 30, 0.92);
+  --user-line: rgba(214, 206, 255, 0.18);
+  --pearl-glow: rgba(200, 194, 255, 0.7);
+  --composer-bg: rgba(16, 18, 43, 0.92);
+  --shadow: rgba(0, 0, 0, 0.8);
+  --rose-soft: rgba(255, 157, 176, 0.12);
+  --stage-glow: rgba(120, 140, 255, 0.2);
+  --stage-halo: rgba(140, 170, 255, 0.55);
+  --stage-halo-0: rgba(140, 170, 255, 0);
+  --glass-btn: rgba(16, 18, 43, 0.7);
+  --glass-btn-hover: rgba(24, 27, 59, 0.9);
+  --caption-shadow: rgba(6, 7, 26, 0.95);
+  --scrim: rgba(6, 7, 26, 0.96);
+  --badge-bg: rgba(6, 7, 26, 0.75);
+  --danger-line: rgba(255, 171, 158, 0.45);
+  --danger-soft: rgba(255, 171, 158, 0.08);
+  --hl-edge: #8a88b8;
+  --hl-mid: #4b4b7c;
+  --hl-lo: #2b2c55;
+  --niche: transparent;
+  --niche-line: transparent;
+  --niche-shadow: transparent;
 }
+
+/* ── "Vrindavan dawn" (light): ivory paper, indigo ink, saffron-gold ─────────
+   Contrast on --night-1 (#fbf6ec): ink 15.9:1 · ink-2 9.1:1 · ink-3 5.4:1 ·
+   gold-text 5.6:1 · peacock-text 5.3:1 · danger 6.1:1.
+   The avatar room keeps the night palette (.theme-night) in both themes. */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --night-0: #f3eadb;
+  --night-1: #fbf6ec;
+  --night-2: #ffffff;
+  --night-3: #f4ecdd;
+
+  --ink: #1d1838;
+  --ink-2: #47405f;
+  --ink-3: #6a6380;
+
+  --hairline: rgba(70, 50, 20, 0.13);
+  --hairline-strong: rgba(70, 50, 20, 0.24);
+
+  --gold: #e8b04f;
+  --gold-hi: #f1c06a;
+  --gold-ink: #2a1a03;
+  --gold-soft: rgba(212, 150, 40, 0.13);
+  --gold-text: #8f5300;
+
+  --pearl-a: #e9a2c4;
+  --pearl-b: #b39ae6;
+  --pearl-c: #6fbcd0;
+  --pearl-wash: linear-gradient(120deg, rgba(255, 196, 140, 0.20), rgba(240, 180, 205, 0.16) 48%, rgba(160, 205, 225, 0.16));
+
+  --peacock: #1f8f80;
+  --peacock-text: #0f6f62;
+  --rose: #b8325a;
+  --danger: #a8331f;
+
+  --glow-1: rgba(255, 186, 104, 0.30);
+  --glow-2: rgba(255, 160, 180, 0.12);
+  --stars: 0;
+  --selection: rgba(232, 176, 79, 0.35);
+  --selection-ink: #1d1838;
+  --scroll-thumb: rgba(70, 50, 20, 0.22);
+  --tint: rgba(70, 50, 20, 0.05);
+  --tint-strong: rgba(70, 50, 20, 0.08);
+  --hairline-hover: rgba(70, 50, 20, 0.38);
+  --field-bg: #ffffff;
+  --gold-line: rgba(176, 112, 10, 0.45);
+  --gold-glow: rgba(196, 128, 20, 0.35);
+  --halo-a: rgba(255, 190, 110, 0.55);
+  --halo-b: rgba(255, 170, 190, 0.16);
+  --glass: rgba(251, 246, 236, 0.92);
+  --user-line: rgba(176, 112, 50, 0.24);
+  --pearl-glow: rgba(196, 128, 60, 0.45);
+  --composer-bg: rgba(255, 255, 255, 0.97);
+  --shadow: rgba(90, 60, 15, 0.22);
+  --rose-soft: rgba(184, 50, 90, 0.10);
+  --danger-line: rgba(168, 51, 31, 0.45);
+  --danger-soft: rgba(168, 51, 31, 0.06);
+  --hl-edge: #7c6a48;
+  --hl-mid: #c4b08a;
+  --hl-lo: #ece2cf;
+  /* Krishna stands in an indigo niche (a jharokha) on the light page: the figure's
+     soft, glowing edges were painted for the night, so they keep it behind them. */
+  --niche: radial-gradient(120% 75% at 50% 30%, #2a2d66 0%, #141634 58%, #0a0b1e 100%);
+  --niche-line: rgba(176, 112, 10, 0.55);
+  --niche-shadow: rgba(90, 60, 15, 0.35);
+}
+
+
+/* The avatar room is always night: its scope re-declares the night tokens. */
+.theme-night { color: var(--ink); }
 
 /* ── Base & browser surfaces ─────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
@@ -68,8 +180,8 @@ body {
   font-weight: 400;
   -webkit-font-smoothing: antialiased;
   background:
-    radial-gradient(120% 60% at 50% -12%, rgba(126, 136, 255, 0.20), transparent 62%),
-    radial-gradient(70% 40% at 85% 0%, rgba(244, 200, 238, 0.08), transparent 70%),
+    radial-gradient(120% 60% at 50% -12%, var(--glow-1), transparent 62%),
+    radial-gradient(70% 40% at 85% 0%, var(--glow-2), transparent 70%),
     var(--night-1);
   background-attachment: fixed;
   caret-color: var(--gold);
@@ -82,7 +194,7 @@ body::before {
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  opacity: 0.55;
+  opacity: var(--stars);
   background-image:
     radial-gradient(1px 1px at 12% 18%, rgba(238, 235, 255, 0.7), transparent 60%),
     radial-gradient(1px 1px at 78% 12%, rgba(238, 235, 255, 0.55), transparent 60%),
@@ -93,17 +205,17 @@ body::before {
 }
 body > * { position: relative; z-index: 1; }
 
-::selection { background: rgba(233, 187, 98, 0.32); color: #fff; }
+::selection { background: var(--selection); color: var(--selection-ink); }
 
-* { scrollbar-width: thin; scrollbar-color: rgba(196, 202, 255, 0.22) transparent; }
+* { scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) transparent; }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-thumb { background: rgba(196, 202, 255, 0.2); border-radius: 8px; }
+::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 
-:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 6px; }
+:focus-visible { outline: 2px solid var(--gold-text); outline-offset: 3px; border-radius: 6px; }
 
-a { color: var(--gold); text-underline-offset: 0.22em; text-decoration-thickness: 1px; }
-a:hover { color: var(--gold-hi); }
+a { color: var(--gold-text); text-underline-offset: 0.22em; text-decoration-thickness: 1px; }
+a:hover { color: var(--gold-text); text-decoration-thickness: 2px; }
 
 h1, h2, h3 { font-family: var(--font-display), Georgia, serif; font-weight: 400; text-wrap: balance; letter-spacing: -0.01em; }
 p { text-wrap: pretty; }
@@ -129,7 +241,7 @@ p { text-wrap: pretty; }
   border: none;
   color: var(--gold-ink);
   background: var(--gold);
-  box-shadow: 0 6px 20px -8px rgba(233, 187, 98, 0.55);
+  box-shadow: 0 6px 20px -8px var(--gold-glow);
 }
 .btn-primary:hover:not(:disabled) { background: var(--gold-hi); color: var(--gold-ink); }
 .btn-primary:active:not(:disabled) { transform: scale(0.98); }
@@ -140,7 +252,7 @@ p { text-wrap: pretty; }
   color: var(--ink);
   background: transparent;
 }
-.btn-ghost:hover { border-color: rgba(196, 202, 255, 0.4); background: rgba(196, 202, 255, 0.05); }
+.btn-ghost:hover { border-color: var(--hairline-hover); background: var(--tint); }
 
 .field-input {
   width: 100%;
@@ -148,7 +260,7 @@ p { text-wrap: pretty; }
   padding: 0 1.1rem;
   border-radius: var(--radius-pill);
   border: 1px solid var(--hairline-strong);
-  background: rgba(10, 11, 30, 0.6);
+  background: var(--field-bg);
   color: var(--ink);
   font: inherit;
   transition: border-color 160ms;
@@ -170,8 +282,8 @@ p { text-wrap: pretty; }
   text-decoration: none;
   transition: color 160ms, background-color 160ms, border-color 160ms;
 }
-.icon-btn:hover { color: var(--ink); background: rgba(196, 202, 255, 0.07); }
-.icon-btn[aria-pressed='true'] { color: var(--gold); border-color: rgba(233, 187, 98, 0.35); background: var(--gold-soft); }
+.icon-btn:hover { color: var(--ink); background: var(--tint); }
+.icon-btn[aria-pressed='true'] { color: var(--gold-text); border-color: var(--gold-line); background: var(--gold-soft); }
 
 /* ── Motion ──────────────────────────────────────────────────────────────── */
 @keyframes rise {
@@ -221,13 +333,29 @@ p { text-wrap: pretty; }
   aspect-ratio: 1 / 1.25;
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(146, 166, 255, 0.42), rgba(244, 200, 238, 0.10) 55%, transparent 100%);
+  background: radial-gradient(closest-side, var(--halo-a), var(--halo-b) 55%, transparent 100%);
   animation: halo 7s ease-in-out infinite;
 }
 @keyframes halo { 50% { transform: translate(-50%, -50%) scale(1.05); opacity: 0.85; } }
-.landing-figure img {
-  position: relative;
+/* Light theme: an indigo arch behind the figure (see --niche). */
+.landing-figure::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: min(74vw, 25rem);
   height: 100%;
+  transform: translateX(-50%);
+  border-radius: 999px 999px 18px 18px;
+  background: var(--niche);
+  box-shadow: inset 0 0 0 1px var(--niche-line), 0 30px 60px -30px var(--niche-shadow);
+  pointer-events: none;
+}
+.landing-figure img {
+  z-index: 1;
+  position: relative;
+  align-self: flex-end;
+  height: 93%;   /* headroom so the peacock feather sits inside the arch */
   width: auto;
   object-fit: contain;
   /* poster-divine-v2 has a real transparent background; this only softens the edges and feet. */
@@ -237,6 +365,7 @@ p { text-wrap: pretty; }
   mask-composite: intersect;
   user-select: none;
 }
+.landing-theme { position: absolute; top: max(0.75rem, env(safe-area-inset-top)); right: 0.75rem; z-index: 5; }
 .landing-copy { display: flex; flex-direction: column; align-items: flex-start; gap: 1.1rem; max-width: 34rem; }
 .landing-title {
   margin: 0;
@@ -250,7 +379,7 @@ p { text-wrap: pretty; }
   margin-top: 0.35rem;
   font-size: 0.32em;
   letter-spacing: 0;
-  color: var(--gold);
+  color: var(--gold-text);
 }
 .landing-lede { margin: 0; font-size: 1.2rem; line-height: 1.55; color: var(--ink-2); max-width: 30rem; }
 .landing-lede strong { color: var(--ink); font-weight: 500; }
@@ -295,7 +424,7 @@ p { text-wrap: pretty; }
   flex-direction: column;
   gap: 1rem;
 }
-.auth-mark { display: block; width: 44px; height: 44px; margin: 0 auto 0.5rem; color: var(--gold); }
+.auth-mark { display: block; width: 44px; height: 44px; margin: 0 auto 0.5rem; color: var(--gold-text); }
 .auth-title { margin: 0; text-align: center; font-size: 2.6rem; line-height: 1; }
 .auth-subtitle { margin: 0.4rem 0 0.75rem; text-align: center; color: var(--ink-2); }
 .auth-divider {
@@ -311,7 +440,7 @@ p { text-wrap: pretty; }
 .auth-sent p { margin: 0; color: var(--ink-2); }
 
 .onboarding-page > div { max-width: 32rem; }
-.onboarding-mark { width: 40px; height: 40px; color: var(--gold); margin-bottom: 1.25rem; }
+.onboarding-mark { width: 40px; height: 40px; color: var(--gold-text); margin-bottom: 1.25rem; }
 .onboarding-title { margin: 0 0 1.25rem; font-size: clamp(2.2rem, 8vw, 3rem); line-height: 1.05; text-align: center; }
 .onboarding-body { color: var(--ink-2); font-size: 1rem; }
 .onboarding-body p { margin: 0 0 1rem; }
@@ -372,7 +501,7 @@ p { text-wrap: pretty; }
   gap: 0.25rem;
   padding: max(0.5rem, env(safe-area-inset-top)) 0.75rem 0.5rem 1.1rem;
   border-bottom: 1px solid var(--hairline);
-  background: linear-gradient(var(--night-1), rgba(10, 11, 30, 0.92));
+  background: linear-gradient(var(--night-1), var(--glass));
 }
 .chat-wordmark {
   font-family: var(--font-display), Georgia, serif;
@@ -423,7 +552,7 @@ p { text-wrap: pretty; }
   line-height: 1;
   letter-spacing: -0.02em;
 }
-.chat-window__empty-title span { color: var(--gold); font-size: 0.55em; margin-left: 0.6rem; letter-spacing: 0; }
+.chat-window__empty-title span { color: var(--gold-text); font-size: 0.55em; margin-left: 0.6rem; letter-spacing: 0; }
 .chat-window__empty-hint { margin: 0.8rem 0 1.8rem; color: var(--ink-2); font-size: 1.08rem; max-width: 30rem; }
 .starters { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--hairline); }
 .starters li { border-bottom: 1px solid var(--hairline); }
@@ -444,8 +573,8 @@ p { text-wrap: pretty; }
   transition: color 160ms, padding-left 220ms var(--ease-out);
 }
 .starters button svg { flex: 0 0 auto; color: var(--ink-3); transition: color 160ms, transform 220ms var(--ease-out); }
-.starters button:hover { color: var(--gold-hi); padding-left: 0.6rem; }
-.starters button:hover svg { color: var(--gold); transform: translateX(3px); }
+.starters button:hover { color: var(--gold-text); padding-left: 0.6rem; }
+.starters button:hover svg { color: var(--gold-text); transform: translateX(3px); }
 
 /* Messages. The seeker speaks in pearl; the guide's reply is typeset to be read. */
 .message-bubble { max-width: var(--measure); word-wrap: break-word; white-space: pre-wrap; }
@@ -455,7 +584,7 @@ p { text-wrap: pretty; }
   padding: 0.7rem 1.05rem;
   border-radius: 20px 20px 6px 20px;
   background: var(--pearl-wash), var(--night-2);
-  border: 1px solid rgba(214, 206, 255, 0.18);
+  border: 1px solid var(--user-line);
   color: var(--ink);
   line-height: 1.55;
 }
@@ -473,7 +602,7 @@ p { text-wrap: pretty; }
   margin-left: 0.35rem;
   border-radius: 50%;
   background: var(--pearl-b);
-  box-shadow: 0 0 10px 2px rgba(200, 194, 255, 0.7);
+  box-shadow: 0 0 10px 2px var(--pearl-glow);
   vertical-align: middle;
   animation: breathe 1.2s ease-in-out infinite;
 }
@@ -511,7 +640,7 @@ p { text-wrap: pretty; }
 .message-sources[open] summary { margin-bottom: 0.6rem; }
 .message-sources ol { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
 .message-sources li { font-size: 0.92rem; line-height: 1.6; color: var(--ink-2); }
-.message-sources li cite { display: block; font-style: italic; font-family: var(--font-display), Georgia, serif; color: var(--gold); font-size: 0.88rem; margin-bottom: 0.15rem; }
+.message-sources li cite { display: block; font-style: italic; font-family: var(--font-display), Georgia, serif; color: var(--gold-text); font-size: 0.88rem; margin-bottom: 0.15rem; }
 
 /* Composer */
 .input-bar {
@@ -523,11 +652,11 @@ p { text-wrap: pretty; }
   padding: 0.4rem 0.4rem 0.4rem 1.1rem;
   border-radius: 26px;
   border: 1px solid var(--hairline-strong);
-  background: rgba(16, 18, 43, 0.92);
-  box-shadow: 0 12px 32px -18px rgba(0, 0, 0, 0.8);
+  background: var(--composer-bg);
+  box-shadow: 0 12px 32px -18px var(--shadow);
   transition: border-color 180ms;
 }
-.input-bar:focus-within { border-color: rgba(233, 187, 98, 0.55); }
+.input-bar:focus-within { border-color: var(--gold-line); }
 .input-bar__textarea {
   flex: 1;
   min-height: 40px;
@@ -555,12 +684,12 @@ p { text-wrap: pretty; }
   transition: background-color 160ms, color 160ms, transform 160ms var(--ease-out);
 }
 .input-bar__icon-btn { background: transparent; color: var(--ink-2); }
-.input-bar__icon-btn:hover:not(:disabled) { color: var(--ink); background: rgba(196, 202, 255, 0.08); }
-.input-bar__icon-btn--recording { color: var(--rose); background: rgba(255, 157, 176, 0.12); animation: breathe 1.4s ease-in-out infinite; }
+.input-bar__icon-btn:hover:not(:disabled) { color: var(--ink); background: var(--tint-strong); }
+.input-bar__icon-btn--recording { color: var(--rose); background: var(--rose-soft); animation: breathe 1.4s ease-in-out infinite; }
 .input-bar__send { background: var(--gold); color: var(--gold-ink); }
 .input-bar__send:hover:not(:disabled) { background: var(--gold-hi); }
 .input-bar__send:active:not(:disabled) { transform: scale(0.94); }
-.input-bar__send:disabled { background: rgba(196, 202, 255, 0.1); color: var(--ink-3); cursor: not-allowed; }
+.input-bar__send:disabled { background: var(--tint-strong); color: var(--ink-3); cursor: not-allowed; }
 .input-bar__icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -572,7 +701,7 @@ p { text-wrap: pretty; }
   z-index: 20;
   overflow: hidden;
   background:
-    radial-gradient(60% 45% at 50% 38%, rgba(120, 140, 255, 0.2), transparent 70%),
+    radial-gradient(60% 45% at 50% 38%, var(--stage-glow), transparent 70%),
     linear-gradient(var(--night-1), var(--night-0));
   display: flex;
   flex-direction: column;
@@ -598,7 +727,7 @@ p { text-wrap: pretty; }
   aspect-ratio: 1 / 1.6;
   transform: translate(-50%, -50%) scale(calc(0.92 + var(--voice) * 0.12));
   border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(140, 170, 255, 0.55), rgba(140, 170, 255, 0) 100%);
+  background: radial-gradient(closest-side, var(--stage-halo), var(--stage-halo-0) 100%);
   opacity: calc(0.3 + var(--voice) * 0.7);
   pointer-events: none;
 }
@@ -631,14 +760,14 @@ p { text-wrap: pretty; }
   width: 44px; height: 44px;
   border-radius: 50%;
   border: 1px solid var(--hairline);
-  background: rgba(16, 18, 43, 0.7);
+  background: var(--glass-btn);
   color: var(--ink);
   cursor: pointer;
   display: grid; place-items: center;
   font-size: 0.95rem;
   transition: background-color 160ms, border-color 160ms;
 }
-.avatar-icon-btn:hover { background: rgba(24, 27, 59, 0.9); border-color: var(--hairline-strong); }
+.avatar-icon-btn:hover { background: var(--glass-btn-hover); border-color: var(--hairline-strong); }
 
 .avatar-ai-label {
   position: absolute;
@@ -668,7 +797,7 @@ p { text-wrap: pretty; }
   line-height: 1.55;
   color: var(--ink);
   text-align: center;
-  text-shadow: 0 1px 10px rgba(6, 7, 26, 0.95), 0 0 2px rgba(6, 7, 26, 0.9);
+  text-shadow: 0 1px 10px var(--caption-shadow), 0 0 2px var(--caption-shadow);
 }
 
 .avatar-input {
@@ -676,7 +805,7 @@ p { text-wrap: pretty; }
   left: 0; right: 0; bottom: 0;
   z-index: 2;
   padding-top: 2.5rem;
-  background: linear-gradient(to top, rgba(6, 7, 26, 0.96) 45%, transparent);
+  background: linear-gradient(to top, var(--scrim) 45%, transparent);
 }
 
 .avatar-sheet {
@@ -687,7 +816,7 @@ p { text-wrap: pretty; }
   border-radius: 24px 24px 0 0;
   border-top: 1px solid var(--hairline-strong);
   background: var(--night-2);
-  box-shadow: 0 -20px 40px -20px rgba(0, 0, 0, 0.7);
+  box-shadow: 0 -20px 40px -20px var(--shadow);
   animation: sheetIn 380ms var(--ease-out) both;
 }
 @keyframes sheetIn { from { transform: translateY(24px); opacity: 0; } }
@@ -724,7 +853,7 @@ p { text-wrap: pretty; }
   font-size: 0.66rem;
   padding: 0.1rem 0.45rem;
   border-radius: var(--radius-pill);
-  background: rgba(6, 7, 26, 0.75);
+  background: var(--badge-bg);
   color: var(--ink-2);
 }
 .avatar-done { width: 100%; margin-top: 0.75rem; }
@@ -738,13 +867,13 @@ p { text-wrap: pretty; }
 .legal-page strong { color: var(--ink); font-weight: 500; }
 .legal-page ul { padding-left: 1.2rem; }
 .legal-page li { margin-bottom: 0.45rem; }
-.legal-page li::marker { color: var(--gold); }
-.legal-draft { padding: 0.7rem 1rem; border: 1px solid rgba(233, 187, 98, 0.4); border-radius: var(--radius-s); color: var(--gold-hi); font-size: 0.88rem; background: var(--gold-soft); }
+.legal-page li::marker { color: var(--gold-text); }
+.legal-draft { padding: 0.7rem 1rem; border: 1px solid var(--gold-line); border-radius: var(--radius-s); color: var(--gold-text); font-size: 0.88rem; background: var(--gold-soft); }
 .account-actions { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem; max-width: 24rem; }
 .account-actions input { min-height: 48px; padding: 0 1rem; border-radius: var(--radius-pill); border: 1px solid var(--hairline-strong); background: var(--night-2); color: var(--ink); font: inherit; }
 .account-actions input:focus { outline: none; border-color: var(--danger); }
-.btn-danger { background: transparent; color: var(--danger); border: 1px solid rgba(255, 171, 158, 0.45); box-shadow: none; }
-.btn-danger:hover:not(:disabled) { background: rgba(255, 171, 158, 0.08); color: var(--danger); }
+.btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger-line); box-shadow: none; }
+.btn-danger:hover:not(:disabled) { background: var(--danger-soft); color: var(--danger); }
 
 /* Unavailable / misc */
 .coming-soon-panel { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; padding: 2rem; text-align: center; color: var(--ink-2); }
@@ -762,10 +891,10 @@ p { text-wrap: pretty; }
 .hairline { position: relative; margin: 1.25rem 0 0.5rem; max-width: 22rem; }
 .hairline-stage {
   --hairline-plate: var(--night-1);
-  --hairline-hi: var(--gold-hi);
-  --hairline-edge: #8a88b8;
-  --hairline-mid: #4b4b7c;
-  --hairline-lo: #2b2c55;
+  --hairline-hi: var(--gold-text);
+  --hairline-edge: var(--hl-edge);
+  --hairline-mid: var(--hl-mid);
+  --hairline-lo: var(--hl-lo);
   --hairline-stroke: 1;
 }
 .hairline-read {
@@ -784,4 +913,4 @@ p { text-wrap: pretty; }
 .plan-blurb { margin: 0; color: var(--ink-3); }
 .plan-price { margin: 0; font-size: 1.2rem; color: var(--ink); }
 .pricing-status { margin: 1.25rem 0 0; text-align: left; }
-.pricing-status-ok { color: var(--peacock); }
+.pricing-status-ok { color: var(--peacock-text); }

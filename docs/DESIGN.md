@@ -1,4 +1,8 @@
-# Kanha design system: "Vrindavan night"
+# Kanha design system: "Vrindavan dawn" and "Vrindavan night"
+
+**Two themes.** Dawn (light) is the default: ivory paper, indigo ink, saffron-gold, like a printed Gita in morning light. Night is one tap away (the sun/moon button on the landing page and in the chat header); the choice is saved on the device and applied before first paint (`app/layout.tsx`). The avatar room (`.avatar-panel.theme-night`) is always night, like a temple sanctum, because the figure's glowing edges were painted for darkness. On the dawn landing page the figure stands in an indigo arch (`--niche`) for the same reason.
+
+**Theme rules:** never write a raw colour in a component or in `globals.css` rules. Use a token; if none fits, add it to *both* `:root, .theme-night` and `:root[data-theme='light']`. Gold *as text* (links, citations, the Devanagari subtitle) is `--gold-text`, never `--gold`: plain gold fails contrast on ivory. axe (WCAG 2 AA) must pass in both themes.
 
 Taken from the reference art: night indigo, the iridescent silk of the dhoti, the gold dupatta, pearl light. The interface should feel like sitting under a night sky with someone wise, not like using a SaaS tool.
 

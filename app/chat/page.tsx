@@ -9,6 +9,7 @@ import { createBrowserSupabaseClient } from '@/lib/supabase'
 import { useTTS } from '@/hooks/useTTS'
 import { cleanSources, type Source } from '@/lib/sources'
 import Link from 'next/link'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 type Message = { role: 'user' | 'assistant'; content: string; sources?: Source[] }
 
@@ -284,6 +285,7 @@ export default function ChatPage() {
             <circle cx="12" cy="8" r="4" /><path d="M4.5 21a7.5 7.5 0 0 1 15 0" /><path d="M12 2.5c1.5-1 3.5-.6 4.2.9" />
           </svg>
         </button>
+        <ThemeToggle />
         <Link href="/pricing" className="icon-btn" aria-label="Plans and pricing" title="Plans">
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" />

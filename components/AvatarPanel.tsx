@@ -40,7 +40,7 @@ export default function AvatarPanel({ onClose, onSend, loading, caption, getAnal
   }
 
   return (
-    <div className="avatar-panel" data-testid="avatar-panel">
+    <div className="avatar-panel theme-night" data-testid="avatar-panel">
       <KrishnaAvatar
         getAnalyser={getAnalyser}
         outfitId={outfitId}
