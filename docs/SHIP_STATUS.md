@@ -60,7 +60,7 @@ Status key: ✅ done in repo · 🟡 partial · ❌ not done. Statuses are as of
 |---|---|---|
 | Timeouts | Every network call has a timeout: LLM 15 s, classify 5 s, embed 8 s, stream idle 20 s, DB 10 s (`lib/supabase-server.ts`), TTS 10 s. | ✅ |
 | Retries + exponential backoff | Retry only idempotent calls, on 429/5xx/network errors, with jittered backoff: `lib/retry.ts` `withRetry`. Never retry a stream that already sent tokens. | ✅ TTS · provider fallback for LLMs |
-| Idempotency | Session end is idempotent (`ended_at is null` guard). Payment webhooks and any "create" endpoint the client may retry **MUST** take an idempotency key with a unique DB constraint. | 🟡 |
+| Idempotency | Session end is idempotent (`ended_at is null` guard). Payments: webhook deliveries dedupe on `x-razorpay-event-id` (primary key), and `apply_payment` settles each order exactly once whether the browser, the webhook or a retry arrives first. | ✅ |
 | Race conditions | No read-modify-write in app code on shared rows. Use atomic SQL (`append_previous_guidance` RPC, `increment_session_turn`) or `select … for update`. | ✅ |
 | DB transactions | Multi-table writes that must succeed together go in one Postgres function (RPC), not several client calls. | ✅ `save_exchange`, `clear_my_memory`, `consume_quota` |
 | Background jobs | Post-session memory extraction runs in the session-end request, with an `after()` sweep that catches sessions whose beacon never arrived (`lib/memory/postSession.ts`). Move to a queue (Cloud Tasks / Supabase queues) when traffic grows. | 🟡 |
@@ -97,7 +97,7 @@ Status key: ✅ done in repo · 🟡 partial · ❌ not done. Statuses are as of
 | Unit/integration | Vitest. Every route has auth, invalid-input, success and failure tests. | ✅ |
 | End-to-end | Playwright (`e2e/`, runs in CI on phone + desktop): landing, legal pages, consent gate, protected-route redirects, headers, CSRF, cron auth. Signed-in flows need a staging test account. | 🟡 public flows ✅ |
 | Contract tests | Pin provider response shapes (LLM, TTS, Razorpay) with recorded fixtures, so provider changes break tests and not prod. | ❌ |
-| Payment webhooks | Test signature verification, duplicates (idempotency), out-of-order events and refunds. | ❌ |
+| Payment webhooks | `__tests__/app/api/payments.test.ts` (bad signatures, duplicates, refunds, failures, retry on error) and `__tests__/db/migrations.test.ts` (idempotent settle, amount mismatch, upgrades, refunds, users can't self-grant). Still to do: a live test-mode purchase end to end. | 🟡 |
 | Accessibility | WCAG 2.1 AA: alt text on every image, labelled inputs, keyboard navigation, focus states, captions for avatar speech, reduced motion respected. axe runs in CI and fails on serious/critical issues. | ✅ |
 | Mobile browsers | Real-device checks on low-end Android Chrome + iOS Safari: audio unlock, mic permission, WebGL avatar, 3G throttling. | ❌ |
 | Prompt evals | Any prompt or model change runs `npm run eval:models` (20 questions incl. Hindi/Hinglish and safety traps, judge-scored, with cost), gets reviewed by a human versed in the Gita, and must keep the worst safety score ≥ 8. | ✅ harness · you: run it |

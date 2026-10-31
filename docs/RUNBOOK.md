@@ -156,6 +156,9 @@ Keep secrets in the hosting platform's secret store (Vercel env or GCP Secret Ma
 | `TTS_PROVIDER`, `TTS_FALLBACK`, `GOOGLE_TTS_VOICE` | no | voice choice |
 | `CRON_SECRET` | yes | scheduled jobs |
 | `ALERT_WEBHOOK_URL` | yes | spend alerts |
+| `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | for payments | Dashboard → Account & Settings → API Keys. `rzp_test_…` in test mode, `rzp_live_…` when live |
+| `RAZORPAY_WEBHOOK_SECRET` | for payments | Same value as the secret on the webhook (Dashboard → Webhooks → `https://<domain>/api/payments/webhook`; events `payment.captured`, `order.paid`, `payment.failed`, `refund.processed`) |
+| `TTS_HD_PLANS` | no | Plans that get the Chirp 3 HD voice (default `premium`) |
 | `SPEND_ALERT_USD_PER_DAY`, `LLM_PRICE_IN_PER_M`, `LLM_PRICE_OUT_PER_M`, `TTS_PRICE_PER_M_CHARS`, `RETENTION_MONTHS` | no | alert thresholds and unit prices for the estimate |
 | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN` | low | error monitoring (leave unset to disable) |
 | `SHOW_VERSE_TEXT` | no | `true` shows verse text under answers; keep unset until `docs/CORPUS_LICENSES.md` is settled |
