@@ -122,6 +122,23 @@ describe('POST /api/chat — complexity routing', () => {
     expect(runCRAG).toHaveBeenCalledWith(expect.any(String), history, expect.anything())
   })
 
+  it('appends the voice-mode addendum after the system prompt when mode=voice', async () => {
+    classifyComplexity.mockResolvedValue('COMPLEX')
+    const { POST } = await import('@/app/api/chat/route')
+    await (await POST(makeRequest({ message: 'I feel lost in my career', mode: 'voice' }))).text()
+    const opts = runCRAG.mock.calls[0][2] as { systemPrompt: string }
+    expect(opts.systemPrompt).toContain('Voice conversation mode')
+    expect(opts.systemPrompt.indexOf('Voice conversation mode')).toBeGreaterThan(0)
+  })
+
+  it('does not add the voice-mode addendum for normal text chat', async () => {
+    classifyComplexity.mockResolvedValue('COMPLEX')
+    const { POST } = await import('@/app/api/chat/route')
+    await (await POST(makeRequest({ message: 'I feel lost in my career' }))).text()
+    const opts = runCRAG.mock.calls[0][2] as { systemPrompt: string }
+    expect(opts.systemPrompt).not.toContain('Voice conversation mode')
+  })
+
   it('calls classifyComplexity with the user message', async () => {
     classifyComplexity.mockResolvedValue('SIMPLE')
     const { POST } = await import('@/app/api/chat/route')

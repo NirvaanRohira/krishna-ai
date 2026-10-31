@@ -1,24 +1,21 @@
-import { PollyClient, SynthesizeSpeechCommand } from '@aws-sdk/client-polly'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { checkRateLimit, rateLimitKey } from '@/lib/rateLimit'
-
-const polly = new PollyClient({
-  region: process.env.AWS_REGION ?? 'us-east-1',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  },
-})
+import { synthesize } from '@/lib/tts'
 
 const MAX_CHARS = 3000
+
+// The client sends one request per sentence. A long "Deep" reply can run 20+ sentences,
+// and the 3D avatar speaks every reply, so 20/min cut answers off mid-way. 60/min still
+// caps abuse (~180k chars/min worst case per user) while never truncating a real answer.
+const TTS_RATE_LIMIT = 60
 
 export async function POST(req: Request) {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new Response('Unauthorized', { status: 401 })
 
-  const { allowed, retryAfterSec } = checkRateLimit(rateLimitKey(req, user.id), {
-    limit: 20,
+  const { allowed, retryAfterSec } = checkRateLimit(`tts:${rateLimitKey(req, user.id)}`, {
+    limit: TTS_RATE_LIMIT,
     windowMs: 60_000,
   })
   if (!allowed) {
@@ -28,33 +25,13 @@ export async function POST(req: Request) {
     })
   }
 
-  const { text } = await req.json()
+  const { text } = await req.json().catch(() => ({}))
   if (!text || typeof text !== 'string') return new Response('Bad request', { status: 400 })
 
-  const trimmed = text.slice(0, MAX_CHARS)
-
-  const command = new SynthesizeSpeechCommand({
-    Text: trimmed,
-    VoiceId: 'Matthew',
-    Engine: 'neural',
-    OutputFormat: 'mp3',
-  })
-
   try {
-    const result = await polly.send(command)
-    if (!result.AudioStream) return new Response('No audio', { status: 500 })
-
-    const chunks: Uint8Array[] = []
-    for await (const chunk of result.AudioStream as AsyncIterable<Uint8Array>) {
-      chunks.push(chunk)
-    }
-    const audio = Buffer.concat(chunks)
-
-    return new Response(audio, {
-      headers: {
-        'Content-Type': 'audio/mpeg',
-        'Cache-Control': 'no-store',
-      },
+    const { audio, contentType } = await synthesize(text.slice(0, MAX_CHARS))
+    return new Response(new Uint8Array(audio), {
+      headers: { 'Content-Type': contentType, 'Cache-Control': 'no-store' },
     })
   } catch (err) {
     console.error('[tts] synthesis failed:', err)

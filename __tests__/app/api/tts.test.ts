@@ -97,11 +97,49 @@ describe('POST /api/tts', () => {
   it('returns 429 once the per-user rate limit is exceeded', async () => {
     const { POST } = await import('@/app/api/tts/route')
     let last: Response | undefined
-    // limit is 20/min keyed on the same user id
-    for (let i = 0; i < 21; i++) {
+    // limit is 60/min keyed on the same user id
+    for (let i = 0; i < 61; i++) {
       last = await POST(makeRequest({ text: 'spam' }))
     }
     expect(last!.status).toBe(429)
     expect(last!.headers.get('Retry-After')).toBeTruthy()
+  })
+
+  it('uses Google Cloud TTS with an Indian voice when TTS_PROVIDER=google', async () => {
+    vi.stubEnv('TTS_PROVIDER', 'google')
+    vi.stubEnv('GOOGLE_TTS_API_KEY', 'g-key')
+    vi.stubEnv('GOOGLE_TTS_VOICE', 'hi-IN-Chirp3-HD-Charon')
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ audioContent: Buffer.from([9, 9]).toString('base64') }), { status: 200 })
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    try {
+      const { POST } = await import('@/app/api/tts/route')
+      const res = await POST(makeRequest({ text: 'Namaste' }))
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toBe('audio/mpeg')
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+      expect(body.voice).toEqual({ languageCode: 'hi-IN', name: 'hi-IN-Chirp3-HD-Charon' })
+      expect(mockSend).not.toHaveBeenCalled()
+    } finally {
+      vi.unstubAllEnvs()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('falls back to Polly when the primary provider fails and TTS_FALLBACK=polly', async () => {
+    vi.stubEnv('TTS_PROVIDER', 'sarvam')
+    vi.stubEnv('SARVAM_API_KEY', 's-key')
+    vi.stubEnv('TTS_FALLBACK', 'polly')
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('nope', { status: 503 })))
+    try {
+      const { POST } = await import('@/app/api/tts/route')
+      const res = await POST(makeRequest({ text: 'Namaste' }))
+      expect(res.status).toBe(200)
+      expect(mockSend).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.unstubAllEnvs()
+      vi.unstubAllGlobals()
+    }
   })
 })

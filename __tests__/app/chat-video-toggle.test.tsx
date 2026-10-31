@@ -17,34 +17,33 @@ vi.mock('@/components/ChatWindow', () => ({
 vi.mock('@/components/DisclaimerBadge', () => ({
   DisclaimerBadge: () => React.createElement('div', { 'data-testid': 'disclaimer' }),
 }))
-vi.mock('@/components/AnamVideoPanel', () => ({
-  default: React.forwardRef((_props: { onClose: () => void }, _ref: React.Ref<unknown>) =>
-    React.createElement('div', { 'data-testid': 'anam-panel' }, 'Connecting to Krishna...')
-  ),
+vi.mock('@/components/AvatarPanel', () => ({
+  default: (_props: { onClose: () => void }) =>
+    React.createElement('div', { 'data-testid': 'avatar-panel' }, 'Krishna avatar'),
 }))
 
-describe('ChatPage video toggle', () => {
-  it('renders a video mode toggle button', async () => {
+describe('ChatPage avatar toggle', () => {
+  it('renders an avatar mode toggle button', async () => {
     vi.resetModules()
     const { default: ChatPage } = await import('@/app/chat/page')
     await act(async () => { render(<ChatPage />) })
-    const btn = screen.getByRole('button', { name: /video/i })
+    const btn = screen.getByRole('button', { name: /avatar/i })
     expect(btn).toBeTruthy()
   })
 
-  it('shows the Anam video panel when the video toggle is clicked', async () => {
+  it('shows the 3D avatar panel when the avatar toggle is clicked', async () => {
     vi.resetModules()
     const { default: ChatPage } = await import('@/app/chat/page')
     await act(async () => { render(<ChatPage />) })
-    const btn = screen.getByRole('button', { name: /video/i })
+    const btn = screen.getByRole('button', { name: /avatar/i })
     fireEvent.click(btn)
-    expect(screen.getByTestId('anam-panel')).toBeTruthy()
+    expect(screen.getByTestId('avatar-panel')).toBeTruthy()
   })
 
-  it('does not render a video element by default (text chat is the default mode)', async () => {
+  it('does not render the avatar by default (text chat is the default mode)', async () => {
     vi.resetModules()
     const { default: ChatPage } = await import('@/app/chat/page')
     await act(async () => { render(<ChatPage />) })
-    expect(screen.queryByRole('main')?.querySelector('video')).toBeNull()
+    expect(screen.queryByTestId('avatar-panel')).toBeNull()
   })
 })

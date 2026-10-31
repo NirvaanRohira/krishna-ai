@@ -67,11 +67,11 @@ describe('loadAndInjectProfile', () => {
     expect(prompt).toBe('V2_SYSTEM_PROMPT')
   })
 
-  it('prepends profile context block to system prompt when user has data', async () => {
+  it('appends the profile block AFTER the static system prompt (shared, cacheable prefix)', async () => {
     const { loadAndInjectProfile } = await import('@/lib/memory/profileInjector')
     const prompt = await loadAndInjectProfile('user-1', makeSupabase() as never)
-    expect(prompt).toContain('V2_SYSTEM_PROMPT')
-    expect(prompt.indexOf('V2_SYSTEM_PROMPT')).toBeGreaterThan(0) // context comes first
+    expect(prompt.startsWith('V2_SYSTEM_PROMPT')).toBe(true)
+    expect(prompt.indexOf('About this person')).toBeGreaterThan(prompt.indexOf('V2_SYSTEM_PROMPT'))
   })
 
   it('includes life_context from user_profiles in the injected block', async () => {

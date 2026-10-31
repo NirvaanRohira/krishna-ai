@@ -13,8 +13,15 @@ import { generateTextStream } from '@/lib/llm'
 import { startSession, saveExchange, endSession } from '@/lib/session'
 import { loadAndInjectProfile } from '@/lib/memory/profileInjector'
 import { queryStructuralLookup } from '@/lib/retrieval/structuralLookup'
+import { withVoiceMode } from '@/lib/prompts/voice'
 
 type Message = { role: 'user' | 'assistant'; content: string }
+
+// How much raw conversation goes into every prompt. History is re-sent (and re-billed)
+// on every turn, so 40 messages meant a long session's input tokens grew without bound.
+// Long-term context is already carried by the memory profile; 12 messages = the last
+// 6 exchanges, which is plenty for conversational continuity.
+const HISTORY_MESSAGES = Number(process.env.CHAT_HISTORY_MESSAGES) || 12
 
 const encoder = new TextEncoder()
 
@@ -50,7 +57,9 @@ function isGreetingMessage(message: string): boolean {
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
-  const { message, history = [], sessionId: existingSessionId } = body
+  const { message, history = [], sessionId: existingSessionId, mode } = body
+  // 'voice' = reply will be spoken by the avatar → shorter, conversational answers.
+  const voice = mode === 'voice'
 
   if (!message || typeof message !== 'string') {
     return NextResponse.json({ error: 'message is required' }, { status: 400 })
@@ -69,7 +78,7 @@ export async function POST(req: Request) {
   }
 
   const sessionId: string = existingSessionId ?? await startSession(supabase, user.id)
-  const recentHistory = (history as Message[]).slice(-40)
+  const recentHistory = (history as Message[]).slice(-HISTORY_MESSAGES)
 
   const stream = new TransformStream<Uint8Array, Uint8Array>()
   const writer = stream.writable.getWriter()
@@ -80,7 +89,7 @@ export async function POST(req: Request) {
 
       // ── Greeting fast path: skip all LLM pre-processing ──────────
       if (isGreetingMessage(message)) {
-        const systemPrompt = await loadAndInjectProfile(user.id, supabase)
+        const systemPrompt = withVoiceMode(await loadAndInjectProfile(user.id, supabase), voice)
         const prompt = buildPrompt([], recentHistory, message, systemPrompt, [])
         await writer.write(sseChunk({ t: 's', id: sessionId, src: [] }))
         let fullResponse = ''
@@ -102,7 +111,7 @@ export async function POST(req: Request) {
         category,
         { data: sessionRow },
         complexity,
-        systemPrompt,
+        profilePrompt,
         anchors,
         retrievedSources,
       ] = await Promise.all([
@@ -114,6 +123,7 @@ export async function POST(req: Request) {
         parallelRetrieve(retrievalQuery, { supabaseClient: supabase }).then(r => { console.log(`[timing] retrieve: ${Date.now()-t0}ms`); return r }),
       ])
       console.log(`[timing] fan-out done: ${Date.now()-t0}ms, complexity=${complexity}`)
+      const systemPrompt = withVoiceMode(profilePrompt, voice)
 
       // ── Guardrail gate (checked after parallel fan-out) ────────
       const fixedResponse = getGuardrailResponse(category)

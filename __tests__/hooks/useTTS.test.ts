@@ -210,3 +210,37 @@ describe('useTTS generation-cancel', () => {
     expect(createdAudios.length).toBe(2)
   })
 })
+
+describe('useTTS phrase cache', () => {
+  it('synthesises a repeated short phrase only once', async () => {
+    const created: unknown[] = []
+    class MockAudio {
+      onended: (() => void) | null = null
+      onerror: (() => void) | null = null
+      play = vi.fn().mockResolvedValue(undefined)
+      pause = vi.fn()
+      constructor() { created.push(this) }
+    }
+    Object.defineProperty(window, 'Audio', { value: MockAudio, writable: true, configurable: true })
+    Object.defineProperty(URL, 'createObjectURL', { value: vi.fn(() => 'blob:x'), writable: true, configurable: true })
+    Object.defineProperty(URL, 'revokeObjectURL', { value: vi.fn(), writable: true, configurable: true })
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, blob: async () => new Blob(['a']) })
+    Object.defineProperty(global, 'fetch', { value: fetchMock, writable: true, configurable: true })
+
+    const { result } = renderHook(() => useTTS())
+    await act(async () => {
+      result.current.enqueue('Hmm...')
+      await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
+    })
+    expect(created.length).toBe(1)
+    ;(created[0] as MockAudio).onended?.()
+
+    act(() => { result.current.stop() })
+    await act(async () => {
+      result.current.enqueue('Hmm...')
+      await Promise.resolve(); await Promise.resolve()
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(created.length).toBe(2)
+  })
+})

@@ -4,7 +4,7 @@ import { flushSync } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { ChatWindow } from '@/components/ChatWindow'
 import { DisclaimerBadge } from '@/components/DisclaimerBadge'
-import AnamVideoPanel, { type AnamVideoHandle } from '@/components/AnamVideoPanel'
+import AvatarPanel from '@/components/AvatarPanel'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 import { useTTS } from '@/hooks/useTTS'
 
@@ -44,8 +44,8 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  // Avatar mode: real-time 3D Krishna rendered on-device, lip-synced to the TTS audio.
   const [videoMode, setVideoMode] = useState(false)
-  const anamRef = useRef<AnamVideoHandle | null>(null)
   const router = useRouter()
   const messagesRef = useRef(messages)
   messagesRef.current = messages
@@ -60,8 +60,18 @@ export default function ChatPage() {
   if (sessionId && beaconSentForRef.current !== null && beaconSentForRef.current !== sessionId) {
     beaconSentForRef.current = null
   }
-  const { enqueue, stop, toggle, enabled: ttsEnabled, unlockAudio } = useTTS()
+  const {
+    enqueue, stop, toggle, enabled: ttsEnabled, unlockAudio,
+    setEnabled: setTTSEnabled, setAnalyse, getAnalyser,
+  } = useTTS()
   const sentenceBufferRef = useRef('')
+
+  // The avatar speaks every reply, so voice is forced on and playback is routed through
+  // the analyser that drives lip-sync. Text mode plays audio directly.
+  useEffect(() => {
+    setAnalyse?.(videoMode)
+    if (videoMode) setTTSEnabled?.(true)
+  }, [videoMode, setAnalyse, setTTSEnabled])
 
   useEffect(() => {
     const supabase = createBrowserSupabaseClient()
@@ -117,8 +127,6 @@ export default function ChatPage() {
     setMessages(withPlaceholder)
     stop()
     sentenceBufferRef.current = ''
-    // Interrupt avatar if it's still speaking from the last turn
-    if (videoMode) anamRef.current?.interrupt()
 
     // After 700ms with no content, show a thinking phrase in text and speak it (if TTS on)
     let firstChunkReceived = false
@@ -151,7 +159,7 @@ export default function ChatPage() {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, history: priorMessages, sessionId }),
+        body: JSON.stringify({ message, history: priorMessages, sessionId, mode: videoMode ? 'voice' : 'text' }),
       })
 
       if (res.status === 401) {
@@ -167,7 +175,6 @@ export default function ChatPage() {
 
       let assembled = ''
       let errorMsg = ''
-      const chunks: string[] = []
 
       await consumeStream(
         res,
@@ -178,20 +185,13 @@ export default function ChatPage() {
             if (thinkingInterval !== undefined) clearInterval(thinkingInterval)
           }
           assembled += chunk
-          chunks.push(chunk)
-          // Stream chunk to avatar in real-time
-          if (videoMode && anamRef.current) {
-            anamRef.current.streamChunk(chunk, false).catch(() => {})
-          }
           sentenceBufferRef.current += chunk
-          // Enqueue completed sentences to Polly mid-stream (text mode only)
-          if (!videoMode) {
-            const boundary = sentenceBufferRef.current.search(/[.!?]\s/)
-            if (boundary !== -1) {
-              const sentence = sentenceBufferRef.current.slice(0, boundary + 1)
-              sentenceBufferRef.current = sentenceBufferRef.current.slice(boundary + 2)
-              enqueue(sentence)
-            }
+          // Enqueue completed sentences to TTS mid-stream (the avatar lip-syncs to this audio)
+          const boundary = sentenceBufferRef.current.search(/[.!?]\s/)
+          if (boundary !== -1) {
+            const sentence = sentenceBufferRef.current.slice(0, boundary + 1)
+            sentenceBufferRef.current = sentenceBufferRef.current.slice(boundary + 2)
+            enqueue(sentence)
           }
           flushSync(() => {
             setMessages([...withUser, { role: 'assistant', content: assembled }])
@@ -218,12 +218,8 @@ export default function ChatPage() {
             setMessages([...withUser, { role: 'assistant', content: assembled }])
           })
         }
-        if (videoMode && anamRef.current && chunks.length > 0) {
-          // Signal end-of-speech to avatar with the last chunk
-          anamRef.current.streamChunk('', true).catch(() => {})
-        }
-        // Flush any remaining partial sentence for TTS (text mode only)
-        if (!videoMode && sentenceBufferRef.current.trim()) enqueue(sentenceBufferRef.current.trim())
+        // Flush any remaining partial sentence for TTS
+        if (sentenceBufferRef.current.trim()) enqueue(sentenceBufferRef.current.trim())
         sentenceBufferRef.current = ''
       }
     } catch {
@@ -235,38 +231,7 @@ export default function ChatPage() {
     }
   }
 
-  // Video mode: Anam's brain is off, so when the panel hands us the user's transcribed
-  // speech, run it through the same RAG pipeline and stream the answer to the avatar.
-  async function handleVideoMessage(text: string) {
-    const priorMessages = [...messagesRef.current]
-    setMessages([...priorMessages, { role: 'user', content: text }])
-    anamRef.current?.interrupt() // barge-in: stop any in-progress reply
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, history: priorMessages, sessionId }),
-      })
-      if (res.status === 401) { router.push('/login'); return }
-      if (!res.ok || !res.body) return
-      let assembled = ''
-      await consumeStream(
-        res,
-        (chunk) => {
-          assembled += chunk
-          anamRef.current?.streamChunk(chunk, false).catch(() => {})
-        },
-        (id) => { if (!sessionId) setSessionId(id) },
-        () => {},
-      )
-      if (assembled) {
-        anamRef.current?.streamChunk('', true).catch(() => {})
-        setMessages([...priorMessages, { role: 'user', content: text }, { role: 'assistant', content: assembled }])
-      }
-    } catch {
-      /* avatar stays silent on error */
-    }
-  }
+  const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant')?.content ?? ''
 
   return (
     <main className="chat-page">
@@ -295,8 +260,8 @@ export default function ChatPage() {
       <button
         onClick={() => setVideoMode(v => !v)}
         className={`tts-toggle video-toggle${videoMode ? ' tts-toggle--active' : ''}`}
-        title="Video call (Coming Soon)"
-        aria-label="Video call"
+        title="Talk to Krishna (3D avatar)"
+        aria-label="Talk to Krishna (3D avatar)"
         type="button"
       >
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -305,7 +270,13 @@ export default function ChatPage() {
         </svg>
       </button>
       {videoMode ? (
-        <AnamVideoPanel ref={anamRef} onClose={() => setVideoMode(false)} onUserMessage={handleVideoMessage} />
+        <AvatarPanel
+          onClose={() => setVideoMode(false)}
+          onSend={handleSend}
+          loading={loading}
+          caption={lastAssistant}
+          getAnalyser={getAnalyser}
+        />
       ) : (
         <ChatWindow messages={messages} onSend={handleSend} loading={loading} />
       )}

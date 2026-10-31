@@ -80,5 +80,10 @@ function buildPrompt(
     lines.push(`Recurring themes: ${(spiritualProfile.recurring_themes as string[]).join(', ')}`)
   }
 
-  return `${lines.join('\n')}\n\n${SYSTEM_PROMPT_V2}`
+  // Static system prompt FIRST, per-user block AFTER. LLM providers (DeepSeek, Gemini,
+  // Groq, OpenAI) cache identical prompt *prefixes* and bill cached input at a fraction
+  // of the normal rate. With the profile first, every user had a different prefix and
+  // only that user's own repeat turns could hit the cache; now the ~1.5k-token system
+  // prompt is a shared prefix across all users.
+  return `${SYSTEM_PROMPT_V2}\n\n${lines.join('\n')}`
 }
