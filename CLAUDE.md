@@ -1,6 +1,6 @@
 # Kanha / Krishna AI: repo guide for Claude
 
-Before building or editing **anything** (routes, DB, prompts, avatar, payments, tracking, marketing, mobile), load the `ship-it-right` skill (`.claude/skills/ship-it-right/SKILL.md`) and meet its MUSTs. Update its status tables when you close a gap.
+Before building or editing **anything** (routes, DB, prompts, avatar, payments, tracking, marketing, mobile), load the general `ship-it-right` skill (`.claude/skills/ship-it-right/`) and meet its MUSTs. This project's scorecard against it is `docs/SHIP_STATUS.md`: update it when you close a gap.
 
 Always:
 - The AI is **not God and not Krishna**. Krishna's figure is an artistic, AI-animated depiction. Never weaken that framing in prompts, guardrails or UI.

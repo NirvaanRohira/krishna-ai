@@ -155,3 +155,15 @@ describe('resumeSession', () => {
     expect(r).toEqual({ id: ID, turnCount: 1, history: [{ role: 'user', content: 'a' }, { role: 'assistant', content: 'b' }] })
   })
 })
+
+describe('saveExchange before the 20261101 migration is applied', () => {
+  it('falls back to the old insert + increment when save_exchange does not exist yet', async () => {
+    const { supabase, mockRpc, mockMessageInsert } = makeSupabaseMock()
+    mockRpc.mockImplementation(async (fn: string) =>
+      fn === 'save_exchange' ? { error: { code: 'PGRST202', message: 'Could not find the function public.save_exchange' } } : { error: null })
+    const { saveExchange } = await import('@/lib/session')
+    await saveExchange(supabase, FAKE_SESSION_ID, 'q', 'a', [])
+    expect((mockMessageInsert.mock.calls[0][0] as object[]).length).toBe(2)
+    expect(mockRpc).toHaveBeenCalledWith('increment_session_turn', { p_session_id: FAKE_SESSION_ID })
+  })
+})

@@ -77,4 +77,13 @@ describe('POST /api/onboarding/complete', () => {
     expect(res.status).toBe(500)
     expect(await res.text()).not.toContain('secret_table')
   })
+
+  it('does not lock users out if the consent columns are not migrated yet', async () => {
+    upsertMock
+      .mockResolvedValueOnce({ error: { code: 'PGRST204', message: "Could not find the 'age_confirmed_18_plus' column" } })
+      .mockResolvedValueOnce({ error: null })
+    const { res } = await post()
+    expect(res.status).toBe(200)
+    expect(upsertMock.mock.calls[1][0]).toEqual({ user_id: 'user-123', onboarding_complete: true })
+  })
 })

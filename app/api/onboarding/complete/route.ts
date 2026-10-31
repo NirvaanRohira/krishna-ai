@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { TERMS_VERSION, PRIVACY_VERSION, AI_DISCLOSURE_VERSION } from '@/lib/legal'
+import { isMissingColumn } from '@/lib/schema-compat'
 
 // Onboarding records *explicit, itemised* consent server-side (DPDP Act 2023: consent
 // must be free, specific, informed and unambiguous, with proof retained). Every required
@@ -26,7 +27,7 @@ export async function POST(req: Request) {
   }
 
   const now = new Date().toISOString()
-  const { error } = await supabase
+  let { error } = await supabase
     .from('user_profiles')
     .upsert({
       user_id: user.id,
@@ -37,6 +38,12 @@ export async function POST(req: Request) {
       consented_at: now,
       marketing_opt_in: marketing,
     }, { onConflict: 'user_id' })
+
+  // Before migration 20261031: the consent columns don't exist yet. Record what the old
+  // schema can hold so the user isn't locked out; the ledger below still tries.
+  if (isMissingColumn(error)) {
+    ;({ error } = await supabase.from('user_profiles').upsert({ user_id: user.id, onboarding_complete: true }, { onConflict: 'user_id' }))
+  }
 
   if (error) {
     console.error('[onboarding] profile upsert failed:', error)

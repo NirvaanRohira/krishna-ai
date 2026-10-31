@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { isMissingFunction } from '@/lib/schema-compat'
 
 export async function startSession(supabase: SupabaseClient, userId: string): Promise<string> {
   const { data, error } = await supabase
@@ -34,7 +35,17 @@ export async function saveExchange(
     p_sources: refs,
     p_grounding_passed: groundingPassed,
   })
-  if (error) throw new Error(error.message)
+  if (!error) return
+  if (!isMissingFunction(error)) throw new Error(error.message)
+
+  // Migration 20261101 not applied yet: fall back to the old two-step write.
+  const { error: msgError } = await supabase.from('messages').insert([
+    { session_id: sessionId, role: 'user', content: userMessage },
+    { session_id: sessionId, role: 'assistant', content: assistantResponse, retrieval_context: refs, grounding_passed: groundingPassed },
+  ])
+  if (msgError) throw new Error(msgError.message)
+  const { error: rpcError } = await supabase.rpc('increment_session_turn', { p_session_id: sessionId })
+  if (rpcError) throw new Error(rpcError.message)
 }
 
 /**
