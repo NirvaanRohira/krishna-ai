@@ -11,6 +11,12 @@ const MAX_CHARS = 3000
 // caps abuse (~180k chars/min worst case per user) while never truncating a real answer.
 const TTS_RATE_LIMIT = 60
 
+// Plans that get the premium (Chirp 3 HD) voice; everyone else gets WaveNet, about 7× cheaper.
+function voiceQualityFor(plan: string | undefined): 'standard' | 'hd' {
+  const hdPlans = (process.env.TTS_HD_PLANS ?? 'premium').split(',').map((p) => p.trim()).filter(Boolean)
+  return plan && hdPlans.includes(plan) ? 'hd' : 'standard'
+}
+
 export async function POST(req: Request) {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -39,7 +45,10 @@ export async function POST(req: Request) {
 
   try {
     // Pick the voice language from the text itself, so a Hindi reply is spoken by a Hindi voice.
-    const { audio, contentType } = await synthesize(input, { locale: ttsLocale(detectLanguage(input)) })
+    const { audio, contentType } = await synthesize(input, {
+      locale: ttsLocale(detectLanguage(input)),
+      quality: voiceQualityFor(quota.plan),
+    })
     return new Response(new Uint8Array(audio), {
       headers: { 'Content-Type': contentType, 'Cache-Control': 'no-store' },
     })

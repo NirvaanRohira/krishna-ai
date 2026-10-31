@@ -17,7 +17,12 @@ import { withRetry, HttpError, fetchWithTimeout } from '@/lib/retry'
 export type TTSResult = { audio: Buffer; contentType: string }
 export type TTSProviderName = 'polly' | 'google' | 'sarvam'
 
-export type TTSOptions = { /** BCP-47 locale, e.g. 'en-IN', 'hi-IN', 'ta-IN'. */ locale?: string }
+export type TTSOptions = {
+  /** BCP-47 locale, e.g. 'en-IN', 'hi-IN', 'ta-IN'. */
+  locale?: string
+  /** Voice tier. Only Google has two tiers; other providers ignore it. */
+  quality?: 'standard' | 'hd'
+}
 type Synth = (text: string, opts: TTSOptions) => Promise<TTSResult>
 
 // ── AWS Polly ───────────────────────────────────────────────────────────────
@@ -52,23 +57,40 @@ const synthPolly: Synth = async (text) => {
 }
 
 // ── Google Cloud TTS (REST, API key) ────────────────────────────────────────
-// Voice names: `en-IN-Chirp3-HD-<Name>` / `hi-IN-Chirp3-HD-<Name>` (HD, most natural),
-// or cheaper `en-IN-Neural2-B` / `en-IN-Wavenet-C` (male). Check the voice list in
-// the console for your project; set GOOGLE_TTS_VOICE to pick one.
-// Per-language override: GOOGLE_TTS_VOICE_HI_IN, GOOGLE_TTS_VOICE_TA_IN, ...
-export function googleVoiceFor(locale?: string): string {
-  const base = process.env.GOOGLE_TTS_VOICE ?? 'en-IN-Chirp3-HD-Charon'
-  if (!locale || base.startsWith(locale)) return base
-  const override = process.env[`GOOGLE_TTS_VOICE_${locale.replace('-', '_').toUpperCase()}`]
+// Two quality tiers, picked per request from the user's plan (see app/api/tts):
+//   standard → WaveNet (about $4 per million characters, with a monthly free allowance)
+//   hd       → Chirp 3 HD (about $30 per million characters, most natural)
+// Env overrides:
+//   GOOGLE_TTS_VOICE      standard voice (a persona name is reused across languages)
+//   GOOGLE_TTS_VOICE_HD   HD voice, default en-IN-Chirp3-HD-Charon
+//   GOOGLE_TTS_VOICE_<LOCALE>[_HD], e.g. GOOGLE_TTS_VOICE_HI_IN or GOOGLE_TTS_VOICE_TA_IN_HD
+export type VoiceQuality = 'standard' | 'hd'
+
+const DEFAULT_HD_VOICE = 'en-IN-Chirp3-HD-Charon'
+// Male WaveNet voices exist for these locales; other Indian languages use the Chirp 3 HD
+// persona, which Google offers in every Indian locale it supports.
+const WAVENET_MALE: Record<string, string> = { 'en-IN': 'en-IN-Wavenet-B', 'hi-IN': 'hi-IN-Wavenet-B' }
+
+/** Same voice persona in another language: "en-IN-Chirp3-HD-Charon" → "hi-IN-Chirp3-HD-Charon". */
+function inLocale(voice: string, locale: string): string {
+  return voice.startsWith(locale) ? voice : `${locale}-${voice.split('-').slice(2).join('-')}`
+}
+
+export function googleVoiceFor(locale?: string, quality: VoiceQuality = 'standard'): string {
+  const loc = locale || 'en-IN'
+  const override = process.env[`GOOGLE_TTS_VOICE_${loc.replace('-', '_').toUpperCase()}${quality === 'hd' ? '_HD' : ''}`]
   if (override) return override
-  // Same voice persona in the other language (Chirp 3 HD names are shared across locales).
-  return `${locale}-${base.split('-').slice(2).join('-')}`
+  const hd = inLocale(process.env.GOOGLE_TTS_VOICE_HD || DEFAULT_HD_VOICE, loc)
+  if (quality === 'hd') return hd
+  const standard = process.env.GOOGLE_TTS_VOICE
+  if (standard) return inLocale(standard, loc)
+  return WAVENET_MALE[loc] ?? hd
 }
 
 const synthGoogle: Synth = async (text, opts) => {
   const key = process.env.GOOGLE_TTS_API_KEY ?? process.env.GEMINI_API_KEY
   if (!key) throw new Error('GOOGLE_TTS_API_KEY not set')
-  const voiceName = googleVoiceFor(opts.locale)
+  const voiceName = googleVoiceFor(opts.locale, opts.quality)
   const languageCode = voiceName.slice(0, 5) // "en-IN" / "hi-IN"
   // Key goes in a header, not the URL, so it never lands in proxy/access logs.
   const res = await fetchWithTimeout('https://texttospeech.googleapis.com/v1/text:synthesize', {

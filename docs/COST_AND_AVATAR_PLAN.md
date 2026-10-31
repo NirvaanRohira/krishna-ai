@@ -163,7 +163,7 @@ The full, current list (including OpenRouter, Sentry, cron and alert settings) i
 |---|---|---|
 | `TTS_PROVIDER` / `TTS_FALLBACK` | `polly` / none | `polly` \| `google` \| `sarvam` |
 | `GOOGLE_TTS_API_KEY` | falls back to `GEMINI_API_KEY` | Enable the Cloud Text-to-Speech API on the project |
-| `GOOGLE_TTS_VOICE` | `en-IN-Chirp3-HD-Charon` | Other languages use the same persona name (`hi-IN-…`, `ta-IN-…`); override per language with `GOOGLE_TTS_VOICE_HI_IN` etc. Pick from the voice list in the console. |
+| `GOOGLE_TTS_VOICE` / `GOOGLE_TTS_VOICE_HD` / `TTS_HD_PLANS` | WaveNet (`en-IN-Wavenet-B`, `hi-IN-Wavenet-B`) for Free and Plus; Chirp 3 HD (`en-IN-Chirp3-HD-Charon`) for `premium` | The standard voice costs about $4 per million characters, HD about $30. Per-language overrides: `GOOGLE_TTS_VOICE_HI_IN`, `GOOGLE_TTS_VOICE_TA_IN_HD`, etc. `TTS_HD_PLANS=plus,premium` gives HD to Plus too. |
 | `LLM_PROVIDER`, `LLM_GENERATION_MODEL`, `LLM_CLASSIFY_PROVIDER`, `LLM_CLASSIFY_MODEL` | `groq` | Set `gemini` to run on GCP credits |
 | `CHAT_HISTORY_MESSAGES` | `12` | History messages loaded from the DB per prompt |
 | `SUPABASE_SERVICE_ROLE_KEY` | — | Server-only. Used **only** by account deletion to remove the auth user. |

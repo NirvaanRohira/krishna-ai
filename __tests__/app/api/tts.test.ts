@@ -150,6 +150,57 @@ describe('POST /api/tts', () => {
     }
   })
 
+  it('free and Plus users get the cheaper WaveNet voice; Premium gets Chirp 3 HD', async () => {
+    vi.stubEnv('TTS_PROVIDER', 'google')
+    vi.stubEnv('GOOGLE_TTS_API_KEY', 'g-key')
+    const fetchMock = vi.fn().mockImplementation(async () =>
+      new Response(JSON.stringify({ audioContent: Buffer.from([1]).toString('base64') }), { status: 200 })
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const withPlan = (plan: string) => ({
+      ...makeMockSupabase(),
+      rpc: vi.fn().mockResolvedValue({ data: { allowed: true, reason: 'ok', plan }, error: null }),
+    })
+    try {
+      const { POST } = await import('@/app/api/tts/route')
+      const voiceFor = async (plan: string, text: string) => {
+        createServerSupabaseClient.mockResolvedValue(withPlan(plan) as never)
+        fetchMock.mockClear()
+        await POST(makeRequest({ text }))
+        return JSON.parse(fetchMock.mock.calls[0][1].body).voice.name
+      }
+      expect(await voiceFor('free', 'Namaste friend')).toBe('en-IN-Wavenet-B')
+      expect(await voiceFor('plus', 'कर्म करो, फल की चिंता मत करो।')).toBe('hi-IN-Wavenet-B')
+      expect(await voiceFor('premium', 'Namaste friend')).toBe('en-IN-Chirp3-HD-Charon')
+      expect(await voiceFor('premium', 'कर्म करो, फल की चिंता मत करो।')).toBe('hi-IN-Chirp3-HD-Charon')
+    } finally {
+      vi.unstubAllEnvs()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('which plans get the HD voice is configurable (TTS_HD_PLANS)', async () => {
+    vi.stubEnv('TTS_PROVIDER', 'google')
+    vi.stubEnv('GOOGLE_TTS_API_KEY', 'g-key')
+    vi.stubEnv('TTS_HD_PLANS', 'plus,premium')
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ audioContent: Buffer.from([1]).toString('base64') }), { status: 200 })
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    createServerSupabaseClient.mockResolvedValue({
+      ...makeMockSupabase(),
+      rpc: vi.fn().mockResolvedValue({ data: { allowed: true, reason: 'ok', plan: 'plus' }, error: null }),
+    } as never)
+    try {
+      const { POST } = await import('@/app/api/tts/route')
+      await POST(makeRequest({ text: 'Namaste friend' }))
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body).voice.name).toBe('en-IN-Chirp3-HD-Charon')
+    } finally {
+      vi.unstubAllEnvs()
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('falls back to Polly when the primary provider fails and TTS_FALLBACK=polly', async () => {
     vi.stubEnv('TTS_PROVIDER', 'sarvam')
     vi.stubEnv('SARVAM_API_KEY', 's-key')
