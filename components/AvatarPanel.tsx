@@ -4,7 +4,7 @@
 // just listens to the TTS audio — so there's no second backend path to maintain.
 
 import dynamic from 'next/dynamic'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { InputBar } from '@/components/InputBar'
 import { OUTFITS, loadSavedOutfit, saveOutfit } from '@/lib/avatar/config'
 
@@ -21,11 +21,11 @@ type Props = {
 }
 
 export default function AvatarPanel({ onClose, onSend, loading, caption, getAnalyser }: Props) {
-  const [outfitId, setOutfitId] = useState('divine')
+  // Avatar mode only ever renders on the client (opened by a tap), so reading the saved
+  // outfit in the initial state is safe and avoids a second render.
+  const [outfitId, setOutfitId] = useState(() => (typeof window === 'undefined' ? 'divine' : loadSavedOutfit()))
   const [pickerOpen, setPickerOpen] = useState(false)
   const [available, setAvailable] = useState<string[] | null>(null)
-
-  useEffect(() => { setOutfitId(loadSavedOutfit()) }, [])
 
   function choose(id: string) {
     setOutfitId(id)

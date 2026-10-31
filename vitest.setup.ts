@@ -25,3 +25,10 @@ vi.mock('next/headers', () => ({
   }),
   headers: () => new Map(),
 }))
+
+// next/server's after() needs a live Next request scope. In unit tests it is a no-op spy;
+// tests that care assert on it and invoke the callback themselves.
+vi.mock('next/server', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('next/server')>()
+  return { ...actual, after: vi.fn() }
+})

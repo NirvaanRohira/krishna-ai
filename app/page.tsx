@@ -1,30 +1,46 @@
 import Link from 'next/link'
 
+// The first viewport is the thesis: Krishna's likeness, the promise, and a real-shaped
+// exchange (labelled as an example) so a visitor sees what an answer looks like.
 export default function Home() {
   return (
     <main className="landing-page">
-      {/* Flame icon — SVG, no emoji */}
-      <svg className="landing-icon fade-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M12 2C12 2 7 8 7 13a5 5 0 0 0 10 0c0-5-5-11-5-11z"/>
-        <path d="M12 12c0 0-2 1.5-2 3a2 2 0 0 0 4 0c0-1.5-2-3-2-3z"/>
-      </svg>
+      <section className="landing-hero">
+        <div className="landing-figure fade-up">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/avatar/poster-divine.webp" alt="An artistic, AI-animated depiction of Krishna playing the flute" />
+        </div>
 
-      <h1 className="landing-title fade-up fade-up-delay-1">Kanha</h1>
-      <p className="landing-subtitle fade-up fade-up-delay-1">A voice from the sacred texts</p>
+        <div className="landing-copy">
+          <h1 className="landing-title fade-up fade-up-delay-1">
+            Kanha
+            <span lang="hi">कान्हा</span>
+          </h1>
+          <p className="landing-lede fade-up fade-up-delay-1">
+            Bring what is on your mind. <strong>Talk it through with the Bhagavad Gita</strong>, by text or
+            face to face, in English, Hindi or your own language.
+          </p>
 
-      <p className="landing-description fade-up fade-up-delay-2">
-        Wisdom drawn from the Bhagavad Gita, Upanishads,<br />
-        Yoga Sutras, and Bhagavatam —<br />
-        offered in the spirit of a yogi who has lived them.
-      </p>
+          <Link href="/login" className="btn-primary landing-begin fade-up fade-up-delay-2">
+            Begin a conversation
+          </Link>
 
-      <Link href="/login" className="landing-begin fade-up fade-up-delay-3">
-        Begin
-      </Link>
+          <figure className="landing-sample fade-up fade-up-delay-3" aria-label="Example conversation">
+            <figcaption className="landing-sample-label">Example conversation</figcaption>
+            <p className="msg-user">I didn&rsquo;t get the job I worked for all year. What was the point?</p>
+            <p className="msg-assistant">
+              The year wasn&rsquo;t wasted. In the Gita, Krishna tells Arjuna that our right is to the work
+              itself, never to its fruits. What you built in yourself this year is still yours. What would
+              you do next if the result were not the measure?
+            </p>
+          </figure>
 
-      <p className="landing-disclaimer">
-        This is an AI drawing from Sanskrit texts. It is not a spiritual authority.
-      </p>
+          <p className="landing-disclaimer">
+            Kanha is an AI drawing from Sanskrit texts. It is not God, not Krishna, and not a spiritual
+            authority. <Link href="/privacy">Privacy</Link> · <Link href="/terms">Terms</Link>
+          </p>
+        </div>
+      </section>
     </main>
   )
 }

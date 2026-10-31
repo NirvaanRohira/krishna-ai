@@ -84,7 +84,7 @@ Krishna's face stays. Everywhere it appears, the product now says plainly that t
 | Phase | What | Status |
 |---|---|---|
 | **0: Foundation** (this branch) | 3D avatar + outfits, Indian multilingual voice, voice mode, prompt caching, history trim, server-side history (anti-injection), session ownership, 2,000-char input cap, RLS + index migration, atomic memory, 18+ gate + itemised consent ledger, export/delete endpoints, `/privacy` `/terms` `/account` drafts, security headers, CSRF origin check, STT upload caps, health check, `ship-it-right` skill | ✅ |
-| **1: Before beta** (~2 wks) | Upgrade Next 14 → current (critical advisory). Durable rate limits + daily quotas. Sentry + GCP budget alerts. Staging project. Switch to Gemini + Google TTS on credits. Answer-quality evals. Lawyer review + grievance officer. Corpus license audit. | ❌ |
+| **1: Before beta** (~2 wks) | ~~Upgrade Next~~ ✅ (16.4.3, React 19). ~~UI redesign~~ ✅. Durable rate limits + daily quotas. Sentry + GCP budget alerts. Staging project. Switch to Gemini + Google TTS on credits. Answer-quality evals. Lawyer review + grievance officer. Corpus license audit. | ❌ |
 | **2: Beta** | Avatar model v1. Voice actor + license. Hindi/Hinglish launch. Playwright E2E + load test. Retention purge job. Backup restore drill. Advisory panel. | ❌ |
 | **3: Paid launch** | Razorpay subscriptions (verified, idempotent webhooks), pricing page, compliant cancellation, consent-based marketing, privacy-friendly analytics (no Meta Pixel before consent). | ❌ |
 | **4: Apps** | Capacitor wrap → Play Store, then App Store (in-app purchase, in-app account deletion, privacy labels, mic permission strings). | ❌ |

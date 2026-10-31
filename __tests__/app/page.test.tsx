@@ -19,7 +19,7 @@ describe('Home page', () => {
   it('displays the disclaimer text', () => {
     render(<Page />)
     expect(
-      screen.getByText(/ai drawing from sanskrit texts/i)
+      screen.getByText(/AI drawing from Sanskrit texts/i)
     ).toBeInTheDocument()
   })
 })

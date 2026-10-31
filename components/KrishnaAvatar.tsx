@@ -7,7 +7,7 @@
 //
 // If the GLB isn't present yet, falls back to the 2D poster with a voice-reactive aura.
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AVATAR_MODEL_URL, AVATAR_POSTER_URL, OUTFITS, OUTFIT_NODE_PREFIX, outfitsPresentInModel } from '@/lib/avatar/config'
 import {
   analyseSpectrum, bandsToVisemes, smoothVisemes, resolveMorphIndices,
@@ -27,13 +27,16 @@ export default function KrishnaAvatar({ getAnalyser, outfitId, onModelInfo }: Pr
   const mountRef = useRef<HTMLDivElement>(null)
   const auraRef = useRef<HTMLDivElement>(null)
   const [mode, setMode] = useState<Mode>('loading')
+  // Latest props for the long-lived render loop, synced after each render.
   const getAnalyserRef = useRef(getAnalyser)
-  getAnalyserRef.current = getAnalyser
   const onModelInfoRef = useRef(onModelInfo)
-  onModelInfoRef.current = onModelInfo
   const applyOutfitRef = useRef<(id: string) => void>(() => {})
   const outfitRef = useRef(outfitId)
-  outfitRef.current = outfitId
+  useLayoutEffect(() => {
+    getAnalyserRef.current = getAnalyser
+    onModelInfoRef.current = onModelInfo
+    outfitRef.current = outfitId
+  })
 
   useEffect(() => { applyOutfitRef.current(outfitId) }, [outfitId])
 

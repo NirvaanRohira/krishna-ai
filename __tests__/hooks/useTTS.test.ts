@@ -4,7 +4,7 @@ import { useTTS } from '@/hooks/useTTS'
 
 const mockSpeak = vi.fn()
 const mockCancel = vi.fn()
-let mockPaused = false
+const mockPaused = false
 let mockSpeaking = false
 
 class MockSpeechSynthesisUtterance {

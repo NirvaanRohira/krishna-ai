@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { flushSync } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { ChatWindow } from '@/components/ChatWindow'
@@ -7,15 +7,17 @@ import { DisclaimerBadge } from '@/components/DisclaimerBadge'
 import AvatarPanel from '@/components/AvatarPanel'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 import { useTTS } from '@/hooks/useTTS'
+import { cleanSources, type Source } from '@/lib/sources'
+import Link from 'next/link'
 
-type Message = { role: 'user' | 'assistant'; content: string }
+type Message = { role: 'user' | 'assistant'; content: string; sources?: Source[] }
 
 const FALLBACK_ERROR = 'Something went wrong. Please try again.'
 
 async function consumeStream(
   res: Response,
   onChunk: (text: string) => void,
-  onMeta: (sessionId: string) => void,
+  onMeta: (sessionId: string, sources: Source[] | null) => void,
   onError: (msg: string) => void,
 ) {
   const reader = res.body!.getReader()
@@ -32,7 +34,7 @@ async function consumeStream(
       if (!line.startsWith('data: ') || line.trim() === 'data: [DONE]') continue
       try {
         const d = JSON.parse(line.slice(6))
-        if (d.t === 's') onMeta(d.id)
+        if (d.t === 's') onMeta(d.id, 'src' in d ? cleanSources(d.src) : null)
         if (d.t === 'c') onChunk(d.v)
         if (d.t === 'e') onError(d.msg ?? FALLBACK_ERROR)
       } catch { /* skip malformed lines */ }
@@ -48,18 +50,19 @@ export default function ChatPage() {
   const [videoMode, setVideoMode] = useState(false)
   const router = useRouter()
   const messagesRef = useRef(messages)
-  messagesRef.current = messages
   // Keep a ref in sync so the beforeunload/visibilitychange closure always
   // sees the current sessionId without needing to re-register the listener.
   const sessionIdRef = useRef<string | null>(null)
-  sessionIdRef.current = sessionId
+  // Refs are synced after render (React 19 forbids writing refs during render).
+  useLayoutEffect(() => {
+    messagesRef.current = messages
+    sessionIdRef.current = sessionId
+  }, [messages, sessionId])
   // Tracks the session id whose end-beacon has already been sent, so the same
   // end fires the beacon at most once even though pagehide + visibilitychange +
-  // beforeunload can all fire in sequence. Reset when a new session begins.
+  // beforeunload can all fire in sequence. A new session has a new id, so it
+  // never matches and its own beacon is sent — no reset needed.
   const beaconSentForRef = useRef<string | null>(null)
-  if (sessionId && beaconSentForRef.current !== null && beaconSentForRef.current !== sessionId) {
-    beaconSentForRef.current = null
-  }
   const {
     enqueue, stop, toggle, enabled: ttsEnabled, unlockAudio,
     setEnabled: setTTSEnabled, setAnalyse, getAnalyser,
@@ -176,6 +179,7 @@ export default function ChatPage() {
 
       let assembled = ''
       let errorMsg = ''
+      let sources: Source[] = []
 
       await consumeStream(
         res,
@@ -198,7 +202,8 @@ export default function ChatPage() {
             setMessages([...withUser, { role: 'assistant', content: assembled }])
           })
         },
-        (id) => {
+        (id, src) => {
+          if (src) sources = src
           // The server may start a fresh session (e.g. the old one ended when the tab was
           // hidden, or after a crisis response) — always follow its id.
           if (id && id !== sessionIdRef.current) setSessionId(id)
@@ -216,10 +221,14 @@ export default function ChatPage() {
         // the truncated reply as a complete answer. Append an inline notice so
         // it's clear the response was cut off.
         if (errorMsg) {
-          assembled += '\n\n_(response interrupted — please try again)_'
+          assembled += '\n\n(The response was interrupted. Please try again.)'
           flushSync(() => {
             setMessages([...withUser, { role: 'assistant', content: assembled }])
           })
+        }
+        // Attach the verses this answer drew on (shown under the reply once it completes).
+        if (sources.length) {
+          setMessages([...withUser, { role: 'assistant', content: assembled, sources }])
         }
         // Flush any remaining partial sentence for TTS
         if (sentenceBufferRef.current.trim()) enqueue(sentenceBufferRef.current.trim())
@@ -238,40 +247,45 @@ export default function ChatPage() {
 
   return (
     <main className="chat-page">
+      <header className="chat-header">
+        <Link href="/" className="chat-wordmark" aria-label="Kanha home">Kanha</Link>
+        <button
+          onClick={() => { toggle(); stop() }}
+          className="icon-btn"
+          aria-pressed={ttsEnabled}
+          title={ttsEnabled ? 'Mute voice' : 'Unmute voice'}
+          aria-label={ttsEnabled ? 'Mute voice' : 'Unmute voice'}
+          type="button"
+        >
+          {ttsEnabled ? (
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M11 5 6 9H3v6h3l5 4V5Z" /><path d="M15.5 8.5a5 5 0 0 1 0 7" /><path d="M18.5 5.5a9 9 0 0 1 0 13" />
+            </svg>
+          ) : (
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M11 5 6 9H3v6h3l5 4V5Z" /><path d="m22 9-6 6M16 9l6 6" />
+            </svg>
+          )}
+        </button>
+        <button
+          onClick={() => setVideoMode(v => !v)}
+          className="icon-btn"
+          aria-pressed={videoMode}
+          title="Talk face to face"
+          aria-label="Talk to Krishna (3D avatar)"
+          type="button"
+        >
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="8" r="4" /><path d="M4.5 21a7.5 7.5 0 0 1 15 0" /><path d="M12 2.5c1.5-1 3.5-.6 4.2.9" />
+          </svg>
+        </button>
+        <Link href="/account" className="icon-btn" aria-label="Your account and data" title="Account">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" />
+          </svg>
+        </Link>
+      </header>
       <DisclaimerBadge />
-      <button
-        onClick={() => { toggle(); stop() }}
-        className={`tts-toggle${ttsEnabled ? ' tts-toggle--active' : ''}`}
-        title={ttsEnabled ? 'Mute voice' : 'Unmute voice'}
-        aria-label={ttsEnabled ? 'Mute voice' : 'Unmute voice'}
-        type="button"
-      >
-        {ttsEnabled ? (
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
-            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
-          </svg>
-        ) : (
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-            <line x1="23" y1="9" x2="17" y2="15"/>
-            <line x1="17" y1="9" x2="23" y2="15"/>
-          </svg>
-        )}
-      </button>
-      <button
-        onClick={() => setVideoMode(v => !v)}
-        className={`tts-toggle video-toggle${videoMode ? ' tts-toggle--active' : ''}`}
-        title="Talk to Krishna (3D avatar)"
-        aria-label="Talk to Krishna (3D avatar)"
-        type="button"
-      >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <polygon points="23 7 16 12 23 17 23 7"/>
-          <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
-        </svg>
-      </button>
       {videoMode ? (
         <AvatarPanel
           onClose={() => setVideoMode(false)}

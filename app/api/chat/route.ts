@@ -1,6 +1,6 @@
 export const maxDuration = 60
 
-import { NextResponse } from 'next/server'
+import { NextResponse, after } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { checkRateLimit, rateLimitKey } from '@/lib/rateLimit'
 import { classifyComplexity } from '@/lib/retrieval/complexityRouter'
@@ -14,6 +14,7 @@ import { startSession, saveExchange, endSession, resumeSession } from '@/lib/ses
 import { loadAndInjectProfile } from '@/lib/memory/profileInjector'
 import { queryStructuralLookup } from '@/lib/retrieval/structuralLookup'
 import { withVoiceMode } from '@/lib/prompts/voice'
+import { closeStaleSessions } from '@/lib/memory/postSession'
 
 type Message = { role: 'user' | 'assistant'; content: string }
 
@@ -87,6 +88,11 @@ export async function POST(req: Request) {
 
   const resumed = await resumeSession(supabase, existingSessionId, HISTORY_MESSAGES)
   const sessionId: string = resumed?.id ?? await startSession(supabase, user.id)
+  if (!resumed) {
+    // New conversation: once the response has been sent, fold any earlier conversations
+    // whose end-beacon never arrived into the user's profile (see closeStaleSessions).
+    after(() => closeStaleSessions(supabase, user.id, sessionId))
+  }
   const recentHistory: Message[] = resumed?.history ?? []
   const turnCount = resumed?.turnCount ?? 0
 

@@ -161,3 +161,21 @@ describe('POST /api/chat — auth and persistence', () => {
     )
   })
 })
+
+describe('POST /api/chat — profile safety net', () => {
+  it('schedules a stale-session sweep (after the response) when a new session starts', async () => {
+    const { after } = await import('next/server')
+    const supabaseLib = await import('@/lib/supabase-server')
+    vi.mocked(supabaseLib.createServerSupabaseClient).mockResolvedValue({
+      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'u1' } }, error: null }) },
+      from: vi.fn(),
+    } as never)
+    const session = await import('@/lib/session')
+    vi.mocked(session.resumeSession).mockResolvedValue(null)
+    vi.mocked(session.startSession).mockResolvedValue('new-sess')
+    vi.mocked(after).mockClear()
+    const { POST } = await import('@/app/api/chat/route')
+    await POST(new Request('http://localhost/api/chat', { method: 'POST', body: JSON.stringify({ message: 'hello there friend' }) }))
+    expect(after).toHaveBeenCalledTimes(1)
+  })
+})

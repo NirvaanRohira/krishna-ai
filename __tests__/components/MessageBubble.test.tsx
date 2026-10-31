@@ -44,3 +44,19 @@ describe('MessageBubble', () => {
     expect(bubble.querySelector('[data-thinking]')).toBeNull()
   })
 })
+
+describe('MessageBubble sources', () => {
+  const sources = [{ text_source: 'bhagavad_gita', book_chapter: 2, verse: 47, text: 'You have a right to action alone.' }]
+
+  it('shows the verses an answer drew on once streaming finishes', () => {
+    render(<MessageBubble role="assistant" content="Act without craving the fruit." sources={sources} />)
+    expect(screen.getByText(/Drawn from/)).toBeTruthy()
+    expect(screen.getByText('Gita 2.47')).toBeTruthy()
+    expect(screen.getByText('Bhagavad Gita 2.47')).toBeTruthy()
+  })
+
+  it('hides sources while the answer is still streaming', () => {
+    render(<MessageBubble role="assistant" content="Act without" sources={sources} streaming />)
+    expect(screen.queryByText(/Drawn from/)).toBeNull()
+  })
+})

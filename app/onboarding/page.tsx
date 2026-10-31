@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { Mark } from '@/components/Mark'
 
 export default function OnboardingPage() {
   const [loading, setLoading] = useState(false)
@@ -53,11 +54,7 @@ export default function OnboardingPage() {
     <main className="onboarding-page">
       <div className="fade-up" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0' }}>
 
-        {/* Flame */}
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '1.5rem', opacity: 0.7 }} aria-hidden="true">
-          <path d="M12 2C12 2 7 8 7 13a5 5 0 0 0 10 0c0-5-5-11-5-11z"/>
-          <path d="M12 12c0 0-2 1.5-2 3a2 2 0 0 0 4 0c0-1.5-2-3-2-3z"/>
-        </svg>
+        <Mark className="onboarding-mark" />
 
         <h1 className="onboarding-title">Before you begin</h1>
 
@@ -91,13 +88,12 @@ export default function OnboardingPage() {
           onClick={handleAccept}
           disabled={loading || !canContinue}
           className="btn-primary"
-          style={{ maxWidth: '18rem' }}
         >
           {loading ? 'Entering…' : 'I understand — begin'}
         </button>
 
         {error && (
-          <p role="alert" style={{ fontSize: '0.75rem', color: 'var(--danger, #c0392b)', textAlign: 'center', marginTop: '0.75rem' }}>
+          <p role="alert" className="auth-error" style={{ marginTop: '0.75rem' }}>
             {error}
           </p>
         )}

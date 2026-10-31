@@ -243,7 +243,7 @@ describe('ChatPage mid-stream error handling', () => {
     const win = await findByTestId('chat-window')
     // Partial content is preserved AND clearly marked as interrupted.
     expect(win.textContent).toContain('Half an answer.')
-    expect(win.textContent).toContain('response interrupted')
+    expect(win.textContent).toContain('response was interrupted')
   })
 
   it('shows only the error (no interrupted notice) when nothing was assembled', async () => {
@@ -272,6 +272,6 @@ describe('ChatPage mid-stream error handling', () => {
 
     const win = await findByTestId('chat-window')
     expect(win.textContent).toContain('boom')
-    expect(win.textContent).not.toContain('response interrupted')
+    expect(win.textContent).not.toContain('response was interrupted')
   })
 })

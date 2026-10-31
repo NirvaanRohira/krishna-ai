@@ -35,7 +35,7 @@ Status key: ✅ done in repo · 🟡 partial · ❌ not done. Statuses are as of
 |---|---|---|
 | RLS | Every table has RLS enabled, with a policy per operation. Use `(select auth.uid())`, not bare `auth.uid()`. Add explicit `WITH CHECK` on insert/update. | ✅ migration `20261031000000` |
 | IDOR | Never act on an ID from the client without proving ownership (RLS or an explicit check). The chat route resumes sessions only via `resumeSession()` (owned + not ended). | ✅ chat · check every new route |
-| Auth bypass | `middleware.ts` gates `/chat` and `/account` on login + onboarding. API routes check auth themselves; don't rely on middleware alone. | ✅ |
+| Auth bypass | `proxy.ts` (Next 16 replaced middleware with proxy) gates `/chat` and `/account` on login + onboarding. API routes check auth themselves; don't rely on the proxy alone. | ✅ |
 | Least privilege | App uses the anon key + RLS. Service role is only used for account deletion. DB functions are `security invoker` with `search_path` pinned. | ✅ |
 | Session expiry | Supabase JWT expiry (1 h) with refresh rotation. Set "inactivity timeout" in Supabase Auth settings. | 🟡 check dashboard |
 | Immutable transcript | `messages` is select + insert only. Stored assistant turns become prompt history, so users must not be able to edit them. | ✅ |
@@ -47,12 +47,12 @@ Status key: ✅ done in repo · 🟡 partial · ❌ not done. Statuses are as of
 | Server-side validation | Length caps (chat 2,000 chars, TTS 3,000) and type checks. | ✅ · ❌ shared zod schemas |
 | Prompt injection | History is loaded **server-side** from the DB, never from the client. User text is delimited in classifier prompts. The system prompt says to treat user words as conversation, not commands. Never put user text above the system prompt. | ✅ |
 | XSS | Render model output as text (React escapes it). **Never** use `dangerouslySetInnerHTML` with model or user content. If markdown rendering is added, sanitise it (rehype-sanitize). | ✅ |
-| CSRF | Auth cookies are SameSite=Lax, and middleware rejects mutating `/api/*` calls with a foreign `Origin`. Destructive actions need a typed confirmation. | ✅ |
+| CSRF | Auth cookies are SameSite=Lax, and `proxy.ts` rejects mutating `/api/*` calls with a foreign `Origin`. Destructive actions need a typed confirmation. | ✅ |
 | SSRF | Never fetch a URL supplied by a user. Outbound calls go only to fixed provider hosts. | ✅ |
 | Security headers | HSTS, nosniff, frame DENY, Referrer-Policy, Permissions-Policy (mic only), COOP, CSP. | ✅ · 🟡 CSP is Report-Only: enforce after checking staging |
 | File upload | Only audio for STT today. **MUST** cap size (e.g. 10 MB), allow-list MIME types, never store it, and never pass the filename to a shell or path. | ❌ add size/MIME caps to `/api/voice/transcribe` |
 | Signed URLs | Any private file (e.g. paid outfit GLBs) is served via short-lived signed URLs from Supabase Storage. Never use guessable public paths for paid content. | ❌ when paid outfits ship |
-| Dependency vulnerabilities | `npm audit --omit=dev` must be clean of critical/high before release. Enable Dependabot. | ❌ **Next 14 has a critical advisory, so upgrade to Next 15/16** |
+| Dependency vulnerabilities | `npm audit --omit=dev` must be clean of critical/high before release. Enable Dependabot. | ✅ Next 16.4.3 / React 19, production deps at 0 vulnerabilities. Dev-only: a moderate `minimatch` issue inside ESLint plugins remains until `eslint-config-next` ships the fix |
 | Secret exposure | No keys in URLs (Google TTS key goes in a header), logs or client bundles. Rotate any key that was ever committed or shared. | ✅ · rotate keys from old `.env.local` copies |
 
 ## 3. Reliability & data integrity
@@ -64,7 +64,7 @@ Status key: ✅ done in repo · 🟡 partial · ❌ not done. Statuses are as of
 | Idempotency | Session end is idempotent (`ended_at is null` guard). Payment webhooks and any "create" endpoint the client may retry **MUST** take an idempotency key with a unique DB constraint. | 🟡 |
 | Race conditions | No read-modify-write in app code on shared rows. Use atomic SQL (`append_previous_guidance` RPC, `increment_session_turn`) or `select … for update`. | ✅ |
 | DB transactions | Multi-table writes that must succeed together go in one Postgres function (RPC), not several client calls. | 🟡 `saveExchange` does insert + RPC separately: move into one RPC |
-| Background jobs | Post-session memory extraction runs inside the request today. Move it to a queue (Cloud Tasks / Supabase queues) when traffic grows. | ❌ |
+| Background jobs | Post-session memory extraction runs in the session-end request, with an `after()` sweep that catches sessions whose beacon never arrived (`lib/memory/postSession.ts`). Move to a queue (Cloud Tasks / Supabase queues) when traffic grows. | 🟡 |
 | Dead-letter queue | Failed background jobs go to a DLQ table with error + payload and get an alert, never silently dropped. | ❌ with the queue |
 | Rate limiting | Per-user limits on chat (30/min) and TTS (60/min). The limiter is **in-memory per instance**: move to Redis/Upstash or a Postgres counter before launch. Add **daily quotas** per plan (cost control). | 🟡 |
 | Connection pooling | Supabase REST (PostgREST) pools for us. Any direct Postgres connection must use the pooler port (6543, transaction mode). | ✅ |
@@ -154,7 +154,7 @@ Wrap the web app with Capacitor (reuses this codebase; WebGL avatar works in the
 
 ## Known gaps (prioritised)
 
-1. Upgrade Next.js 14 → current (critical advisory).
+1. ~~Upgrade Next.js~~ ✅ done (16.4.3).
 2. Durable rate limiting + per-plan daily quotas (cost and abuse).
 3. Sentry + spend alerts + GCP budget alerts.
 4. Staging project, backup restore drill, incident/breach runbook.
@@ -166,7 +166,7 @@ Wrap the web app with Capacitor (reuses this codebase; WebGL avatar works in the
 ## Definition of done (run before every PR)
 
 ```bash
-npx vitest run && npx tsc --noEmit -p . && npx next lint && npm audit --omit=dev
+npx vitest run && npx tsc --noEmit -p . && npm run lint && npm audit --omit=dev
 ```
 
 Then answer, in the PR description:

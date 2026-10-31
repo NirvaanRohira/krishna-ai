@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
+import { Mark } from '@/components/Mark'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -36,13 +37,10 @@ export default function LoginPage() {
   if (submitted) {
     return (
       <main className="auth-page">
-        <div className="auth-card" style={{ textAlign: 'center', gap: '0.75rem' }}>
-          <p style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 300, color: 'var(--fg)', margin: 0 }}>
-            Check your email
-          </p>
-          <p style={{ fontSize: '0.825rem', color: 'var(--fg-muted)', margin: 0, fontStyle: 'italic' }}>
-            The sign-in link is on its way.
-          </p>
+        <div className="auth-card auth-sent fade-up">
+          <Mark className="auth-mark" />
+          <h1>Check your email</h1>
+          <p>We sent a sign-in link to <strong>{email}</strong>. Open it on this device to continue.</p>
         </div>
       </main>
     )
@@ -51,13 +49,10 @@ export default function LoginPage() {
   return (
     <main className="auth-page">
       <div className="auth-card fade-up">
-        <div style={{ textAlign: 'center' }}>
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block', margin: '0 auto 0.75rem' }} aria-hidden="true">
-            <path d="M12 2C12 2 7 8 7 13a5 5 0 0 0 10 0c0-5-5-11-5-11z"/>
-            <path d="M12 12c0 0-2 1.5-2 3a2 2 0 0 0 4 0c0-1.5-2-3-2-3z"/>
-          </svg>
+        <div>
+          <Mark className="auth-mark" />
           <h1 className="auth-title">Kanha</h1>
-          <p className="auth-subtitle">Sign in to continue</p>
+          <p className="auth-subtitle">Sign in to begin</p>
         </div>
 
         {/* Google OAuth */}
@@ -74,7 +69,7 @@ export default function LoginPage() {
         <div className="auth-divider">or</div>
 
         {/* Magic link */}
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+        <form onSubmit={handleSubmit} className="auth-form">
           <label htmlFor="email" className="sr-only">Email address</label>
           <input
             id="email"
@@ -88,19 +83,18 @@ export default function LoginPage() {
             autoComplete="email"
           />
           <button type="submit" className="btn-primary">
-            Send magic link
+            Send me a sign-in link
           </button>
         </form>
 
         {error && (
-          <p role="alert" style={{ fontSize: '0.75rem', color: 'var(--danger, #c0392b)', textAlign: 'center', margin: 0 }}>
+          <p role="alert" className="auth-error">
             {error}
           </p>
         )}
 
-        <p style={{ fontSize: '0.65rem', color: 'var(--fg-dim)', textAlign: 'center', margin: 0, lineHeight: 1.6 }}>
-          By signing in you acknowledge this is an AI drawing from Sanskrit texts,
-          not a substitute for professional guidance.
+        <p className="auth-fine">
+          Kanha is an AI, not God or a guru, and not a substitute for professional help.
         </p>
       </div>
     </main>

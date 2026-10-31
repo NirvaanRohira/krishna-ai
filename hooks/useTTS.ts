@@ -1,5 +1,5 @@
 'use client'
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useLayoutEffect, useRef } from 'react'
 
 // Short phrases ("Hmm...", "Let me reflect on this...", greetings) repeat constantly.
 // Cache their audio in memory so each is synthesised once per page load, not once per
@@ -93,6 +93,10 @@ export function useTTS() {
     } catch { /* element already attached / unsupported — plays without lip-sync */ }
   }, [getAnalyser])
 
+  // processNext re-schedules itself from audio callbacks. Recursion goes through a ref
+  // (React 19 forbids a callback reading its own binding before declaration).
+  const processNextRef = useRef<() => void>(() => {})
+
   const processNext = useCallback(async () => {
     if (!enabledRef.current || queueRef.current.length === 0) {
       processingRef.current = false
@@ -111,7 +115,7 @@ export function useTTS() {
         })
         // A stop() during the fetch invalidates this generation — drop the stale result.
         if (gen !== generationRef.current) return
-        if (!res.ok || !enabledRef.current) { processNext(); return }
+        if (!res.ok || !enabledRef.current) { processNextRef.current(); return }
         blob = await res.blob()
         if (gen !== generationRef.current) return
         if (text.length <= PHRASE_CACHE_MAX_CHARS) {
@@ -123,7 +127,7 @@ export function useTTS() {
           cache.set(text, blob)
         }
       }
-      if (!enabledRef.current) { processNext(); return }
+      if (!enabledRef.current) { processNextRef.current(); return }
       const url = URL.createObjectURL(blob)
       currentUrlRef.current = url
       const audio = new Audio(url)
@@ -133,15 +137,16 @@ export function useTTS() {
         URL.revokeObjectURL(url)
         if (currentUrlRef.current === url) currentUrlRef.current = null
       }
-      audio.onended = () => { release(); processNext() }
-      audio.onerror = () => { release(); processNext() }
+      audio.onended = () => { release(); processNextRef.current() }
+      audio.onerror = () => { release(); processNextRef.current() }
       // play() can reject (autoplay policy) — recover the queue instead of stalling (bug 4).
-      audio.play().catch(() => { release(); processNext() })
+      audio.play().catch(() => { release(); processNextRef.current() })
     } catch {
       if (gen !== generationRef.current) return
-      processNext()
+      processNextRef.current()
     }
   }, [attachToAnalyser])
+  useLayoutEffect(() => { processNextRef.current = processNext }, [processNext])
 
   // Unlock audio (iOS Safari) — call during a user gesture (e.g. send button).
   const unlockAudio = useCallback(() => {

@@ -12,9 +12,14 @@ export async function createServerSupabaseClient() {
           return cookieStore.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          )
+          // Setting cookies throws outside a mutable context (e.g. in work scheduled with
+          // after(), once the response is sent). The proxy refreshes sessions on the next
+          // request, so a skipped write here is safe.
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            )
+          } catch { /* response already sent */ }
         },
       },
     }
