@@ -30,7 +30,10 @@ const securityHeaders = [
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   // Microphone for voice input only; payment only for the Razorpay checkout frame.
   { key: 'Permissions-Policy', value: 'microphone=(self), camera=(), geolocation=(), payment=(self "https://api.razorpay.com" "https://checkout.razorpay.com"), usb=(), interest-cohort=()' },
-  { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+  // same-origin-allow-popups (not same-origin): Razorpay opens the bank / OTP page in a
+  // popup and needs window.opener to report back. With same-origin the popup was a blank
+  // tab and every payment failed. Pages that open us still can't reach our window.
+  { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
   { key: 'Content-Security-Policy-Report-Only', value: csp },
 ]
 

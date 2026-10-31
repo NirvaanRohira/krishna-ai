@@ -1,5 +1,5 @@
 'use client'
-import { useState, useCallback, useLayoutEffect, useRef } from 'react'
+import { useState, useCallback, useLayoutEffect, useRef, useEffect } from 'react'
 
 // Short phrases ("Hmm...", "Let me reflect on this...", greetings) repeat constantly.
 // Cache their audio in memory so each is synthesised once per page load, not once per
@@ -53,6 +53,15 @@ export function useTTS({ defaultEnabled = true }: { defaultEnabled?: boolean } =
       currentUrlRef.current = null
     }
   }, [])
+
+  // Leaving the chat (e.g. tapping Plans) must silence Kanha: client-side navigation
+  // unmounts the page but would otherwise keep the audio element playing.
+  useEffect(() => () => {
+    stop()
+    ctxRef.current?.close().catch(() => {})
+    ctxRef.current = null
+    analyserRef.current = null
+  }, [stop])
 
   const getContext = useCallback((): AudioContext | null => {
     if (ctxRef.current) return ctxRef.current

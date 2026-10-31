@@ -149,6 +149,34 @@ describe('useTTS generation-cancel', () => {
     expect(createdAudios.length).toBe(0)
   })
 
+  it('goes silent when the chat page unmounts (e.g. navigating to Plans)', async () => {
+    const deferred = deferredResponse()
+    Object.defineProperty(global, 'fetch', { value: vi.fn().mockReturnValue(deferred.promise), writable: true, configurable: true })
+    const { result, unmount } = renderHook(() => useTTS())
+    act(() => { result.current.enqueue('a sentence still being fetched') })
+    unmount()
+    await act(async () => {
+      deferred.resolve(new Blob(['audio']))
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(createdAudios.length).toBe(0)
+  })
+
+  it('pauses audio that is already playing when the page unmounts', async () => {
+    Object.defineProperty(global, 'fetch', {
+      value: vi.fn().mockResolvedValue({ ok: true, blob: async () => new Blob(['audio']) }), writable: true, configurable: true,
+    })
+    const { result, unmount } = renderHook(() => useTTS())
+    await act(async () => {
+      result.current.enqueue('speaking now')
+      await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
+    })
+    expect(createdAudios.length).toBe(1)
+    unmount()
+    expect(createdAudios[0].pause).toHaveBeenCalled()
+  })
+
   it('lets a fresh enqueue play after stop() without overlapping the stale one (bug 3)', async () => {
     const first = deferredResponse()
     const second = deferredResponse()
