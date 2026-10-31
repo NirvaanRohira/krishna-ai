@@ -1,0 +1,14 @@
+{
+  "_note": "Candidate generation models via OpenRouter. Slugs change often — check https://openrouter.ai/models and edit freely. 'baseline' is what production runs today.",
+  "judge": "google/gemini-2.5-pro",
+  "candidates": [
+    { "id": "meta-llama/llama-3.3-70b-instruct", "label": "Llama 3.3 70B (current baseline, via Groq in prod)", "baseline": true },
+    { "id": "deepseek/deepseek-v4-flash", "label": "DeepSeek V4 Flash" },
+    { "id": "z-ai/glm-5.3", "label": "GLM 5.3" },
+    { "id": "moonshotai/kimi-k2", "label": "Kimi K2 (check for the newest Kimi slug)" },
+    { "id": "qwen/qwen3-235b-a22b-2507", "label": "Qwen3 235B (check for newer Qwen)" },
+    { "id": "openai/gpt-oss-120b", "label": "gpt-oss 120B" },
+    { "id": "google/gemini-2.5-flash", "label": "Gemini 2.5 Flash" },
+    { "id": "google/gemini-2.5-pro", "label": "Gemini 2.5 Pro (quality ceiling)" }
+  ]
+}

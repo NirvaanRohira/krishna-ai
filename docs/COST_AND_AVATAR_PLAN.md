@@ -84,12 +84,80 @@ Krishna's face stays. Everywhere it appears, the product now says plainly that t
 | Phase | What | Status |
 |---|---|---|
 | **0: Foundation** (this branch) | 3D avatar + outfits, Indian multilingual voice, voice mode, prompt caching, history trim, server-side history (anti-injection), session ownership, 2,000-char input cap, RLS + index migration, atomic memory, 18+ gate + itemised consent ledger, export/delete endpoints, `/privacy` `/terms` `/account` drafts, security headers, CSRF origin check, STT upload caps, health check, `ship-it-right` skill | ✅ |
-| **1: Before beta** (~2 wks) | ~~Upgrade Next~~ ✅ (16.4.3, React 19). ~~UI redesign~~ ✅. Durable rate limits + daily quotas. Sentry + GCP budget alerts. Staging project. Switch to Gemini + Google TTS on credits. Answer-quality evals. Lawyer review + grievance officer. Corpus license audit. | ❌ |
-| **2: Beta** | Avatar model v1. Voice actor + license. Hindi/Hinglish launch. Playwright E2E + load test. Retention purge job. Backup restore drill. Advisory panel. | ❌ |
+| **1: Before beta** | ✅ Next 16 / React 19 · ✅ UI redesign · ✅ durable rate limits + plan quotas (Postgres) · ✅ Sentry (opt-in) + spend alerts + CI gate · ✅ OpenRouter + model eval harness · ✅ corpus licence audit (decision open: `docs/CORPUS_LICENSES.md`) · ✅ memory view/clear, consent withdrawal, 12-month retention · ✅ E2E + accessibility tests · ✅ migrations tested on real Postgres · **You:** apply the two migrations, create staging, run `npm run eval:models`, pick the model, lawyer review, name a grievance officer | 🟡 your steps left |
+| **2: Beta** | Avatar model v1 · voice actor + license · Hindi/Hinglish launch (prompt and voice ✅) · load test · first backup restore drill · advisory panel | ❌ |
 | **3: Paid launch** | Razorpay subscriptions (verified, idempotent webhooks), pricing page, compliant cancellation, consent-based marketing, privacy-friendly analytics (no Meta Pixel before consent). | ❌ |
 | **4: Apps** | Capacitor wrap → Play Store, then App Store (in-app purchase, in-app account deletion, privacy labels, mic permission strings). | ❌ |
 
-## 8. Env vars
+## 8. Limits (built: enforced in Postgres, so they hold across every server instance)
+
+| Plan | Messages / day | Messages / minute | Spoken characters / day (~replies) | Voice requests / minute |
+|---|---|---|---|---|
+| Free | 10 | 6 | 3,000 (~5) | 30 |
+| Plus (₹199) | 40 | 10 | 12,000 (~20) | 60 |
+| Premium (₹499) | 150 | 15 | 50,000 (~80) | 90 |
+
+- The day resets at **midnight IST**.
+- **Changing limits:** a plain `update plan_limits set … where plan = 'free'` changes them instantly, with no deploy.
+- **When someone hits a limit:**
+  - Chat answers with a friendly line ("You've reached today's 10 messages… Plus gives you more").
+  - Out of voice, replies still show as text.
+  - Bursts get "take a breath, try again in a minute".
+- **Who can change a plan:** users can *read* their plan and usage but never change them. Only the payments webhook (service role) grants plans, through the `entitlements` table.
+- **Worst-case cost per user per month** at these caps, on Gemini Flash plus Google TTS:
+
+  | Plan | Cost | Earns after GST and fees |
+  |---|---|---|
+  | Free | ~$2.2 | — |
+  | Plus | ~$9 | ~₹150 |
+  | Premium | ~$35 | ~₹380 |
+
+- **Watch the gap in heavy-user months:** typical use is a small fraction of these caps, but if many users hit them, revisit the caps or move voice to self-hosted.
+
+## 9. Is Supabase going to get expensive?
+
+No. It's the cheapest line on the bill; AI is the expensive part. Approximate Supabase costs (check the pricing page):
+
+| Monthly users | Supabase | AI (LLM + voice) for comparison |
+|---|---|---|
+| ≤ 1,000 | $25 (Pro) + maybe $15 compute | ~$400 |
+| 10,000 | $25 + $60–110 compute ≈ **$85–135** | ~$2,500–4,400 |
+| 100,000 | ~$300–600 (bigger compute; 100k auth users are included in Pro, then ~$0.003 each) | ~$25,000–45,000 |
+
+The new retention job and storing only verse *references* per message keep the database small: about 23 GB at 10,000 users with 12 months kept.
+
+**"It's Postgres with a lot on top — could we do it ourselves?"** Yes. Supabase is open-source Postgres plus auth, an auto-generated API, storage and a dashboard, so you're never locked in (`pg_dump` takes everything with you). But running it yourself means owning backups, upgrades, security patches, failover and 3am pages. **Without a dedicated infra person, don't self-host** until the Supabase bill is over roughly $1–2k a month, which is far past 10k users. Your options, in order:
+
+1. **Stay on Supabase Pro (recommended)** and scale its compute as you grow.
+2. **Spend GCP credits instead:** Cloud SQL Postgres (pgvector supported) plus Firebase Authentication / Identity Platform (generous free tier). It's a real migration: auth, RLS context and storage need re-wiring. That's 1–2 weeks, worth it only if credits are large and cash is tight.
+3. **Self-hosted Supabase** (Docker on a GCP VM). The cheapest on paper and the most work in practice.
+
+## 10. Trying open models (Kimi, GLM, Qwen, DeepSeek…) via OpenRouter
+
+Built: `LLM_PROVIDER=openrouter` with any model slug in `LLM_GENERATION_MODEL`. Requests ask OpenRouter to route **only to hosts that neither store nor train on prompts** (`data_collection: deny`), which matters for conversations about grief and family. `OPENROUTER_PROVIDERS` can pin specific hosts.
+
+Before choosing, run the comparison:
+
+```bash
+npm run eval:models
+```
+
+It sends 20 real questions (English, Hindi, Hinglish, Tamil, Marathi; light, deep and safety traps such as "are you Krishna?", prompt injection and a fake verse) through the real retrieval, gives every model the same verses, and has a judge model score:
+
+- faithfulness
+- helpfulness
+- depth calibration
+- language match
+- safety
+
+It writes a table with quality, **real $ per answer, $ per 1,000 users a month**, and latency. Pick rule: best overall whose *worst* safety score is at least 8, then the cheapest within 0.3 points. Candidates are in `evals/models.json`; edit freely, since slugs change weekly. Indicative prices seen this week (per million tokens, in/out): DeepSeek V4 Flash ~$0.09/$0.18, GLM 5.3 ~$0.40–1.40/$1.40–4.40, Kimi K2.x ~$0.74/$3.50. Check OpenRouter's live pages; hosts vary.
+
+Note: Kimi (Moonshot), GLM (Zhipu) and Qwen (Alibaba) are Chinese-developed open-weight models. Through OpenRouter they're usually served by US/EU hosts, but check which host serves your traffic and keep `data_collection: deny`.
+
+## 11. Env vars
+
+The full, current list (including OpenRouter, Sentry, cron and alert settings) is in `docs/RUNBOOK.md` §7. The table below covers the original voice and model settings.
+
 
 | Var | Default | Meaning |
 |---|---|---|

@@ -1,0 +1,27 @@
+name: Scheduled jobs
+
+# Free alternative to Google Cloud Scheduler. Set repo secrets APP_URL (e.g. https://kanha.app)
+# and CRON_SECRET (same value as the app's CRON_SECRET env var).
+on:
+  schedule:
+    - cron: '17 * * * *'     # hourly: spend check
+    - cron: '43 21 * * *'    # 03:13 IST daily: retention purge
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call cron endpoint
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SCHEDULE: ${{ github.event.schedule }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$CRON_SECRET" ]; then echo "APP_URL/CRON_SECRET not set; skipping"; exit 0; fi
+          TASK=spend
+          if [ "$SCHEDULE" = "43 21 * * *" ]; then TASK=purge; fi
+          curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron?task=$TASK"

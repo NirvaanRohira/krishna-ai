@@ -32,3 +32,6 @@ vi.mock('next/server', async (importOriginal) => {
   const actual = await importOriginal<typeof import('next/server')>()
   return { ...actual, after: vi.fn() }
 })
+
+// `server-only` throws outside a React Server build; in unit tests it is a harmless marker.
+vi.mock('server-only', () => ({}))

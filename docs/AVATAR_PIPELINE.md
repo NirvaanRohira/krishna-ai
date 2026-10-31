@@ -14,6 +14,19 @@ Reference art: `public/avatar/poster-divine.webp` (the "Divine" look). Outfits p
 
 Recommendation: start with **C** for a working prototype this week, and run **A** in parallel for the launch model.
 
+### Free tools (no Higgsfield credits needed)
+
+| Step | Free option | Licence to check |
+|---|---|---|
+| Image → 3D draft | **Microsoft TRELLIS** (free demo on Hugging Face Spaces, or run it on a Colab/Cloud Run GPU) | MIT, commercial OK |
+| Image → 3D draft | **Tencent Hunyuan3D 2.x** (free HF Space; open weights) | Tencent community licence: excludes EU/UK/South Korea, conditions above 1M MAU. India is OK, but read it |
+| Image → 3D draft | Tripo, Meshy free tiers (a few models a month) | Free-tier outputs may be non-commercial or CC BY; check before launch |
+| Anime-style whole character, with rig and face shapes | **VRoid Studio** | Free; you own your model |
+| Body rig + animations | **Mixamo** (free with an Adobe account) | Free to use in commercial projects |
+| Face shapes, cleanup, export | **Blender** + **Blender MCP** (open source) | Free |
+
+A good zero-cost path: VRoid for the first playable avatar this week; TRELLIS → Mixamo → Blender for the realistic Krishna; an artist for the final face.
+
 ### Can AI tools build it for us? (Blender MCP, computer use, image-to-3D)
 
 Partly. Here is what each one is good for:

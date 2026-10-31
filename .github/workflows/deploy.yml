@@ -5,8 +5,15 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
+  verify:
+    uses: ./.github/workflows/ci.yml
+
   deploy:
+    needs: verify   # nothing reaches production unless lint, types, tests, audit and build pass
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

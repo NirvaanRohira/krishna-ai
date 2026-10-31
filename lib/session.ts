@@ -10,6 +10,12 @@ export async function startSession(supabase: SupabaseClient, userId: string): Pr
   return data.id as string
 }
 
+/**
+ * Store one chat turn (seeker message + reply) and bump the turn counter in a single
+ * transaction (save_exchange RPC), so a failure can never leave half a turn behind.
+ * Only source references are stored, not the full verse text: the text lives once in
+ * krishna_corpus, and copying it into every message bloated the DB.
+ */
 export async function saveExchange(
   supabase: SupabaseClient,
   sessionId: string,
@@ -18,22 +24,17 @@ export async function saveExchange(
   sources: object[],
   groundingPassed = true
 ): Promise<void> {
-  const { error: msgError } = await supabase.from('messages').insert([
-    { session_id: sessionId, role: 'user', content: userMessage },
-    {
-      session_id: sessionId,
-      role: 'assistant',
-      content: assistantResponse,
-      retrieval_context: sources,
-      grounding_passed: groundingPassed,
-    },
-  ])
-  if (msgError) throw new Error(msgError.message)
-
-  const { error: rpcError } = await supabase.rpc('increment_session_turn', {
+  const refs = (sources as Array<Record<string, unknown>>).map((s) => ({
+    id: s.id, text_source: s.text_source, book_chapter: s.book_chapter, verse: s.verse,
+  }))
+  const { error } = await supabase.rpc('save_exchange', {
     p_session_id: sessionId,
+    p_user_message: userMessage,
+    p_assistant_message: assistantResponse,
+    p_sources: refs,
+    p_grounding_passed: groundingPassed,
   })
-  if (rpcError) throw new Error(rpcError.message)
+  if (error) throw new Error(error.message)
 }
 
 /**

@@ -5,6 +5,9 @@ type ProviderConfig = {
   apiKey: () => string
   generationModel: string
   classifyModel: string
+  headers?: Record<string, string>
+  /** Extra request-body fields this provider understands (e.g. OpenRouter routing). */
+  extraBody?: () => Record<string, unknown>
 }
 
 const PROVIDERS: Record<string, ProviderConfig> = {
@@ -25,6 +28,26 @@ const PROVIDERS: Record<string, ProviderConfig> = {
     apiKey: () => process.env.DEEPSEEK_API_KEY!,
     generationModel: 'deepseek-v4-flash',
     classifyModel: 'deepseek-v4-flash',
+  },
+  // One key, many open models (Kimi, GLM, Qwen, DeepSeek, Llama, gpt-oss…). Model slugs:
+  // https://openrouter.ai/models — pick with LLM_GENERATION_MODEL, compare with
+  // `npm run eval:models`.
+  openrouter: {
+    baseURL: 'https://openrouter.ai/api/v1',
+    apiKey: () => process.env.OPENROUTER_API_KEY!,
+    generationModel: 'deepseek/deepseek-v4-flash',
+    classifyModel: 'meta-llama/llama-3.1-8b-instruct',
+    headers: { 'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'https://kanha.app', 'X-Title': 'Kanha' },
+    // Conversations are sensitive: only route to hosts that neither store nor train on
+    // prompts. Optionally pin hosts (e.g. US/EU/India) with OPENROUTER_PROVIDERS=a,b.
+    extraBody: () => ({
+      provider: {
+        data_collection: 'deny',
+        ...(process.env.OPENROUTER_PROVIDERS
+          ? { order: process.env.OPENROUTER_PROVIDERS.split(',').map((x) => x.trim()), allow_fallbacks: false }
+          : {}),
+      },
+    }),
   },
   gemini: {
     baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
@@ -56,7 +79,12 @@ const DEFAULT_STREAM_IDLE = 20_000
 export type LLMOptions = { timeoutMs?: number; streamIdleMs?: number }
 
 function makeClient(cfg: ProviderConfig): OpenAI {
-  return new OpenAI({ apiKey: cfg.apiKey(), baseURL: cfg.baseURL })
+  return new OpenAI({ apiKey: cfg.apiKey(), baseURL: cfg.baseURL, defaultHeaders: cfg.headers })
+}
+
+/** Provider-specific body fields, typed loosely because they extend the OpenAI schema. */
+function extra(cfg: ProviderConfig | undefined): Record<string, unknown> {
+  return cfg?.extraBody?.() ?? {}
 }
 
 let _client: OpenAI | undefined
@@ -154,14 +182,14 @@ function shouldFallback(err: unknown): boolean {
   return false
 }
 
-async function withFallback<T>(fn: (c: OpenAI, model: string) => Promise<T>): Promise<T> {
+async function withFallback<T>(fn: (c: OpenAI, model: string, cfg: ProviderConfig) => Promise<T>): Promise<T> {
   try {
-    return await fn(getClient(), GENERATION_MODEL)
+    return await fn(getClient(), GENERATION_MODEL, primary)
   } catch (err) {
     const fb = getFallbackClient()
     if (fb && fallbackCfg && shouldFallback(err)) {
       console.warn('[llm] rate limit on', ACTIVE_PROVIDER, '— falling back to', FALLBACK_PROVIDER)
-      return fn(fb, fallbackCfg.generationModel)
+      return fn(fb, fallbackCfg.generationModel, fallbackCfg)
     }
     throw err
   }
@@ -169,9 +197,9 @@ async function withFallback<T>(fn: (c: OpenAI, model: string) => Promise<T>): Pr
 
 export async function generateText(prompt: string, opts: LLMOptions = {}): Promise<string> {
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_GEN
-  return withFallback(async (c, model) => {
+  return withFallback(async (c, model, cfg) => {
     const completion = await raceTimeout(
-      c.chat.completions.create({ model, messages: [{ role: 'user', content: prompt }] }),
+      c.chat.completions.create({ model, messages: [{ role: 'user', content: prompt }], ...extra(cfg) } as OpenAI.ChatCompletionCreateParamsNonStreaming),
       timeoutMs
     )
     return completion.choices[0]?.message?.content ?? ''
@@ -186,7 +214,7 @@ export async function* generateTextStream(prompt: string, opts: LLMOptions = {})
 
   try {
     const stream = await raceTimeout(
-      getClient().chat.completions.create({ model: GENERATION_MODEL, messages, stream: true }),
+      getClient().chat.completions.create({ model: GENERATION_MODEL, messages, stream: true, ...extra(primary) } as OpenAI.ChatCompletionCreateParamsStreaming),
       timeoutMs
     )
     // Watchdog the consumption too: a stream that opens then stalls mid-generation
@@ -204,7 +232,8 @@ export async function* generateTextStream(prompt: string, opts: LLMOptions = {})
         model: fallbackCfg.generationModel,
         messages,
         stream: true,
-      })
+        ...extra(fallbackCfg),
+      } as OpenAI.ChatCompletionCreateParamsStreaming)
       for await (const chunk of withStreamIdleTimeout(fallbackStream, idleMs)) {
         const text = chunk.choices[0]?.delta?.content ?? ''
         if (text) yield text
@@ -222,7 +251,8 @@ export async function classify(prompt: string, opts: LLMOptions = {}): Promise<s
       model: CLASSIFY_MODEL,
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 10,
-    }),
+      ...extra(classifyProviderCfg),
+    } as OpenAI.ChatCompletionCreateParamsNonStreaming),
     timeoutMs
   )
   return (completion.choices[0]?.message?.content ?? '').trim()

@@ -60,6 +60,7 @@ describe('account data rights', () => {
 
   it('delete removes the auth user (cascading all data) when the service key is configured', async () => {
     vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'service')
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://x.supabase.co')
     adminDelete.mockResolvedValue({ error: null })
     const { createServerSupabaseClient } = await import('@/lib/supabase-server')
     vi.mocked(createServerSupabaseClient).mockResolvedValue(makeSupabase() as never)

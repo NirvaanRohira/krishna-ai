@@ -66,7 +66,11 @@ export default function ChatPage() {
   const {
     enqueue, stop, toggle, enabled: ttsEnabled, unlockAudio,
     setEnabled: setTTSEnabled, setAnalyse, getAnalyser,
-  } = useTTS()
+  } = useTTS({
+    // Voice is opt-in in text mode: most people read, and speaking every reply roughly
+    // doubles the cost of a conversation. Avatar mode switches it on (below).
+    defaultEnabled: false,
+  })
   const sentenceBufferRef = useRef('')
 
   // The avatar speaks every reply, so voice is forced on and playback is routed through

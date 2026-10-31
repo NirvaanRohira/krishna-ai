@@ -750,3 +750,27 @@ p { text-wrap: pretty; }
 
 /* Unavailable / misc */
 .coming-soon-panel { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; padding: 2rem; text-align: center; color: var(--ink-2); }
+
+/* Account: what Kanha remembers */
+.memory-list { margin: 1rem 0 0; display: grid; grid-template-columns: minmax(0, 1fr); border-top: 1px solid var(--hairline); }
+.memory-list dt { padding-top: 0.8rem; font-size: 0.82rem; color: var(--ink-3); }
+.memory-list dd { margin: 0.1rem 0 0; padding-bottom: 0.8rem; color: var(--ink); border-bottom: 1px solid var(--hairline); }
+.memory-empty { color: var(--ink-3); font-style: italic; }
+.toggle-row { display: flex; gap: 0.75rem; align-items: flex-start; cursor: pointer; color: var(--ink-2); }
+.toggle-row input { margin-top: 0.3rem; width: 18px; height: 18px; accent-color: var(--gold); flex: 0 0 auto; }
+
+/* Hairline figures: the public --hairline-* theme mapped onto Kanha's palette.
+   Plates are filled with the night so they sit on the page; the one bright stroke is lamplight. */
+.hairline { position: relative; margin: 1.25rem 0 0.5rem; max-width: 22rem; }
+.hairline-stage {
+  --hairline-plate: var(--night-1);
+  --hairline-hi: var(--gold-hi);
+  --hairline-edge: #8a88b8;
+  --hairline-mid: #4b4b7c;
+  --hairline-lo: #2b2c55;
+  --hairline-stroke: 1;
+}
+.hairline-read {
+  position: absolute; top: 0.25rem; right: 0.25rem;
+  font-size: 0.75rem; color: var(--ink-3); font-variant-numeric: tabular-nums;
+}

@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { checkRateLimit, rateLimitKey } from '@/lib/rateLimit'
 import { synthesize } from '@/lib/tts'
 import { detectLanguage, ttsLocale } from '@/lib/language'
+import { consumeQuota, quotaMessage } from '@/lib/quota'
 
 const MAX_CHARS = 3000
 
@@ -29,8 +30,14 @@ export async function POST(req: Request) {
   const { text } = await req.json().catch(() => ({}))
   if (!text || typeof text !== 'string') return new Response('Bad request', { status: 400 })
 
+  const input = text.slice(0, MAX_CHARS)
+  // Daily spoken-character allowance per plan (voice is the most expensive thing we serve).
+  const quota = await consumeQuota(supabase, 'voice_chars', input.length)
+  if (!quota.allowed) {
+    return Response.json({ error: quotaMessage(quota, 'voice_chars'), code: quota.reason }, { status: 429 })
+  }
+
   try {
-    const input = text.slice(0, MAX_CHARS)
     // Pick the voice language from the text itself, so a Hindi reply is spoken by a Hindi voice.
     const { audio, contentType } = await synthesize(input, { locale: ttsLocale(detectLanguage(input)) })
     return new Response(new Uint8Array(audio), {

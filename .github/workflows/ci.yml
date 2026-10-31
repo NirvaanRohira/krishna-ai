@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches-ignore: [main]   # main is verified inside deploy.yml before deploying
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      # Build-time placeholders only; real values live in the hosting platform.
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Type-check
+        run: npx tsc --noEmit -p .
+      - name: Unit + API + database (migrations & RLS on real Postgres) tests
+        run: npx vitest run
+      - name: Dependency audit (production, high+)
+        run: npm audit --omit=dev --audit-level=high
+      - name: Build
+        run: npm run build
+      - name: End-to-end + accessibility (Playwright + axe)
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:e2e

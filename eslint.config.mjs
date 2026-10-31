@@ -18,5 +18,7 @@ export default defineConfig([
     files: ['**/*.d.ts'],
     rules: { 'no-var': 'off' },
   },
-  globalIgnores(['.next/**', 'out/**', 'build/**', 'next-env.d.ts', 'coverage/**', 'scripts/data/**']),
+  globalIgnores(['.next/**', 'out/**', 'build/**', 'next-env.d.ts', 'coverage/**', 'scripts/data/**',
+    // vendored Hairline kernel (MIT) and its generated bundles
+    'lib/hairline/kernel.js', 'public/hairline/**', 'playwright-report/**', 'test-results/**']),
 ])

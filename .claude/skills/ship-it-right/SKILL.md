@@ -44,13 +44,13 @@ Status key: ✅ done in repo · 🟡 partial · ❌ not done. Statuses are as of
 
 | Item | Rule | Status |
 |---|---|---|
-| Server-side validation | Length caps (chat 2,000 chars, TTS 3,000) and type checks. | ✅ · ❌ shared zod schemas |
+| Server-side validation | Length caps (chat 2,000 chars, TTS 3,000, STT 10 MB + MIME allow-list) and type checks. | ✅ · 🟡 shared zod schemas would tidy this |
 | Prompt injection | History is loaded **server-side** from the DB, never from the client. User text is delimited in classifier prompts. The system prompt says to treat user words as conversation, not commands. Never put user text above the system prompt. | ✅ |
 | XSS | Render model output as text (React escapes it). **Never** use `dangerouslySetInnerHTML` with model or user content. If markdown rendering is added, sanitise it (rehype-sanitize). | ✅ |
 | CSRF | Auth cookies are SameSite=Lax, and `proxy.ts` rejects mutating `/api/*` calls with a foreign `Origin`. Destructive actions need a typed confirmation. | ✅ |
 | SSRF | Never fetch a URL supplied by a user. Outbound calls go only to fixed provider hosts. | ✅ |
 | Security headers | HSTS, nosniff, frame DENY, Referrer-Policy, Permissions-Policy (mic only), COOP, CSP. | ✅ · 🟡 CSP is Report-Only: enforce after checking staging |
-| File upload | Only audio for STT today. **MUST** cap size (e.g. 10 MB), allow-list MIME types, never store it, and never pass the filename to a shell or path. | ❌ add size/MIME caps to `/api/voice/transcribe` |
+| File upload | Only audio for STT today. **MUST** cap size (10 MB), allow-list MIME types, never store it, and never pass the filename to a shell or path. | ✅ |
 | Signed URLs | Any private file (e.g. paid outfit GLBs) is served via short-lived signed URLs from Supabase Storage. Never use guessable public paths for paid content. | ❌ when paid outfits ship |
 | Dependency vulnerabilities | `npm audit --omit=dev` must be clean of critical/high before release. Enable Dependabot. | ✅ Next 16.4.3 / React 19, production deps at 0 vulnerabilities. Dev-only: a moderate `minimatch` issue inside ESLint plugins remains until `eslint-config-next` ships the fix |
 | Secret exposure | No keys in URLs (Google TTS key goes in a header), logs or client bundles. Rotate any key that was ever committed or shared. | ✅ · rotate keys from old `.env.local` copies |
@@ -59,14 +59,14 @@ Status key: ✅ done in repo · 🟡 partial · ❌ not done. Statuses are as of
 
 | Item | Rule | Status |
 |---|---|---|
-| Timeouts | Every network call has a timeout: LLM 15 s, classify 5 s, embed 8 s, stream idle 20 s. Supabase calls need them too. | 🟡 add to DB/TTS calls |
-| Retries + exponential backoff | Retry only idempotent calls, on 429/5xx/network errors, with jittered backoff (e.g. 250 ms × 2ⁿ, max 3). Never retry a stream that already sent tokens. | 🟡 provider fallback exists, no backoff helper yet |
+| Timeouts | Every network call has a timeout: LLM 15 s, classify 5 s, embed 8 s, stream idle 20 s, DB 10 s (`lib/supabase-server.ts`), TTS 10 s. | ✅ |
+| Retries + exponential backoff | Retry only idempotent calls, on 429/5xx/network errors, with jittered backoff: `lib/retry.ts` `withRetry`. Never retry a stream that already sent tokens. | ✅ TTS · provider fallback for LLMs |
 | Idempotency | Session end is idempotent (`ended_at is null` guard). Payment webhooks and any "create" endpoint the client may retry **MUST** take an idempotency key with a unique DB constraint. | 🟡 |
 | Race conditions | No read-modify-write in app code on shared rows. Use atomic SQL (`append_previous_guidance` RPC, `increment_session_turn`) or `select … for update`. | ✅ |
-| DB transactions | Multi-table writes that must succeed together go in one Postgres function (RPC), not several client calls. | 🟡 `saveExchange` does insert + RPC separately: move into one RPC |
+| DB transactions | Multi-table writes that must succeed together go in one Postgres function (RPC), not several client calls. | ✅ `save_exchange`, `clear_my_memory`, `consume_quota` |
 | Background jobs | Post-session memory extraction runs in the session-end request, with an `after()` sweep that catches sessions whose beacon never arrived (`lib/memory/postSession.ts`). Move to a queue (Cloud Tasks / Supabase queues) when traffic grows. | 🟡 |
-| Dead-letter queue | Failed background jobs go to a DLQ table with error + payload and get an alert, never silently dropped. | ❌ with the queue |
-| Rate limiting | Per-user limits on chat (30/min) and TTS (60/min). The limiter is **in-memory per instance**: move to Redis/Upstash or a Postgres counter before launch. Add **daily quotas** per plan (cost control). | 🟡 |
+| Dead-letter queue | Failed background jobs go to a DLQ table with error + payload and get an alert, never silently dropped. Today: failures are logged (Sentry) and the next session's sweep retries them. | 🟡 add with a queue |
+| Rate limiting | Durable per-minute limits + **daily plan quotas** in Postgres (`consume_quota`; users can't write their own counters). The in-memory limiter stays as a cheap first line. Change limits with an UPDATE on `plan_limits`. | ✅ |
 | Connection pooling | Supabase REST (PostgREST) pools for us. Any direct Postgres connection must use the pooler port (6543, transaction mode). | ✅ |
 | N+1 queries | No DB calls inside loops. Use joins (`sessions … messages(...)`) or `in()` filters. | ✅ |
 | DB indexes | Index every FK and every `where`/`order by` used per request. Check `explain analyze` for new queries. | ✅ messages(session_id, created_at), sessions(user_id, started_at) |
@@ -76,32 +76,32 @@ Status key: ✅ done in repo · 🟡 partial · ❌ not done. Statuses are as of
 
 | Item | Rule | Status |
 |---|---|---|
-| Health checks | `/api/health` is a liveness check (no paid calls). Add a readiness check that pings the DB. | ✅ liveness |
-| Error monitoring | Sentry (or similar), with PII scrubbing on: never send message content. | ❌ |
-| Structured logging | JSON logs with `area`, `userId` (not email), `sessionId`, latency. **Never log message content, emails or tokens.** | 🟡 |
+| Health checks | `/api/health` is a liveness check (no paid calls). | ✅ |
+| Error monitoring | Sentry via `instrumentation.ts` / `instrumentation-client.ts`, inert until a DSN is set; `lib/monitoring/scrub.ts` strips bodies, emails and message content. No session replay, ever. | ✅ |
+| Structured logging | `lib/log.ts`: JSON lines with severity for Cloud Logging. `area`, `userId` (not email), `sessionId`. **Never log message content, emails or tokens.** | ✅ new code · 🟡 migrate old `console.*` |
 | Audit logging | Consent changes (`consent_events`), account deletion, plan changes and admin actions are append-only and kept. | 🟡 consent ✅ |
-| Alerting | Alert on error rate, p95 latency, 429s from providers, and **spend**: GCP budget alerts at 50/80/100% plus a daily LLM/TTS spend check. | ❌ |
-| Cost monitoring | Log tokens and TTS characters per request. Dashboard of cost per active user. | ❌ |
+| Alerting | Hourly spend check → webhook (`/api/cron?task=spend`); GCP budget alerts at 50/80/100% (`docs/RUNBOOK.md`); Sentry alerts on error spikes. | ✅ app side · you: set budgets |
+| Cost monitoring | Tokens and voice characters metered per user per day (`usage_daily`), totals via `usage_totals`. | ✅ |
 | Feature flags | Risky features (avatar, voice mode, new prompt, new model) go behind env or DB flags with a kill switch. `KILL_SWITCH` exists for the whole app. | 🟡 |
-| Staging | A separate Supabase project and deploy for staging. Run migrations there first. | ❌ |
+| Staging | A separate Supabase project and deploy for staging; run migrations there first. Steps in `docs/RUNBOOK.md` §2. | ❌ you: create it (free) |
 | Zero-downtime deploys | Cloud Run revisions with traffic splitting (canary 10% → 100%). Migrations must be backward-compatible (expand → migrate → contract). | 🟡 |
 | Migrations | Only add-only/expand migrations in the same release as code. Every migration carries rollback notes. Never edit an applied migration. | ✅ |
-| Rollback | Keep the previous Cloud Run revision. A rollback is one traffic switch. A DB rollback is a forward migration. | 🟡 document the runbook |
-| Backups + restore testing | Supabase daily backups (Pro), plus PITR when revenue justifies it. **Do a restore drill to staging every quarter** and record the date here. | ❌ never tested |
-| Disaster recovery | Written RPO/RTO targets (e.g. RPO 24 h, RTO 4 h). Infra as code (Dockerfile + deploy commands). | ❌ |
-| Load testing | k6/Artillery against staging with mocked LLMs: 100 → 1,000 concurrent SSE streams. Watch DB connections and Cloud Run concurrency. | ❌ |
+| Rollback | Keep the previous revision; rollback is one traffic switch (`docs/RUNBOOK.md` §5). A DB rollback is a forward migration. | ✅ |
+| Backups + restore testing | Supabase daily backups (Pro) + weekly `db dump`; PITR when revenue justifies it. **Restore drill every quarter**, logged in `docs/RUNBOOK.md` §8. | 🟡 procedure written, drill not yet run |
+| Disaster recovery | RPO 24 h / RTO 4 h written down; infra as code (Dockerfile, workflows, migrations). | ✅ |
+| Load testing | k6 against staging with mocked LLMs: 100 → 1,000 concurrent SSE streams. Watch DB connections and Cloud Run concurrency. | ❌ needs staging first |
 
 ## 5. Testing
 
 | Item | Rule | Status |
 |---|---|---|
 | Unit/integration | Vitest. Every route has auth, invalid-input, success and failure tests. | ✅ |
-| End-to-end | Playwright: sign-in → onboarding consents → chat → avatar → export → delete. | ❌ |
+| End-to-end | Playwright (`e2e/`, runs in CI on phone + desktop): landing, legal pages, consent gate, protected-route redirects, headers, CSRF, cron auth. Signed-in flows need a staging test account. | 🟡 public flows ✅ |
 | Contract tests | Pin provider response shapes (LLM, TTS, Razorpay) with recorded fixtures, so provider changes break tests and not prod. | ❌ |
 | Payment webhooks | Test signature verification, duplicates (idempotency), out-of-order events and refunds. | ❌ |
-| Accessibility | WCAG 2.1 AA: alt text on every image, labelled inputs, keyboard navigation, focus states, captions for avatar speech (✅), reduced-motion respected (✅). Run axe in CI. | 🟡 |
+| Accessibility | WCAG 2.1 AA: alt text on every image, labelled inputs, keyboard navigation, focus states, captions for avatar speech, reduced motion respected. axe runs in CI and fails on serious/critical issues. | ✅ |
 | Mobile browsers | Real-device checks on low-end Android Chrome + iOS Safari: audio unlock, mic permission, WebGL avatar, 3G throttling. | ❌ |
-| Prompt evals | Any prompt or model change runs `scripts/eval_compare_prompts.ts`, gets reviewed by a human versed in the Gita, and is checked for safety categories (crisis, divinity, medical). | 🟡 |
+| Prompt evals | Any prompt or model change runs `npm run eval:models` (20 questions incl. Hindi/Hinglish and safety traps, judge-scored, with cost), gets reviewed by a human versed in the Gita, and must keep the worst safety score ≥ 8. | ✅ harness · you: run it |
 
 ## 6. Privacy & Indian law (verify specifics with Indian counsel)
 
@@ -109,11 +109,11 @@ Status key: ✅ done in repo · 🟡 partial · ❌ not done. Statuses are as of
 
 **Digital Personal Data Protection Act 2023 + DPDP Rules 2025** (obligations phase in; confirm dates with counsel):
 - **Notice + consent**: clear notice of what you collect, why, and who processes it. Consent must be free, specific, informed and unambiguous, with **separate unticked boxes** and no bundling. Keep proof (`consent_events`). ✅ onboarding
-- **Withdrawal** must be as easy as giving consent. ❌ add a "withdraw consent" control to `/account`
+- **Withdrawal** must be as easy as giving consent. ✅ one-tap email toggle on `/account`, logged; core consent = delete account
 - **Children (<18)**: verifiable parental consent, and **no tracking, behavioural monitoring or targeted ads**. Current policy: **18+ only** with an age gate. ✅ (self-declared; add stronger checks if minors show up)
-- **Rights**: access (✅ `/api/account/export`), erasure (✅ `/api/account/delete`), correction (❌) and a grievance officer (🟡 placeholder in `lib/legal.ts`).
-- **Retention**: delete data once the purpose is served. Set a period (e.g. 12 months of inactivity) and a scheduled purge job. ❌
-- **Breach**: notify the Data Protection Board **and** affected users. Under the **CERT-In directions (2022)**, report cyber incidents within **6 hours** and keep logs for 180 days. ❌ write an incident runbook
+- **Rights**: access (✅ `/api/account/export`), erasure (✅ `/api/account/delete`), correction (✅ "What Kanha remembers" view + clear on `/account`) and a grievance officer (🟡 placeholder in `lib/legal.ts`).
+- **Retention**: conversations auto-deleted after 12 months (`purge_old_data`, daily job); stated in the privacy notice. ✅
+- **Breach**: notify the Data Protection Board **and** affected users. Under the **CERT-In directions (2022)**, report cyber incidents within **6 hours** and keep logs for 180 days. ✅ runbook in `docs/RUNBOOK.md` §6
 - **Processors**: a data-processing agreement with every provider (Supabase, Google, Groq, TTS). Know which country each stores data in. ❌
 - **Encryption**: TLS everywhere ✅, encryption at rest (Supabase/GCP default ✅). Consider column encryption for `life_context` and message content. ❌
 
@@ -123,7 +123,7 @@ Status key: ✅ done in repo · 🟡 partial · ❌ not done. Statuses are as of
 
 **Personality / voice rights**: **never** clone the voice or likeness of a real actor (e.g. TV-serial Krishnas) or a celebrity without a signed license. Indian High Courts have granted injunctions against AI voice cloning. Hire a voice actor with a written license covering AI synthesis.
 
-**Content licensing**: Sanskrit originals are public domain. **Many English translations and commentaries are copyrighted** (e.g. BBT/Prabhupada editions). Every corpus source needs a recorded licence (`scripts/` + `docs/`). ❌ audit `krishna_corpus` sources
+**Content licensing**: Sanskrit originals are public domain, but the *digital editions* we use carry "reference only" / "personal study" terms, and many English translations are copyrighted (e.g. BBT/Prabhupada). 🟡 audited in `docs/CORPUS_LICENSES.md`; permission or replacement needed before paid launch
 
 **Consumer protection (CCPA Dark Patterns Guidelines 2023)**: no hidden renewals, fake urgency, confirm-shaming, forced sign-up for basics, or hard-to-cancel subscriptions. Cancellation takes as few steps as sign-up. Show the price including GST.
 
@@ -154,14 +154,13 @@ Wrap the web app with Capacitor (reuses this codebase; WebGL avatar works in the
 
 ## Known gaps (prioritised)
 
-1. ~~Upgrade Next.js~~ ✅ done (16.4.3).
-2. Durable rate limiting + per-plan daily quotas (cost and abuse).
-3. Sentry + spend alerts + GCP budget alerts.
-4. Staging project, backup restore drill, incident/breach runbook.
-5. Corpus licence audit; lawyer review of `/privacy` and `/terms`; fill in the grievance officer.
-6. Retention purge job; consent withdrawal UI; correction flow.
-7. STT upload size/MIME caps; CSP enforce; zod schemas.
-8. E2E (Playwright), load tests, axe accessibility in CI.
+1. ~~Next.js upgrade~~ ✅ · ~~durable rate limits + quotas~~ ✅ · ~~Sentry + spend alerts~~ ✅ · ~~retention + consent withdrawal + correction~~ ✅ · ~~STT caps~~ ✅ · ~~E2E + axe~~ ✅ (public flows)
+2. **You:** apply the two migrations (`docs/RUNBOOK.md` §1), create staging, set GCP budget alerts, add `CRON_SECRET`/`APP_URL` repo secrets.
+3. Corpus licence decision (`docs/CORPUS_LICENSES.md`); lawyer review of `/privacy` and `/terms`; name a grievance officer.
+4. Run `npm run eval:models`, pick a model, and have a human versed in the Gita review the low scores.
+5. Signed-in E2E against staging; load test; first restore drill.
+6. Enforce CSP (now report-only); shared zod schemas; move remaining `console.*` to `lib/log.ts`.
+7. Payments (Razorpay webhooks: signature + idempotency), then apps.
 
 ## Definition of done (run before every PR)
 

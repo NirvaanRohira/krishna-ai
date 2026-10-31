@@ -63,45 +63,27 @@ describe('startSession', () => {
 })
 
 describe('saveExchange', () => {
-  const SOURCES = [{ id: 1, text: 'karmanye...', book_chapter: 2, verse: 47 }]
+  const SOURCES = [{ id: 1, text_source: 'bhagavad_gita', text: 'karmanye...', book_chapter: 2, verse: 47, score: 0.9 }]
 
-  it('inserts two rows: one user message and one assistant message', async () => {
-    const { supabase, mockMessageInsert } = makeSupabaseMock()
+  it('saves the whole turn in one atomic save_exchange RPC', async () => {
+    const { supabase, mockRpc } = makeSupabaseMock()
     const { saveExchange } = await import('@/lib/session')
     await saveExchange(supabase, FAKE_SESSION_ID, 'my question', 'yogi answer', SOURCES)
-    const rows = mockMessageInsert.mock.calls[0][0] as object[]
-    expect(rows).toHaveLength(2)
+    expect(mockRpc).toHaveBeenCalledWith('save_exchange', expect.objectContaining({
+      p_session_id: FAKE_SESSION_ID, p_user_message: 'my question', p_assistant_message: 'yogi answer', p_grounding_passed: true,
+    }))
   })
 
-  it('user row has role="user" and the correct content', async () => {
-    const { supabase, mockMessageInsert } = makeSupabaseMock()
-    const { saveExchange } = await import('@/lib/session')
-    await saveExchange(supabase, FAKE_SESSION_ID, 'my question', 'yogi answer', SOURCES)
-    const rows = mockMessageInsert.mock.calls[0][0] as Array<{ role: string; content: string }>
-    const userRow = rows.find((r) => r.role === 'user')
-    expect(userRow?.content).toBe('my question')
-  })
-
-  it('assistant row has role="assistant", content, and retrieval_context', async () => {
-    const { supabase, mockMessageInsert } = makeSupabaseMock()
-    const { saveExchange } = await import('@/lib/session')
-    await saveExchange(supabase, FAKE_SESSION_ID, 'my question', 'yogi answer', SOURCES)
-    const rows = mockMessageInsert.mock.calls[0][0] as Array<{ role: string; content: string; retrieval_context: object }>
-    const assistantRow = rows.find((r) => r.role === 'assistant')
-    expect(assistantRow?.content).toBe('yogi answer')
-    expect(assistantRow?.retrieval_context).toEqual(SOURCES)
-  })
-
-  it('increments session turn_count via rpc', async () => {
+  it('stores source references only, not the verse text', async () => {
     const { supabase, mockRpc } = makeSupabaseMock()
     const { saveExchange } = await import('@/lib/session')
     await saveExchange(supabase, FAKE_SESSION_ID, 'q', 'a', SOURCES)
-    expect(mockRpc).toHaveBeenCalledWith('increment_session_turn', expect.objectContaining({ p_session_id: FAKE_SESSION_ID }))
+    expect(mockRpc.mock.calls[0][1].p_sources).toEqual([{ id: 1, text_source: 'bhagavad_gita', book_chapter: 2, verse: 47 }])
   })
 
-  it('throws when message insert returns an error', async () => {
-    const { supabase, mockMessageInsert } = makeSupabaseMock()
-    mockMessageInsert.mockResolvedValue({ error: { message: 'insert failed' } })
+  it('throws when the RPC fails', async () => {
+    const { supabase, mockRpc } = makeSupabaseMock()
+    mockRpc.mockResolvedValue({ error: { message: 'insert failed' } })
     const { saveExchange } = await import('@/lib/session')
     await expect(saveExchange(supabase, FAKE_SESSION_ID, 'q', 'a', SOURCES)).rejects.toThrow('insert failed')
   })

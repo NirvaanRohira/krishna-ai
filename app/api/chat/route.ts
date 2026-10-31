@@ -15,6 +15,8 @@ import { loadAndInjectProfile } from '@/lib/memory/profileInjector'
 import { queryStructuralLookup } from '@/lib/retrieval/structuralLookup'
 import { withVoiceMode } from '@/lib/prompts/voice'
 import { closeStaleSessions } from '@/lib/memory/postSession'
+import { log } from '@/lib/log'
+import { consumeQuota, quotaMessage, recordLlmUsage, estimateTokens } from '@/lib/quota'
 
 type Message = { role: 'user' | 'assistant'; content: string }
 
@@ -86,7 +88,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: { 'Retry-After': String(retryAfterSec) } })
   }
 
-  const resumed = await resumeSession(supabase, existingSessionId, HISTORY_MESSAGES)
+  // Plan quota + durable per-minute limit (Postgres), checked alongside loading the session.
+  const [resumed, quota] = await Promise.all([
+    resumeSession(supabase, existingSessionId, HISTORY_MESSAGES),
+    consumeQuota(supabase, 'message'),
+  ])
+  if (!quota.allowed) {
+    return NextResponse.json(
+      { error: quotaMessage(quota, 'message'), code: quota.reason, plan: quota.plan },
+      { status: 429, headers: quota.reason === 'rate' ? { 'Retry-After': '60' } : {} }
+    )
+  }
   const sessionId: string = resumed?.id ?? await startSession(supabase, user.id)
   if (!resumed) {
     // New conversation: once the response has been sent, fold any earlier conversations
@@ -99,6 +111,10 @@ export async function POST(req: Request) {
   const stream = new TransformStream<Uint8Array, Uint8Array>()
   const writer = stream.writable.getWriter()
 
+  // Spend metering: estimated tokens for this turn, recorded once the reply is done.
+  let usagePromptChars = 0
+  let usageResponse = ''
+
   ;(async () => {
     try {
       const t0 = Date.now()
@@ -107,12 +123,14 @@ export async function POST(req: Request) {
       if (isGreetingMessage(message)) {
         const systemPrompt = withVoiceMode(await loadAndInjectProfile(user.id, supabase), voice)
         const prompt = buildPrompt([], recentHistory, message, systemPrompt, [])
+        usagePromptChars = prompt.length
         await writer.write(sseChunk({ t: 's', id: sessionId, src: [] }))
         let fullResponse = ''
         for await (const chunk of generateTextStream(prompt)) {
           fullResponse += chunk
           await writer.write(sseChunk({ t: 'c', v: chunk }))
         }
+        usageResponse = fullResponse
         console.log(`[timing] greeting response: ${Date.now()-t0}ms`)
         await saveExchange(supabase, sessionId, message, fullResponse, [])
         await writer.write(sseChunk('[DONE]'))
@@ -165,6 +183,7 @@ export async function POST(req: Request) {
         await writer.write(sseChunk({ t: 's', id: sessionId, src: sources }))
 
         const prompt = buildPrompt(sources, recentHistory, message, systemPrompt, anchors)
+        usagePromptChars = prompt.length
         let fullResponse = ''
         let firstChunk = true
         for await (const chunk of generateTextStream(prompt)) {
@@ -173,6 +192,7 @@ export async function POST(req: Request) {
           await writer.write(sseChunk({ t: 'c', v: chunk }))
         }
 
+        usageResponse = fullResponse
         await saveExchange(supabase, sessionId, message, fullResponse, sources)
 
       } else {
@@ -205,15 +225,21 @@ export async function POST(req: Request) {
           }
         }
 
+        usagePromptChars = buildPrompt(sources, recentHistory, message, systemPrompt, anchors).length
+        usageResponse = response
         await saveExchange(supabase, sessionId, message, response, sources)
       }
 
       await writer.write(sseChunk('[DONE]'))
     } catch (err) {
       // Log the real error server-side; never send provider/DB internals to the browser.
-      console.error('[chat] stream failed:', err)
+      log.error('chat', 'stream failed', { sessionId, userId: user.id }, err)
       await writer.write(sseChunk({ t: 'e', msg: 'Something went wrong. Please try again.' }))
     } finally {
+      // After [DONE] has been sent, so it never delays the reply.
+      if (usagePromptChars > 0) {
+        await recordLlmUsage(supabase, Math.ceil(usagePromptChars / 3.5), estimateTokens(usageResponse))
+      }
       await writer.close()
     }
   })()

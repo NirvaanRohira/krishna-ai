@@ -162,3 +162,44 @@ describe('lib/llm', () => {
     expect(chunks.join('')).toBe('from fallback')
   })
 })
+
+describe('lib/llm — OpenRouter provider', () => {
+  it('routes only to hosts that do not store or train on prompts', async () => {
+    vi.resetModules()
+    vi.stubEnv('LLM_PROVIDER', 'openrouter')
+    vi.stubEnv('LLM_FALLBACK', '')
+    vi.stubEnv('OPENROUTER_API_KEY', 'or-key')
+    vi.stubEnv('LLM_GENERATION_MODEL', 'z-ai/glm-5.3')
+    const mod = await import('@/lib/llm')
+    await mod.generateText('hello')
+    const params = mockCreate.mock.calls[0][0]
+    expect(params.model).toBe('z-ai/glm-5.3')
+    expect(params.provider).toEqual({ data_collection: 'deny' })
+    vi.stubEnv('LLM_PROVIDER', 'groq')
+    vi.stubEnv('LLM_FALLBACK', 'nvidia')
+    vi.stubEnv('LLM_GENERATION_MODEL', '')
+    vi.resetModules()
+  })
+
+  it('can pin specific hosts with OPENROUTER_PROVIDERS', async () => {
+    vi.resetModules()
+    vi.stubEnv('LLM_PROVIDER', 'openrouter')
+    vi.stubEnv('LLM_FALLBACK', '')
+    vi.stubEnv('OPENROUTER_API_KEY', 'or-key')
+    vi.stubEnv('OPENROUTER_PROVIDERS', 'Together, Fireworks')
+    const mod = await import('@/lib/llm')
+    await mod.generateText('hello')
+    expect(mockCreate.mock.calls[0][0].provider).toEqual({ data_collection: 'deny', order: ['Together', 'Fireworks'], allow_fallbacks: false })
+    vi.stubEnv('LLM_PROVIDER', 'groq')
+    vi.stubEnv('LLM_FALLBACK', 'nvidia')
+    vi.stubEnv('OPENROUTER_PROVIDERS', '')
+    vi.resetModules()
+  })
+
+  it('non-OpenRouter providers get no extra body fields', async () => {
+    vi.resetModules()
+    const mod = await import('@/lib/llm')
+    await mod.generateText('hello')
+    expect(mockCreate.mock.calls[0][0]).not.toHaveProperty('provider')
+  })
+})

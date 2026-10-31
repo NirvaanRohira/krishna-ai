@@ -28,12 +28,12 @@ export default function PrivacyPage() {
       <p>We share your messages with AI providers only to generate replies, voice and transcripts. These providers include AI model hosts, a text-to-speech provider, and our database host (Supabase). They act on our instructions and are not permitted to use your data for their own purposes. [List the exact processors and regions before launch.]</p>
 
       <h2>How long we keep it</h2>
-      <p>Conversations are kept while your account is active. [Set a retention period, e.g. delete conversations after 12 months of inactivity.] When you delete your account, we erase your data.</p>
+      <p>Conversations are deleted automatically 12 months after they took place. The short profile summary is kept while your account exists, and you can see it or erase it at any time from <Link href="/account">Account</Link>. When you delete your account, we erase all of your data.</p>
 
       <h2>Your rights</h2>
       <ul>
         <li><strong>Access:</strong> download all your data from <Link href="/account">Account</Link>.</li>
-        <li><strong>Erasure:</strong> delete your account and all its data from <Link href="/account">Account</Link>.</li>
+        <li><strong>Correction and erasure:</strong> see what Kanha remembers about you and erase it, or delete your whole account, from <Link href="/account">Account</Link>.</li>
         <li><strong>Withdraw consent</strong> at any time. Withdrawing is as easy as giving it.</li>
         <li><strong>Grievances:</strong> contact our Grievance Officer, {GRIEVANCE_OFFICER.name}, at <a href={`mailto:${GRIEVANCE_OFFICER.email}`}>{GRIEVANCE_OFFICER.email}</a>. If you are not satisfied with our response, you may complain to the Data Protection Board of India.</li>
       </ul>

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createAdminClient } from '@/lib/supabase-admin'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 
 // Right to erasure (DPDP Act s.12). Requires an explicit confirmation string so a stray or
@@ -20,11 +20,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Confirmation text does not match.' }, { status: 400 })
   }
 
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (serviceKey) {
-    const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    })
+  const admin = createAdminClient()
+  if (admin) {
     const { error } = await admin.auth.admin.deleteUser(user.id)
     if (error) {
       console.error('[account/delete] admin delete failed:', error)

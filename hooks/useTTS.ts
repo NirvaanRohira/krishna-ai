@@ -7,9 +7,9 @@ import { useState, useCallback, useLayoutEffect, useRef } from 'react'
 const PHRASE_CACHE_MAX_CHARS = 120
 const PHRASE_CACHE_MAX_ENTRIES = 40
 
-export function useTTS() {
-  const [enabled, setEnabled] = useState(true)
-  const enabledRef = useRef(true)
+export function useTTS({ defaultEnabled = true }: { defaultEnabled?: boolean } = {}) {
+  const [enabled, setEnabled] = useState(defaultEnabled)
+  const enabledRef = useRef(defaultEnabled)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const queueRef = useRef<string[]>([])
   const processingRef = useRef(false)

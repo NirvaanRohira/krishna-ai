@@ -7,6 +7,8 @@ export async function createServerSupabaseClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      // Every DB call gets a hard timeout so a stuck connection can't hang a request.
+      global: { fetch: (input, init) => fetch(input, { ...init, signal: init?.signal ?? AbortSignal.timeout(10_000) }) },
       cookies: {
         getAll() {
           return cookieStore.getAll()

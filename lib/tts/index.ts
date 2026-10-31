@@ -12,6 +12,7 @@
 // driven from the audio itself, so no provider-specific viseme data is needed.
 
 import { PollyClient, SynthesizeSpeechCommand } from '@aws-sdk/client-polly'
+import { withRetry, HttpError, fetchWithTimeout } from '@/lib/retry'
 
 export type TTSResult = { audio: Buffer; contentType: string }
 export type TTSProviderName = 'polly' | 'google' | 'sarvam'
@@ -70,7 +71,7 @@ const synthGoogle: Synth = async (text, opts) => {
   const voiceName = googleVoiceFor(opts.locale)
   const languageCode = voiceName.slice(0, 5) // "en-IN" / "hi-IN"
   // Key goes in a header, not the URL, so it never lands in proxy/access logs.
-  const res = await fetch('https://texttospeech.googleapis.com/v1/text:synthesize', {
+  const res = await fetchWithTimeout('https://texttospeech.googleapis.com/v1/text:synthesize', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
     body: JSON.stringify({
@@ -79,7 +80,7 @@ const synthGoogle: Synth = async (text, opts) => {
       audioConfig: { audioEncoding: 'MP3' },
     }),
   })
-  if (!res.ok) throw new Error(`Google TTS ${res.status}`)
+  if (!res.ok) throw new HttpError(res.status, `Google TTS ${res.status}`)
   const data = (await res.json()) as { audioContent?: string }
   if (!data.audioContent) throw new Error('Google TTS returned no audio')
   return { audio: Buffer.from(data.audioContent, 'base64'), contentType: 'audio/mpeg' }
@@ -90,7 +91,7 @@ const synthGoogle: Synth = async (text, opts) => {
 const synthSarvam: Synth = async (text, opts) => {
   const key = process.env.SARVAM_API_KEY
   if (!key) throw new Error('SARVAM_API_KEY not set')
-  const res = await fetch('https://api.sarvam.ai/text-to-speech', {
+  const res = await fetchWithTimeout('https://api.sarvam.ai/text-to-speech', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'api-subscription-key': key },
     body: JSON.stringify({
@@ -101,7 +102,7 @@ const synthSarvam: Synth = async (text, opts) => {
       speech_sample_rate: 22050,
     }),
   })
-  if (!res.ok) throw new Error(`Sarvam TTS ${res.status}`)
+  if (!res.ok) throw new HttpError(res.status, `Sarvam TTS ${res.status}`)
   const data = (await res.json()) as { audios?: string[] }
   const b64 = data.audios?.[0]
   if (!b64) throw new Error('Sarvam TTS returned no audio')
@@ -126,7 +127,8 @@ export async function synthesize(text: string, opts: TTSOptions = {}): Promise<T
   const primary = activeTTSProvider()
   const fallback = resolve(process.env.TTS_FALLBACK)
   try {
-    return await PROVIDERS[primary](text, opts)
+    // Synthesis is idempotent, so transient provider errors (429/5xx/network) are retried.
+    return await withRetry(() => PROVIDERS[primary](text, opts), { retries: 1 })
   } catch (err) {
     if (!fallback || fallback === primary) throw err
     console.warn(`[tts] ${primary} failed — falling back to ${fallback}:`, err instanceof Error ? err.message : err)
