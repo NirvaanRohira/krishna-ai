@@ -5,6 +5,7 @@ import { freshDb, asUser } from './pg'
 
 const A = '11111111-1111-4111-8111-111111111111'
 const B = '22222222-2222-4222-8222-222222222222'
+const D_OTHER = '44444444-4444-4444-8444-444444444444'
 
 let db: PGlite
 
@@ -172,5 +173,33 @@ describe('chat turn, memory clearing, retention', () => {
     const r = await db.query<{ r: { sessions_deleted: number } }>('select purge_old_data(12) as r')
     await db.exec('reset role')
     expect(r.rows[0].r.sessions_deleted).toBe(1)
+  })
+})
+
+describe('advisor fixes (20261101010000)', () => {
+  it('sign-up still creates a profile after handle_new_user is locked to trigger-only', async () => {
+    // Mimic Supabase's auth service: a non-superuser role that inserts into auth.users.
+    await db.exec(`create role auth_admin_sim nologin; grant usage on schema auth to auth_admin_sim; grant insert on auth.users to auth_admin_sim;`)
+    const NEW = '55555555-5555-4555-8555-555555555555'
+    await db.exec('set role auth_admin_sim')
+    await db.query('insert into auth.users (id, email) values ($1, $2)', [NEW, 'new@x.in'])
+    await db.exec('reset role')
+    const r = await db.query('select 1 from user_profiles where user_id = $1', [NEW])
+    expect(r.rows).toHaveLength(1)
+  })
+
+  it('API roles can no longer call handle_new_user directly', async () => {
+    const r = await db.query<{ anon: boolean; authed: boolean }>(
+      `select has_function_privilege('anon', 'public.handle_new_user()', 'execute') as anon,
+              has_function_privilege('authenticated', 'public.handle_new_user()', 'execute') as authed`)
+    expect(r.rows[0]).toEqual({ anon: false, authed: false })
+  })
+
+  it('profile policies keep the same rules: own row only, cannot reassign a row to someone else', async () => {
+    const mine = await asUser(db, A, () => db.query('select user_id from user_profiles'))
+    expect(mine.rows).toEqual([{ user_id: A }])
+    await asUser(db, A, () => db.query('update user_profiles set user_id = $1 where user_id = $2', [D_OTHER, A]).catch(() => null))
+    const still = await db.query('select 1 from user_profiles where user_id = $1', [A])
+    expect(still.rows).toHaveLength(1)
   })
 })
