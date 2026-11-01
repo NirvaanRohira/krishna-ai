@@ -101,6 +101,7 @@ Later, Supabase **Branching** (paid) can create a throwaway DB per pull request 
 
 | Job | When | What it does |
 |---|---|---|
+| `POST /api/cron?task=daily` | 06:30 IST (01:00 UTC) | Retention purge, writes today's verse (`daily_verses`), sends the morning push |
 | `POST /api/cron?task=spend` | hourly | Estimates today's AI spend from usage counters; posts to `ALERT_WEBHOOK_URL` (Slack, Google Chat or Discord) when over `SPEND_ALERT_USD_PER_DAY` |
 | `POST /api/cron?task=purge` | daily 03:13 IST | Deletes conversations older than `RETENTION_MONTHS` (default 12), as the privacy notice promises |
 
@@ -159,6 +160,7 @@ Keep secrets in the hosting platform's secret store (Vercel env or GCP Secret Ma
 | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | for payments | Dashboard → Account & Settings → API Keys. `rzp_test_…` in test mode, `rzp_live_…` when live |
 | `RAZORPAY_WEBHOOK_SECRET` | for payments | Same value as the secret on the webhook (Dashboard → Webhooks → `https://<domain>/api/payments/webhook`; events `payment.captured`, `order.paid`, `payment.failed`, `refund.processed`) |
 | `TTS_HD_PLANS` | no | Plans that get the Chirp 3 HD voice (default `premium`) |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | for the morning verse | Web-push key pair (`node -e "console.log(require('web-push').generateVAPIDKeys())"`). Never rotate casually: a new pair silently drops every existing subscriber |
 | `RESEND_API_KEY` | for email | resend.com → API Keys (sending access only). Without it, receipts and reminders are skipped and logged |
 | `EMAIL_FROM` | for email | e.g. `Kanha <hello@yourdomain.in>`; the domain must be verified in Resend (SPF + DKIM DNS records) |
 | `EMAIL_REPLY_TO` | no | where replies to receipts go (e.g. your support inbox) |

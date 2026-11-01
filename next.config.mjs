@@ -48,6 +48,11 @@ const nextConfig = {
     return [
       { source: '/:path*', headers: securityHeaders },
       {
+        // The service worker must never be served stale, or updates to it are delayed.
+        source: '/sw.js',
+        headers: [{ key: 'Cache-Control', value: 'no-cache' }, { key: 'Service-Worker-Allowed', value: '/' }],
+      },
+      {
         // The avatar GLB and textures are versioned by filename; let browsers and the CDN
         // keep them so the model downloads once per device, not once per visit.
         source: '/avatar/:path*',

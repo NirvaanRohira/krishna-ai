@@ -1155,3 +1155,12 @@ p { text-wrap: pretty; }
 }
 .book__turn button[aria-pressed='true'] { background: #7a2e1b; color: #f6ebd0; border-color: #7a2e1b; }
 @media (prefers-reduced-motion: reduce) { .ink-word, .book--narrow .book__page { animation: none !important; } }
+
+/* ── Today's verse ───────────────────────────────────────── */
+.verse-page { max-width: 52rem; }
+.verse-page__date { margin-top: -0.4rem; color: var(--ink-3); }
+.verse-toggle { display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-start; margin: 0.6rem 0 1rem; }
+.verse-toggle__note { margin: 0; font-size: 0.92rem; color: var(--ink-2); }
+
+.chat-window__verse-link { display: inline-flex; align-items: center; gap: 0.4rem; margin-top: 1.4rem; font-family: var(--font-book-sc), Georgia, serif; letter-spacing: 0.06em; color: var(--gold-text); text-decoration: none; }
+.chat-window__verse-link:hover { text-decoration: underline; }

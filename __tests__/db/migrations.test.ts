@@ -289,3 +289,31 @@ describe('payments (20261102000000)', () => {
     expect(after.plan).toBe('free')
   })
 })
+
+describe('daily verse and push (20261103000000)', () => {
+  const U = '88888888-8888-4888-8888-888888888888'
+  const V = '99999999-9999-4999-8999-999999999999'
+  beforeAll(async () => {
+    await db.query('insert into auth.users (id) values ($1), ($2)', [U, V])
+  })
+
+  it('anyone can read the daily verse; nobody but the service role can write it', async () => {
+    await db.exec('set role service_role')
+    await db.query(`insert into daily_verses (day, text_source, book_chapter, verse, title, moment, teaching, life, practice) values ('2026-11-02','bhagavad_gita',2,47,'t','m','te','l','p')`)
+    await db.exec('reset role')
+    const anon = await asUser(db, null, () => db.query('select title from daily_verses'))
+    expect(anon.rows).toHaveLength(1)
+    await expect(asUser(db, U, () => db.query(`insert into daily_verses (day, text_source, book_chapter, verse, title, moment, teaching, life, practice) values ('2026-11-03','bhagavad_gita',2,48,'t','m','te','l','p')`))).rejects.toThrow()
+    await asUser(db, U, () => db.query(`update daily_verses set title = 'HACKED'`))
+    expect((await db.query<{ title: string }>(`select title from daily_verses`)).rows[0].title).toBe('t')
+  })
+
+  it('users manage only their own push subscriptions, and only https endpoints', async () => {
+    await asUser(db, U, () => db.query(`insert into push_subscriptions (user_id, endpoint, p256dh, auth) values ($1, 'https://fcm.googleapis.com/fcm/send/abc', 'k', 'a')`, [U]))
+    await expect(asUser(db, U, () => db.query(`insert into push_subscriptions (user_id, endpoint, p256dh, auth) values ($1, 'https://fcm.googleapis.com/fcm/send/x', 'k', 'a')`, [V]))).rejects.toThrow()
+    await expect(asUser(db, U, () => db.query(`insert into push_subscriptions (user_id, endpoint, p256dh, auth) values ($1, 'http://169.254.169.254/latest', 'k', 'a')`, [U]))).rejects.toThrow()
+    expect((await asUser(db, V, () => db.query('select * from push_subscriptions'))).rows).toHaveLength(0)
+    await asUser(db, V, () => db.query('delete from push_subscriptions'))
+    expect((await db.query('select * from push_subscriptions')).rows).toHaveLength(1)
+  })
+})

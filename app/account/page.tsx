@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { HairlineFigure } from '@/components/HairlineFigure'
+import { DailyVerseToggle } from '@/components/DailyVerseToggle'
+import { InstallButton } from '@/components/InstallButton'
 
 const PHRASE = 'DELETE MY ACCOUNT'
 
@@ -108,6 +110,11 @@ export default function AccountPage() {
           </button>
         </div>
       ) : null}
+
+      <h2>Morning verse</h2>
+      <p>A notification each morning with the day&rsquo;s verse. <Link href="/verse">See today&rsquo;s</Link>.</p>
+      <DailyVerseToggle />
+      <InstallButton />
 
       <h2>Emails</h2>
       {memory && (

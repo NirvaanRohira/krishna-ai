@@ -59,6 +59,7 @@ export function ChatWindow({ messages, onSend, loading }: ChatWindowProps) {
               </li>
             ))}
           </ul>
+          <a href="/verse" className="chat-window__verse-link fade-up fade-up-delay-3">Open today&rsquo;s verse <Arrow /></a>
         </div>
       ) : (
         <div className="chat-window__messages" aria-live="polite">

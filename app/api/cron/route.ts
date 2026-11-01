@@ -4,6 +4,8 @@ import { createAdminClient } from '@/lib/supabase-admin'
 import { log } from '@/lib/log'
 import { sendEmail } from '@/lib/email/send'
 import { expiryReminderEmail } from '@/lib/email/templates'
+import { ensureDailyVerse, indiaDay } from '@/lib/daily-verse'
+import { sendToAll } from '@/lib/push'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 // Scheduled jobs, called by Vercel Cron (vercel.json; it sends GET with the bearer
@@ -11,6 +13,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 //   POST /api/cron?task=spend   — hourly: estimate today's AI spend, alert if over budget
 //   POST /api/cron?task=purge   — daily: delete conversations past the retention window
 //   POST /api/cron?task=reminders — daily: email people whose paid pass ends in ~3 days
+//   POST /api/cron?task=daily   — 06:30 IST: retention purge, write today's verse, send the
+//                                 morning notification (one job: Vercel Hobby allows two crons)
 //   (Vercel Hobby allows two cron jobs, so the daily spend job also runs reminders.)
 // Auth: `Authorization: Bearer $CRON_SECRET`. Not reachable without the secret.
 
@@ -113,6 +117,27 @@ export async function POST(req: Request) {
     }
     const reminders = await runReminders(admin)
     return NextResponse.json({ day, totals, spend, budget, over, alerted, reminders })
+  }
+
+  if (task === 'daily') {
+    const out: Record<string, unknown> = {}
+    try {
+      const { data } = await admin.rpc('purge_old_data', { p_months: Math.max(1, num(process.env.RETENTION_MONTHS, 12)) })
+      out.purge = data
+    } catch (err) { log.error('cron', 'purge failed', {}, err); out.purge = 'failed' }
+    try {
+      const v = await ensureDailyVerse(admin, indiaDay())
+      out.verse = v ? `${v.book_chapter}.${v.verse}` : null
+      if (v) {
+        out.push = await sendToAll(admin, {
+          title: `Today's verse · Gita ${v.book_chapter}.${v.verse}`,
+          body: v.title,
+          url: '/verse',
+        })
+      }
+    } catch (err) { log.error('cron', 'daily verse failed', {}, err); out.verse = 'failed' }
+    log.info('cron', 'daily job done', { result: JSON.stringify(out).slice(0, 500) })
+    return NextResponse.json({ ok: true, ...out })
   }
 
   if (task === 'purge') {
