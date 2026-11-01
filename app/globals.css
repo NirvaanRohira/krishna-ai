@@ -317,10 +317,11 @@ p { text-wrap: pretty; }
   width: 100%;
   margin: 0 auto;
   padding: max(1.25rem, env(safe-area-inset-top)) 1.25rem 2rem;
+  row-gap: 2.25rem;  /* breathing room between the arch and the title on phones */
 }
 .landing-figure {
   position: relative;
-  height: 54dvh;
+  height: 52dvh;
   min-height: 340px;
   display: flex;
   justify-content: center;
@@ -1251,8 +1252,10 @@ p { text-wrap: pretty; }
   40% { transform: rotateX(16deg) scale(0.95); }
   100% { transform: none; }
 }
-/* Once open, the left page's ink comes up. */
-.book--revealed .book__page--left > * { animation: bookFadeIn 700ms ease-out both; }
+/* Once open, the left page's ink comes up (wide only: on a phone the verse was never hidden). */
+@container (min-width: 600px) {
+  .book--revealed .book__page--left > * { animation: bookFadeIn 700ms ease-out both; }
+}
 @keyframes bookFadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 /* Phone: one page; the cover opens off to the left and the leaves follow it. */
@@ -1282,12 +1285,52 @@ p { text-wrap: pretty; }
 @keyframes inkIn { from { opacity: 0; filter: blur(1.5px); color: #8a6a3e; } to { opacity: 1; filter: none; } }
 
 /* Phone: one page at a time; the page turns from the verse to the reflection. */
-.book--narrow .book__page { display: none; }
+.book--narrow .book__page { grid-area: 1 / 1; display: none; }
 .book--narrow.book--show-verse .book__page--left,
-.book--narrow.book--show-reflection .book__page--right { display: block; transform-origin: left center; }
-.book--narrow.book--open.book--show-verse .book__page--left,
-.book--narrow.book--open.book--show-reflection .book__page--right { animation: pageTurnIn 700ms cubic-bezier(0.3, 0.1, 0.2, 1) both; }
-@keyframes pageTurnIn { from { transform: perspective(1600px) rotateY(-80deg); box-shadow: inset 60px 0 60px -20px rgba(60, 35, 10, 0.5); } to { transform: none; } }
+.book--narrow.book--show-reflection .book__page--right,
+.book--narrow.book--turn-forward .book__page--left,
+.book--narrow.book--turn-back .book__page--right { display: block; }
+/* The turning page is the verse, on top either way; it turns over its left edge (the spine). */
+.book--narrow.book--turn-forward .book__page--left,
+.book--narrow.book--turn-back .book__page--left {
+  z-index: 2;
+  transform-origin: left center;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  animation: pageTurnAway 850ms cubic-bezier(0.45, 0.05, 0.3, 1) both;
+}
+.book--narrow.book--turn-back .book__page--left { animation-name: pageTurnBack; }
+.book--narrow.book--turn-forward .book__page--left::after,
+.book--narrow.book--turn-back .book__page--left::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(60, 35, 10, 0.5), rgba(60, 35, 10, 0.1));
+  animation: pageTurnShade 850ms ease-in-out both;
+}
+.book--narrow.book--turn-back .book__page--left::after { animation-direction: reverse; }
+/* The page beneath darkens where the turning page's shadow falls, then clears. */
+.book--narrow.book--turn-forward .book__page--right,
+.book--narrow.book--turn-back .book__page--right { animation: pageUnderShade 850ms ease-in-out both; }
+@keyframes pageTurnAway {
+  0% { transform: perspective(1400px) rotateY(0deg); }
+  50% { transform: perspective(1400px) translateZ(30px) rotateY(-80deg); }
+  100% { transform: perspective(1400px) rotateY(-150deg); }
+}
+@keyframes pageTurnBack {
+  0% { transform: perspective(1400px) rotateY(-150deg); }
+  50% { transform: perspective(1400px) translateZ(30px) rotateY(-80deg); }
+  100% { transform: perspective(1400px) rotateY(0deg); }
+}
+@keyframes pageTurnShade { 0% { opacity: 0; } 60% { opacity: 1; } 100% { opacity: 1; } }
+@keyframes pageUnderShade { 0%, 100% { filter: none; } 35% { filter: brightness(0.86); } }
+/* On a phone the book fills the column: whatever turns past the spine leaves the frame
+   (rather than hanging off the screen edge). */
+.book--narrow { overflow-x: clip; }
+@media (prefers-reduced-motion: reduce) {
+  .book--narrow .book__page, .book--narrow .book__page::after { animation: none !important; }
+}
 .book__turn { display: flex; justify-content: space-between; gap: 0.5rem; margin-top: 0.6rem; }
 .book__turn button {
   flex: 1;

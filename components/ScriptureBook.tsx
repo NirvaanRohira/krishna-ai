@@ -21,6 +21,7 @@ const COVER_MS = 1400   // the cover swings open on its spine
 const LEAF_GAP_MS = 260 // one leaf after another
 const LEAF_MS = 1000    // one leaf turning over
 const LEAVES_START = 0.7 // leaves begin once the cover is most of the way open
+const TURN_MS = 850     // a page turn on the phone
 
 function bookKind(ref: string): BookKind {
   const t = parseRef(ref).text
@@ -122,13 +123,30 @@ export function ScriptureBook({
   const lastFilled = right.reduce((acc, [, t], i) => (t ? i : acc), -1)
   const writing = streaming && !page.complete
 
+  // A page turn on the phone: forward, the verse lifts and turns over to the left,
+  // uncovering the reflection beneath it; back, it turns back over the reflection.
+  const [turning, setTurning] = useState<'forward' | 'back' | null>(null)
+  const turnTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (turnTimer.current) clearTimeout(turnTimer.current) }, [])
+  const goTo = (v: 'verse' | 'reflection') => {
+    if (v === view) return
+    if (turnTimer.current) clearTimeout(turnTimer.current)
+    setTurning(v === 'reflection' ? 'forward' : 'back')
+    setView(v)
+    turnTimer.current = setTimeout(() => setTurning(null), TURN_MS)
+  }
+
   // Let the verse be read for a moment, then turn the page to the reflection being written.
   useEffect(() => {
     if (!narrow || !animate || !settled || userTurned || view !== 'verse' || lastFilled < 0) return
-    const t = setTimeout(() => setView('reflection'), 2600)
+    const t = setTimeout(() => {
+      setTurning('forward')
+      setView('reflection')
+      turnTimer.current = setTimeout(() => setTurning(null), TURN_MS)
+    }, 2600)
     return () => clearTimeout(t)
   }, [narrow, animate, settled, userTurned, view, lastFilled])
-  const turnTo = (v: 'verse' | 'reflection') => { setUserTurned(true); setView(v) }
+  const turnTo = (v: 'verse' | 'reflection') => { setUserTurned(true); goTo(v) }
 
   const folio = verified && p.verse ? (kind === 'gita' ? `${p.chapter}.${p.verse}` : kind === 'bhagavatam' ? `${p.skandha}.${p.chapter}.${p.verse}` : '') : ''
   const [sharing, setSharing] = useState<'idle' | 'busy' | 'saved' | 'failed'>('idle')
@@ -156,6 +174,7 @@ export function ScriptureBook({
     animate && settled ? 'book--revealed' : '',
     skip ? 'book--skip' : '',
     narrow ? `book--narrow book--show-${view}` : '',
+    narrow && turning ? `book--turn-${turning}` : '',
   ].filter(Boolean).join(' ')
 
   return (
