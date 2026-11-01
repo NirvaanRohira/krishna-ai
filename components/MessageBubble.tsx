@@ -1,4 +1,6 @@
 import { formatSourceRef, shortSourceRef, type Source } from '@/lib/sources'
+import { splitReply, hasPage, refInSources } from '@/lib/scripture-page'
+import { ScripturePage } from '@/components/ScripturePage'
 
 interface MessageBubbleProps {
   role: 'user' | 'assistant'
@@ -25,6 +27,16 @@ export function MessageBubble({ role, content, streaming = false, sources = [] }
         <span className="thinking-dots" data-thinking="true" aria-label="Reflecting">
           <span /><span /><span />
         </span>
+      ) : role === 'assistant' && hasPage(content) ? (
+        splitReply(content).map((seg, i) =>
+          seg.kind === 'text' ? (
+            <p key={i} className="reply-text">{seg.text}</p>
+          ) : (
+            // Before the citations arrive (mid-stream, or history without them) trust the
+            // reference; once they're known, only show chapter and verse if it was retrieved.
+            <ScripturePage key={i} page={seg.page} verified={streaming || sources.length === 0 || refInSources(seg.page.ref, sources)} />
+          ),
+        )
       ) : content}
       {showSources && (sources.some((s) => s.text) ? (
         <details className="message-sources">

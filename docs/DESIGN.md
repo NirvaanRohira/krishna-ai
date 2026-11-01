@@ -6,6 +6,15 @@
 
 Taken from the reference art: night indigo, the iridescent silk of the dhoti, the gold dupatta, pearl light. The interface should feel like sitting under a night sky with someone wise, not like using a SaaS tool.
 
+## The journey (how a conversation should feel)
+
+A conversation is a small journey of self-understanding, not a Q&A:
+1. **Find the root.** For a personal struggle, Kanha reflects one line back and asks one gentle question (at most two turns) before teaching.
+2. **Open the page.** Kanha names the root in the person's words, then opens one `ScripturePage`: a chapter seal (chapter in Devanagari inside a hairline lotus), the book and place, a title, then *The moment* (the scene in the story, italic display type), *The teaching*, *In your life*, and *For today* (one practice). The card unfolds like a page turning.
+3. **One question** after the page, nothing else.
+
+The model writes the page as `<page ref="…" title="…"><moment/><teaching/><life/><practice/></page>` (`lib/scripture-page.ts`). A reference not among the retrieved passages is shown without chapter and verse. The voice reads the page as prose. Ambient sound is a WebAudio tanpura (`hooks/useAmbient.ts`), off by default, ducked while Kanha speaks.
+
 ## Rules
 
 - **Ground:** night indigo (`--night-0…3`) with a faint aurora at the top and a static star field. No flat black.

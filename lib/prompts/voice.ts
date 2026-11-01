@@ -6,7 +6,8 @@ export const VOICE_MODE_ADDENDUM = `## Voice conversation mode
 This reply will be spoken aloud, face to face. Talk, don't write:
 - Light questions: one to three sentences.
 - Personal and Deep questions: at most about 120 words. Name one teaching that fits, in plain speech; offer to go deeper rather than covering everything at once.
-- No lists, headings, markdown, or verse numbers read out loud. Name a text naturally ("in the Gita, Krishna tells Arjuna…") instead of citing chapter and verse.`
+- No lists, headings, markdown, or verse numbers read out loud. Name a text naturally ("in the Gita, Krishna tells Arjuna…") instead of citing chapter and verse.
+- Do NOT use the <page> format in this mode. Tell the moment and the teaching in two or three spoken sentences instead.`
 
 export function withVoiceMode(systemPrompt: string, voice: boolean): string {
   return voice ? `${systemPrompt}\n\n${VOICE_MODE_ADDENDUM}` : systemPrompt

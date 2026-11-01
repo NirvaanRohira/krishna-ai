@@ -7,6 +7,11 @@ import { useState, useCallback, useLayoutEffect, useRef, useEffect } from 'react
 const PHRASE_CACHE_MAX_CHARS = 120
 const PHRASE_CACHE_MAX_ENTRIES = 40
 
+/** Lets other audio (the ambient drone) step back while Kanha speaks. */
+function announceSpeaking(on: boolean) {
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('kanha:speaking', { detail: on }))
+}
+
 export function useTTS({ defaultEnabled = true }: { defaultEnabled?: boolean } = {}) {
   const [enabled, setEnabled] = useState(defaultEnabled)
   const enabledRef = useRef(defaultEnabled)
@@ -40,6 +45,7 @@ export function useTTS({ defaultEnabled = true }: { defaultEnabled?: boolean } =
   }, [])
 
   const stop = useCallback(() => {
+    announceSpeaking(false)
     generationRef.current++
     queueRef.current = []
     processingRef.current = false
@@ -109,6 +115,7 @@ export function useTTS({ defaultEnabled = true }: { defaultEnabled?: boolean } =
   const processNext = useCallback(async () => {
     if (!enabledRef.current || queueRef.current.length === 0) {
       processingRef.current = false
+      announceSpeaking(false)
       return
     }
     processingRef.current = true
@@ -149,7 +156,7 @@ export function useTTS({ defaultEnabled = true }: { defaultEnabled?: boolean } =
       audio.onended = () => { release(); processNextRef.current() }
       audio.onerror = () => { release(); processNextRef.current() }
       // play() can reject (autoplay policy) — recover the queue instead of stalling (bug 4).
-      audio.play().catch(() => { release(); processNextRef.current() })
+      audio.play().then(() => announceSpeaking(true)).catch(() => { release(); processNextRef.current() })
     } catch {
       if (gen !== generationRef.current) return
       processNextRef.current()

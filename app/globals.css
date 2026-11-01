@@ -933,3 +933,58 @@ p { text-wrap: pretty; }
 .history-messages .msg-user { margin: 0; }
 .history-messages .msg-assistant { margin: 0; animation: none; }
 .history-continue { margin-top: 2rem; }
+
+/* ── The scripture page: a leaf of the text opening inside the conversation ── */
+.reply-text { margin: 0 0 1rem; white-space: pre-wrap; }
+.reply-text:last-child { margin-bottom: 0; }
+.scripture-page {
+  --page-bg: linear-gradient(180deg, #fffdf7, #fbf3e2);
+  --page-ink: #2a2140;
+  --page-ink-2: #5a4f6e;
+  --page-line: rgba(143, 83, 0, 0.28);
+  --page-accent: #8f5300;
+  --page-solid: #fffaf0;
+  position: relative;
+  margin: 0.4rem 0 1.1rem;
+  padding: 1.4rem 1.3rem 1.25rem;
+  border-radius: 6px 18px 18px 6px;
+  background: var(--page-bg);
+  color: var(--page-ink);
+  border: 1px solid var(--page-line);
+  box-shadow: inset 6px 0 0 -3px var(--page-line), 0 18px 40px -26px rgba(60, 35, 5, 0.55);
+  white-space: normal;
+  transform-origin: left center;
+  animation: pageOpen 900ms var(--ease-out) both;
+}
+:root:not([data-theme='light']) .scripture-page,
+.theme-night .scripture-page {
+  --page-bg: linear-gradient(180deg, #17193d, #10122b);
+  --page-ink: #eeebff;
+  --page-ink-2: #bdbbe0;
+  --page-line: rgba(233, 187, 98, 0.32);
+  --page-accent: #e9bb62;
+  --page-solid: #15173a;
+  box-shadow: inset 6px 0 0 -3px var(--page-line), 0 18px 40px -26px rgba(0, 0, 0, 0.9);
+}
+@keyframes pageOpen {
+  from { opacity: 0; transform: perspective(900px) rotateY(-24deg) translateX(-6px); filter: blur(3px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+.scripture-page__head { display: flex; gap: 1rem; align-items: center; padding-bottom: 1rem; margin-bottom: 1rem; border-bottom: 1px solid var(--page-line); }
+.scripture-page__seal { flex: 0 0 auto; width: 76px; height: 76px; color: var(--page-accent); }
+.scripture-page__seal path, .scripture-page__seal circle { stroke-dasharray: 400; stroke-dashoffset: 400; animation: sealDraw 1600ms var(--ease-out) forwards; }
+@keyframes sealDraw { to { stroke-dashoffset: 0; } }
+.scripture-page__seal-core { fill: var(--page-solid, #fffaf0); stroke: currentColor; stroke-width: 0.9; }
+.scripture-page__numeral { fill: var(--page-accent); font-family: var(--font-display), Georgia, serif; font-size: 34px; }
+.scripture-page__book { margin: 0; font-size: 0.74rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--page-accent); }
+.scripture-page__place { margin: 0.1rem 0 0; font-size: 0.86rem; color: var(--page-ink-2); }
+.scripture-page__title { margin: 0.35rem 0 0; font-family: var(--font-display), Georgia, serif; font-size: 1.35rem; line-height: 1.2; color: var(--page-ink); font-weight: 400; }
+.scripture-page__body { display: flex; flex-direction: column; gap: 0.85rem; }
+.scripture-page__section h4 { margin: 0 0 0.15rem; font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--page-accent); font-weight: 500; }
+.scripture-page__section p { margin: 0; font-size: 1rem; line-height: 1.7; color: var(--page-ink); }
+.scripture-page__section:first-child p { font-family: var(--font-display), Georgia, serif; font-style: italic; font-size: 1.04rem; color: var(--page-ink-2); }
+.scripture-page__section:last-child { padding-top: 0.75rem; border-top: 1px dashed var(--page-line); }
+.scripture-page__turning { margin: 0; font-size: 0.85rem; font-style: italic; color: var(--page-ink-2); animation: breathe 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .scripture-page, .scripture-page__seal path, .scripture-page__seal circle { animation: none; stroke-dashoffset: 0; }
+}

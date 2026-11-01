@@ -10,6 +10,8 @@ import { useTTS } from '@/hooks/useTTS'
 import { cleanSources, type Source } from '@/lib/sources'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { toSpeech, toPlain } from '@/lib/scripture-page'
+import { useAmbient } from '@/hooks/useAmbient'
 import { usePlan, formatPlanDate, PLAN_NAMES } from '@/hooks/usePlan'
 
 type Message = { role: 'user' | 'assistant'; content: string; sources?: Source[] }
@@ -49,6 +51,7 @@ export default function ChatPage() {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const plan = usePlan()
+  const ambient = useAmbient()
   // Avatar mode: real-time 3D Krishna rendered on-device, lip-synced to the TTS audio.
   const [videoMode, setVideoMode] = useState(false)
   const router = useRouter()
@@ -74,7 +77,6 @@ export default function ChatPage() {
     // doubles the cost of a conversation. Avatar mode switches it on (below).
     defaultEnabled: false,
   })
-  const sentenceBufferRef = useRef('')
 
   // The avatar speaks every reply, so voice is forced on and playback is routed through
   // the analyser that drives lip-sync. Text mode plays audio directly.
@@ -136,7 +138,6 @@ export default function ChatPage() {
     const withPlaceholder: Message[] = [...withUser, { role: 'assistant', content: '' }]
     setMessages(withPlaceholder)
     stop()
-    sentenceBufferRef.current = ''
 
     // After 700ms with no content, show a thinking phrase in text and speak it (if TTS on)
     let firstChunkReceived = false
@@ -186,6 +187,7 @@ export default function ChatPage() {
       }
 
       let assembled = ''
+      let spokenUpTo = 0
       let errorMsg = ''
       let sources: Source[] = []
 
@@ -198,13 +200,14 @@ export default function ChatPage() {
             if (thinkingInterval !== undefined) clearInterval(thinkingInterval)
           }
           assembled += chunk
-          sentenceBufferRef.current += chunk
-          // Enqueue completed sentences to TTS mid-stream (the avatar lip-syncs to this audio)
-          const boundary = sentenceBufferRef.current.search(/[.!?।॥]\s/)
-          if (boundary !== -1) {
-            const sentence = sentenceBufferRef.current.slice(0, boundary + 1)
-            sentenceBufferRef.current = sentenceBufferRef.current.slice(boundary + 2)
-            enqueue(sentence)
+          // Speak what the reader sees: page markup becomes prose, and a sentence is queued
+          // for the voice as soon as it's complete (the avatar lip-syncs to this audio).
+          const speech = toSpeech(assembled)
+          const pending = speech.slice(spokenUpTo)
+          const lastEnd = Math.max(...['. ', '! ', '? ', '। ', '॥ '].map((p) => pending.lastIndexOf(p)))
+          if (lastEnd >= 0) {
+            enqueue(pending.slice(0, lastEnd + 1).trim())
+            spokenUpTo += lastEnd + 2
           }
           flushSync(() => {
             setMessages([...withUser, { role: 'assistant', content: assembled }])
@@ -239,8 +242,8 @@ export default function ChatPage() {
           setMessages([...withUser, { role: 'assistant', content: assembled, sources }])
         }
         // Flush any remaining partial sentence for TTS
-        if (sentenceBufferRef.current.trim()) enqueue(sentenceBufferRef.current.trim())
-        sentenceBufferRef.current = ''
+        const rest = toSpeech(assembled).slice(spokenUpTo).trim()
+        if (rest) enqueue(rest)
       }
     } catch {
       setMessages([...withUser, { role: 'assistant', content: `${FALLBACK_ERROR} (code: network)` }])
@@ -251,7 +254,7 @@ export default function ChatPage() {
     }
   }
 
-  const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant')?.content ?? ''
+  const lastAssistant = toPlain([...messages].reverse().find(m => m.role === 'assistant')?.content ?? '')
 
   return (
     <main className="chat-page">
@@ -285,6 +288,19 @@ export default function ChatPage() {
         >
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="12" cy="8" r="4" /><path d="M4.5 21a7.5 7.5 0 0 1 15 0" /><path d="M12 2.5c1.5-1 3.5-.6 4.2.9" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={ambient.toggle}
+          aria-pressed={ambient.on}
+          aria-label={ambient.on ? 'Turn off ambient tanpura' : 'Play ambient tanpura'}
+          title={ambient.on ? 'Ambient sound on' : 'Ambient sound'}
+        >
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 3v11" /><circle cx="12" cy="17.5" r="3.5" /><path d="M12 3c2.5 1.5 4.5 1.5 6 0" />
+            {ambient.on && <path d="M4 10c1.2 1.2 1.2 4.8 0 6" />}
           </svg>
         </button>
         <ThemeToggle />

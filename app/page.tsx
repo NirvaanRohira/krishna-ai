@@ -1,5 +1,16 @@
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { MessageBubble } from '@/components/MessageBubble'
+
+// The reply format, shown as a labelled example: name the root, open one page, ask one question.
+const SAMPLE_REPLY = `So it isn't duty against desire. It's love for your father against the path you feel is yours.
+<page ref="bhagavad_gita chapter 3 verse 35" title="Your own path, even imperfect">
+<moment>On the field of Kurukshetra, Arjuna wanted to lay down his bow and live a life that was not his to live. He thought another path would hurt fewer people.</moment>
+<teaching>Krishna tells him it is better to follow one's own dharma, even imperfectly, than another's dharma done well.</teaching>
+<life>Your father's dream was his path. Honouring him may mean telling him, gently and fully, what yours is, rather than living his half-heartedly.</life>
+<practice>Tonight, write one sentence you would say to him if you weren't afraid of hurting him.</practice>
+</page>
+What would that sentence be?`
 
 // The first viewport is the thesis: Krishna's likeness, the promise, and a real-shaped
 // exchange (labelled as an example) so a visitor sees what an answer looks like.
@@ -29,12 +40,12 @@ export default function Home() {
 
           <figure className="landing-sample fade-up fade-up-delay-3" aria-label="Example conversation">
             <figcaption className="landing-sample-label">Example conversation</figcaption>
-            <p className="msg-user">I didn&rsquo;t get the job I worked for all year. What was the point?</p>
-            <p className="msg-assistant">
-              The year wasn&rsquo;t wasted. In the Gita, Krishna tells Arjuna that our right is to the work
-              itself, never to its fruits. What you built in yourself this year is still yours. What would
-              you do next if the result were not the measure?
-            </p>
+            <p className="msg-user">I&rsquo;m torn between my duty and what I want.</p>
+            <p className="msg-assistant">Torn between the two. When you picture choosing what you want, whose disappointment do you see first?</p>
+            <p className="msg-user">My father&rsquo;s. He built the business for me.</p>
+            <div className="msg-assistant">
+              <MessageBubble role="assistant" content={SAMPLE_REPLY} />
+            </div>
           </figure>
 
           <p className="landing-disclaimer">

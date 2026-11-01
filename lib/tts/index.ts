@@ -99,7 +99,8 @@ const synthGoogle: Synth = async (text, opts) => {
     body: JSON.stringify({
       input: { text },
       voice: { languageCode, name: voiceName },
-      audioConfig: { audioEncoding: 'MP3' },
+      // A little slower than default: unhurried, like someone sitting with you.
+      audioConfig: { audioEncoding: 'MP3', speakingRate: Number(process.env.GOOGLE_TTS_RATE) || 0.9 },
     }),
   })
   if (!res.ok) throw new HttpError(res.status, `Google TTS ${res.status}`)

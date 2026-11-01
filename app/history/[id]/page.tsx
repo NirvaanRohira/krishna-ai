@@ -1,6 +1,7 @@
 'use client'
 import { use, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { MessageBubble } from '@/components/MessageBubble'
 
 type Msg = { role: 'user' | 'assistant'; content: string }
 
@@ -31,7 +32,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
       {data && (
         <div className="history-messages">
           {data.messages.map((m, i) => (
-            <p key={i} className={m.role === 'user' ? 'msg-user' : 'msg-assistant'}>{m.content}</p>
+            <MessageBubble key={i} role={m.role} content={m.content} />
           ))}
         </div>
       )}

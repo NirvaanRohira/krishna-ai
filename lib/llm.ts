@@ -85,6 +85,10 @@ const classifyProviderCfg = PROVIDERS[CLASSIFY_PROVIDER] ?? PROVIDERS.groq
 export const CLASSIFY_MODEL = process.env.LLM_CLASSIFY_MODEL || classifyProviderCfg.classifyModel
 const classifyFallbackCfg = FALLBACK_PROVIDER && FALLBACK_PROVIDER !== CLASSIFY_PROVIDER ? PROVIDERS[FALLBACK_PROVIDER] : undefined
 
+// Hard cap on every generated reply (cost DoS guard). A full reply with a scripture page is
+// ~450 tokens; reasoning models spend some of the budget thinking first.
+const MAX_OUTPUT_TOKENS = Number(process.env.LLM_MAX_OUTPUT_TOKENS) || 1400
+
 const DEFAULT_TIMEOUT_GEN = 15_000
 const DEFAULT_TIMEOUT_CLASSIFY = 5_000
 const DEFAULT_STREAM_IDLE = 20_000
@@ -220,7 +224,7 @@ export async function generateText(prompt: string, opts: LLMOptions = {}): Promi
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_GEN
   return withFallback(async (c, model, cfg) => {
     const completion = await raceTimeout(
-      c.chat.completions.create({ model, messages: [{ role: 'user', content: prompt }], ...extra(cfg, model) } as OpenAI.ChatCompletionCreateParamsNonStreaming),
+      c.chat.completions.create({ model, messages: [{ role: 'user', content: prompt }], max_tokens: MAX_OUTPUT_TOKENS, ...extra(cfg, model) } as OpenAI.ChatCompletionCreateParamsNonStreaming),
       timeoutMs
     )
     return completion.choices[0]?.message?.content ?? ''
@@ -235,7 +239,7 @@ export async function* generateTextStream(prompt: string, opts: LLMOptions = {})
 
   try {
     const stream = await raceTimeout(
-      getClient().chat.completions.create({ model: GENERATION_MODEL, messages, stream: true, ...extra(primary, GENERATION_MODEL) } as OpenAI.ChatCompletionCreateParamsStreaming),
+      getClient().chat.completions.create({ model: GENERATION_MODEL, messages, stream: true, max_tokens: MAX_OUTPUT_TOKENS, ...extra(primary, GENERATION_MODEL) } as OpenAI.ChatCompletionCreateParamsStreaming),
       timeoutMs
     )
     // Watchdog the consumption too: a stream that opens then stalls mid-generation
@@ -253,6 +257,7 @@ export async function* generateTextStream(prompt: string, opts: LLMOptions = {})
         model: fallbackCfg.generationModel,
         messages,
         stream: true,
+        max_tokens: MAX_OUTPUT_TOKENS,
         ...extra(fallbackCfg, fallbackCfg.generationModel),
       } as OpenAI.ChatCompletionCreateParamsStreaming)
       for await (const chunk of withStreamIdleTimeout(fallbackStream, idleMs)) {
