@@ -197,9 +197,11 @@ export async function POST(req: Request) {
         await saveExchange(supabase, sessionId, message, fullResponse, sources)
 
       } else {
-        // Emit session ID before CRAG starts so the client can track the session
-        // even when CRAG takes several seconds. Sources are emitted after.
-        await writer.write(sseChunk({ t: 's', id: sessionId }))
+        // Emit session ID before CRAG starts so the client can track the session even when
+        // CRAG takes several seconds, with the passages retrieved so far, so the scripture
+        // book can show the verse while the reply is still being written. CRAG's final
+        // choice of sources replaces these when it finishes.
+        await writer.write(sseChunk({ t: 's', id: sessionId, src: publicSources(retrievedSources ?? []) }))
         let chunksEmitted = false
         const { response, sources } = await runCRAG(
           retrievalQuery,

@@ -1,15 +1,17 @@
 import { formatSourceRef, shortSourceRef, type Source } from '@/lib/sources'
 import { splitReply, hasPage, refInSources } from '@/lib/scripture-page'
-import { ScripturePage } from '@/components/ScripturePage'
+import { ScriptureBook } from '@/components/ScriptureBook'
 
 interface MessageBubbleProps {
   role: 'user' | 'assistant'
   content: string
   streaming?: boolean
   sources?: Source[]
+  /** Play the book-opening animation (live replies); history renders it already open. */
+  animateBook?: boolean
 }
 
-export function MessageBubble({ role, content, streaming = false, sources = [] }: MessageBubbleProps) {
+export function MessageBubble({ role, content, streaming = false, sources = [], animateBook = true }: MessageBubbleProps) {
   const isThinking = role === 'assistant' && streaming && content === ''
   const cls = [
     'message-bubble',
@@ -34,7 +36,14 @@ export function MessageBubble({ role, content, streaming = false, sources = [] }
           ) : (
             // Before the citations arrive (mid-stream, or history without them) trust the
             // reference; once they're known, only show chapter and verse if it was retrieved.
-            <ScripturePage key={i} page={seg.page} verified={streaming || sources.length === 0 || refInSources(seg.page.ref, sources)} />
+            <ScriptureBook
+              key={i}
+              page={seg.page}
+              sources={sources}
+              streaming={streaming}
+              animate={animateBook}
+              verified={streaming || sources.length === 0 || refInSources(seg.page.ref, sources)}
+            />
           ),
         )
       ) : content}

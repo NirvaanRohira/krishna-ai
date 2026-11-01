@@ -32,7 +32,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
       {data && (
         <div className="history-messages">
           {data.messages.map((m, i) => (
-            <MessageBubble key={i} role={m.role} content={m.content} />
+            <MessageBubble key={i} role={m.role} content={m.content} animateBook={false} />
           ))}
         </div>
       )}

@@ -3,6 +3,13 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { MessageBubble } from '@/components/MessageBubble'
 
 // The reply format, shown as a labelled example: name the root, open one page, ask one question.
+const SAMPLE_SOURCES = [{
+  text_source: 'bhagavad_gita',
+  book_chapter: 3,
+  verse: 35,
+  text: 'śreyān svadharmo viguṇaḥ paradharmāt svanuṣṭhitāt\nsvadharme nidhanaṃ śreyaḥ paradharmo bhayāvahaḥ',
+}]
+
 const SAMPLE_REPLY = `So it isn't duty against desire. It's love for your father against the path you feel is yours.
 <page ref="bhagavad_gita chapter 3 verse 35" title="Your own path, even imperfect">
 <moment>On the field of Kurukshetra, Arjuna wanted to lay down his bow and live a life that was not his to live. He thought another path would hurt fewer people.</moment>
@@ -44,7 +51,7 @@ export default function Home() {
             <p className="msg-assistant">Torn between the two. When you picture choosing what you want, whose disappointment do you see first?</p>
             <p className="msg-user">My father&rsquo;s. He built the business for me.</p>
             <div className="msg-assistant">
-              <MessageBubble role="assistant" content={SAMPLE_REPLY} />
+              <MessageBubble role="assistant" content={SAMPLE_REPLY} sources={SAMPLE_SOURCES} />
             </div>
           </figure>
 

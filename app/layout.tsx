@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Tiro_Devanagari_Hindi, Mukta } from 'next/font/google'
+import { Tiro_Devanagari_Hindi, Mukta, IM_Fell_English, IM_Fell_English_SC } from 'next/font/google'
 import './globals.css'
 
 // Both families cover Latin AND Devanagari, so Hindi replies get real typography rather
@@ -11,6 +11,10 @@ const display = Tiro_Devanagari_Hindi({
   variable: '--font-display',
   display: 'swap',
 })
+
+// The scripture book's typeface: a 17th-century English roman, for the old-book feel.
+const book = IM_Fell_English({ weight: '400', style: ['normal', 'italic'], subsets: ['latin'], variable: '--font-book', display: 'swap' })
+const bookCaps = IM_Fell_English_SC({ weight: '400', subsets: ['latin'], variable: '--font-book-sc', display: 'swap' })
 
 const body = Mukta({
   weight: ['300', '400', '500', '600'],
@@ -38,7 +42,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     // Light ("Vrindavan dawn") is the default; a saved choice is applied before first paint
     // so there is no flash. suppressHydrationWarning: the script may change data-theme.
-    <html lang="en" data-theme="light" className={`${display.variable} ${body.variable}`} suppressHydrationWarning>
+    <html lang="en" data-theme="light" className={`${display.variable} ${body.variable} ${book.variable} ${bookCaps.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>

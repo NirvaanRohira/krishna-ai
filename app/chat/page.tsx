@@ -210,7 +210,7 @@ export default function ChatPage() {
             spokenUpTo += lastEnd + 2
           }
           flushSync(() => {
-            setMessages([...withUser, { role: 'assistant', content: assembled }])
+            setMessages([...withUser, { role: 'assistant', content: assembled, sources }])
           })
         },
         (id, src) => {
