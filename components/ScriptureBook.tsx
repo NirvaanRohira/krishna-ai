@@ -17,9 +17,10 @@ import type { Source } from '@/lib/sources'
  * Tap to skip the animation; reduced-motion users get a plain fade.
  */
 
-const COVER_MS = 900
-const LEAF_GAP_MS = 130
-const LEAF_MS = 520
+const COVER_MS = 1400   // the cover swings open on its spine
+const LEAF_GAP_MS = 260 // one leaf after another
+const LEAF_MS = 1000    // one leaf turning over
+const LEAVES_START = 0.7 // leaves begin once the cover is most of the way open
 
 function bookKind(ref: string): BookKind {
   const t = parseRef(ref).text
@@ -63,13 +64,13 @@ export function ScriptureBook({
   const kind = verified ? bookKind(page.ref) : 'other'
   const title = BOOK_TITLES[kind]
   const chapter = kind === 'gita' ? p.chapter : kind === 'bhagavatam' ? p.skandha : undefined
-  const leaves = Math.min(Math.max(chapter ?? 3, 3), 9)
+  const leaves = Math.min(Math.max(chapter ?? 3, 3), 6)
   const [skip, setSkip] = useState(false)
   // The book waits, closed, until it scrolls into view; then it opens.
   const [started, setStarted] = useState(false)
   const rootRef = useRef<HTMLElement>(null)
   const [settled, setSettled] = useState(!animate)
-  const totalMs = COVER_MS + leaves * LEAF_GAP_MS + LEAF_MS
+  const totalMs = COVER_MS * LEAVES_START + (leaves - 1) * LEAF_GAP_MS + LEAF_MS + 120
   // On a phone the book shows one page at a time and turns from the verse to the reflection.
   const [narrow, setNarrow] = useState(false)
   const [view, setView] = useState<'verse' | 'reflection'>('verse')
@@ -97,7 +98,7 @@ export function ScriptureBook({
   useEffect(() => {
     if (!animate || !started) return
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    if (!reduced) pageRustles([0.15, ...Array.from({ length: leaves }, (_, i) => (COVER_MS + i * LEAF_GAP_MS) / 1000 + 0.1)])
+    if (!reduced) pageRustles([0.15, ...Array.from({ length: leaves }, (_, i) => (COVER_MS * LEAVES_START + i * LEAF_GAP_MS) / 1000 + 0.3)])
     const t = setTimeout(() => setSettled(true), reduced ? 0 : totalMs)
     return () => clearTimeout(t)
   }, [animate, started, leaves, totalMs])
@@ -152,6 +153,7 @@ export function ScriptureBook({
     'book',
     animate && !settled ? 'book--opening' : 'book--open',
     animate && !started ? 'book--waiting' : '',
+    animate && settled ? 'book--revealed' : '',
     skip ? 'book--skip' : '',
     narrow ? `book--narrow book--show-${view}` : '',
   ].filter(Boolean).join(' ')
@@ -160,10 +162,12 @@ export function ScriptureBook({
     <figure
       ref={rootRef}
       className={cls}
-      style={{ ['--leaves' as string]: leaves, ['--cover-ms' as string]: `${COVER_MS}ms`, ['--leaf-gap' as string]: `${LEAF_GAP_MS}ms`, ['--leaf-ms' as string]: `${LEAF_MS}ms` }}
+      style={{ ['--leaves' as string]: leaves, ['--cover-ms' as string]: `${COVER_MS}ms`, ['--leaf-gap' as string]: `${LEAF_GAP_MS}ms`, ['--leaf-ms' as string]: `${LEAF_MS}ms`, ['--leaves-start' as string]: `${COVER_MS * LEAVES_START}ms`, ['--total-ms' as string]: `${totalMs}ms` }}
       onClick={() => { if (!settled) { setSkip(true); setSettled(true) } }}
       aria-label={`${title.latin}${place.heading ? `, ${place.heading}` : ''}${verified && p.verse ? `, verse ${p.verse}` : ''}`}
     >
+      <div className="book__stage">
+      <div className="book__tilt">
       <div className="book__spread">
         <section className="book__page book__page--left">
           <p className="book__running">{title.latin}</p>
@@ -224,9 +228,18 @@ export function ScriptureBook({
 
       {animate && !settled && (
         <div className="book__motion" aria-hidden="true">
+          {/* Each leaf is printed on both sides and bends as it turns: an inner half hinged
+              on the spine, and an outer half hinged on the inner one that trails behind. */}
           {Array.from({ length: leaves }, (_, i) => (
             <div key={i} className="book__leaf" style={{ ['--i' as string]: i }}>
-              <span>अध्याय {toDevanagari(i + 1)}</span>
+              <div className="leaf__half leaf__half--inner">
+                <div className="leaf__face leaf__face--front" />
+                <div className="leaf__face leaf__face--back" />
+                <div className="leaf__half leaf__half--outer">
+                  <div className="leaf__face leaf__face--front" />
+                  <div className="leaf__face leaf__face--back" />
+                </div>
+              </div>
             </div>
           ))}
           <div className="book__cover">
@@ -242,9 +255,12 @@ export function ScriptureBook({
               <p className="book__cover-title" lang="sa">{title.devanagari}</p>
               <p className="book__cover-sub">{title.latin}</p>
             </div>
+            <div className="book__cover-back" />
           </div>
         </div>
       )}
+      </div>
+      </div>
     </figure>
   )
 }

@@ -954,6 +954,7 @@ p { text-wrap: pretty; }
   --rubric: #7a2e1b;
   --gilt: #a4772b;
   --parchment-noise: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.36 0 0 0 0 0.24 0 0 0 0 0.09 0 0 0 0.11 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  --board: 12px;
   position: relative;
   container-type: inline-size;
   margin: 0.6rem 0 1.2rem;
@@ -963,11 +964,28 @@ p { text-wrap: pretty; }
 .book--opening { cursor: pointer; }
 .book__spread {
   position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  border-radius: 4px;
-  box-shadow: 0 1px 0 #b99a62, 0 3px 0 #e9d9b4, 0 5px 0 #c4a874, 0 24px 50px -22px rgba(40, 20, 0, 0.7);
+  padding: var(--board);
+  border-radius: 7px;
 }
+/* The open boards: two halves of tooled leather the pages rest on. */
+.book__spread::before, .book__spread::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  z-index: -1;
+  background:
+    var(--parchment-noise),
+    radial-gradient(ellipse at 50% 40%, #5c2e17, #2e160a);
+  /* The drop shadow lives on the boards (not the spread), so the left one can hide while the book is closed. */
+  box-shadow: inset 0 0 0 3px #2a1408, inset 0 0 0 4px rgba(201, 162, 74, 0.55), 0 26px 50px -24px rgba(40, 20, 0, 0.75), 0 8px 16px -10px rgba(40, 20, 0, 0.5);
+}
+.book__spread::before { left: 0; border-radius: 7px 2px 2px 7px; }
+.book__spread::after { right: 0; border-radius: 2px 7px 7px 2px; }
 @container (min-width: 600px) {
   .book__spread { grid-template-columns: 1fr 1fr; }
 }
@@ -981,13 +999,40 @@ p { text-wrap: pretty; }
     var(--parchment-noise),
     radial-gradient(ellipse at 50% 35%, #f8eed6 0%, #efe0bd 62%, #dfc89a 100%);
 }
-.book__page--left { border-radius: 4px 4px 0 0; box-shadow: inset 0 -16px 22px -18px rgba(90, 60, 20, 0.45); text-align: center; }
-.book__page--right { border-radius: 0 0 4px 4px; }
+/* Page-block edges: the stacked leaves show as fine lines along the fore-edge and foot. */
+.book__page--left, .book__page--right {
+  border-radius: 2px 4px 4px 2px;
+  box-shadow:
+    inset 22px 0 26px -20px rgba(90, 60, 20, 0.55),
+    1px 1px 0 #d6c294, 2px 2px 0 #f3e7c8, 3px 3px 0 #ccb385, 4px 4px 0 #efe2c2, 5px 5px 0 #b99a62;
+}
+.book__page--left { text-align: center; }
 @container (min-width: 600px) {
   .book__page { min-height: 360px; }
   .book__shloka { font-size: 1.08rem; }
-  .book__page--left { border-radius: 4px 0 0 4px; box-shadow: inset -22px 0 26px -20px rgba(90, 60, 20, 0.55); }
-  .book__page--right { border-radius: 0 4px 4px 0; box-shadow: inset 22px 0 26px -20px rgba(90, 60, 20, 0.55); }
+  .book__page--left {
+    border-radius: 4px 0 0 4px;
+    box-shadow:
+      inset -26px 0 30px -22px rgba(90, 60, 20, 0.6),
+      -1px 1px 0 #d6c294, -2px 2px 0 #f3e7c8, -3px 3px 0 #ccb385, -4px 4px 0 #efe2c2, -5px 5px 0 #b99a62;
+  }
+  .book__page--right {
+    border-radius: 0 4px 4px 0;
+    box-shadow:
+      inset 26px 0 30px -22px rgba(90, 60, 20, 0.6),
+      1px 1px 0 #d6c294, 2px 2px 0 #f3e7c8, 3px 3px 0 #ccb385, 4px 4px 0 #efe2c2, 5px 5px 0 #b99a62;
+  }
+  /* The gutter where the pages dip into the spine. */
+  .book__spread > .book__page--right::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -14px;
+    width: 28px;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgba(70, 40, 10, 0.22) 40%, rgba(50, 28, 6, 0.38) 50%, rgba(70, 40, 10, 0.22) 60%, transparent);
+  }
 }
 
 .book__running { margin: 0; font-family: var(--font-book-sc), Georgia, serif; font-size: 0.78rem; letter-spacing: 0.18em; color: var(--ink-soft); }
@@ -1028,48 +1073,66 @@ p { text-wrap: pretty; }
 .book-quill { display: inline-block; width: 1.15em; height: 1.15em; margin-left: 0.15em; vertical-align: -0.15em; color: var(--ink); transform-origin: 20% 90%; animation: quill 0.9s ease-in-out infinite; }
 @keyframes quill { 0%, 100% { transform: rotate(-6deg) translateY(0); } 50% { transform: rotate(4deg) translateY(-2px); } }
 
-/* ── Opening: cover swings open, leaves riffle past, the spread is revealed ── */
-.book__motion { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
-@container (min-width: 600px) {
-  .book__motion { left: 50%; }
-  /* The left page is already there under the cover; only its ink fades up. */
-  .book--opening .book__page--left > * { animation: bookFadeIn 600ms ease-out both; animation-delay: calc(var(--cover-ms) * 0.6); }
+/* ── Opening ────────────────────────────────────────────────────────────────
+   One 3D scene. The closed book sits centred and tilted towards you; the cover swings
+   open on its spine (sliding the book to the centre as it does), then the leaves turn
+   one by one, each printed on both sides and bending as it goes, and settle on the left.
+   Depth comes from small translateZ offsets inside one preserve-3d context, so the
+   stack order is real 3D order rather than z-index. */
+.book { perspective: 2200px; perspective-origin: 50% 20%; }
+.book__stage, .book__tilt { position: relative; transform-style: preserve-3d; }
+.book__motion {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  transform-style: preserve-3d;
 }
-.book__cover, .book__leaf { position: absolute; inset: 0; transform-origin: left center; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
-.book__cover {
-  z-index: 30;
+.book__cover, .book__leaf, .leaf__half { position: absolute; transform-origin: left center; transform-style: preserve-3d; }
+.book__cover { top: 0; bottom: 0; left: 50%; right: 0; }
+.book__leaf { top: var(--board); bottom: var(--board); left: 50%; right: var(--board); }
+.leaf__half--inner { inset: 0 45% 0 0; }
+.leaf__half--outer { top: 0; bottom: 0; left: 100%; width: 81.82%; }
+.leaf__face, .book__cover-front, .book__cover-back {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.leaf__face--back, .book__cover-back { transform: rotateY(180deg); }
+
+/* The cover: tooled leather, gilt rules and corners, raised bands on the spine. */
+.book__cover-front {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border-radius: 3px 8px 8px 3px;
+  border-radius: 2px 7px 7px 2px;
+  text-align: center;
+  color: #d9b46a;
   background:
     var(--parchment-noise),
-    radial-gradient(ellipse at 40% 35%, #6e3a1d 0%, #4a2412 55%, #2e160a 100%);
+    radial-gradient(ellipse at 40% 35%, #74401f 0%, #4a2412 55%, #2a1408 100%);
   box-shadow:
     inset 0 0 0 7px #3a1c0d, inset 0 0 0 8px #c9a24a, inset 0 0 0 13px #3a1c0d, inset 0 0 0 14px #c9a24a,
-    inset 10px 0 18px -8px rgba(0, 0, 0, 0.6), 0 20px 40px -18px rgba(0, 0, 0, 0.8);
-  animation: coverOpen var(--cover-ms) cubic-bezier(0.55, 0.05, 0.3, 1) forwards;
+    inset 12px 0 18px -8px rgba(0, 0, 0, 0.65);
 }
-.book__cover-front { position: relative; z-index: 1; text-align: center; color: #d9b46a; padding: 1rem; }
-/* Raised bands on the spine and worn, darkened edges. */
-.book__cover::before {
+.book__cover-front::before {
   content: '';
   position: absolute;
   inset: 0 auto 0 0;
-  width: 20px;
-  border-radius: 3px 0 0 3px;
+  width: 22px;
+  border-radius: 2px 0 0 2px;
   background:
     repeating-linear-gradient(180deg, transparent 0 14%, rgba(0, 0, 0, 0.45) 14% 15%, rgba(201, 162, 74, 0.55) 15% 15.6%, rgba(0, 0, 0, 0.35) 15.6% 16.4%, transparent 16.4% 20%),
-    linear-gradient(90deg, #21100a, #4a2412 70%, rgba(0, 0, 0, 0));
+    linear-gradient(90deg, #1c0d07, #4a2412 70%, rgba(0, 0, 0, 0));
 }
-.book__cover::after {
+.book__cover-front::after {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  /* gilt corner pieces + a worn vignette */
   background:
     radial-gradient(circle at 26px 26px, rgba(233, 198, 117, 0.85) 0 3px, transparent 4px),
     radial-gradient(circle at calc(100% - 26px) 26px, rgba(233, 198, 117, 0.85) 0 3px, transparent 4px),
@@ -1079,7 +1142,28 @@ p { text-wrap: pretty; }
     linear-gradient(225deg, rgba(201, 162, 74, 0.55) 0 22px, transparent 22px),
     linear-gradient(45deg, rgba(201, 162, 74, 0.55) 0 22px, transparent 22px),
     linear-gradient(315deg, rgba(201, 162, 74, 0.55) 0 22px, transparent 22px),
+    linear-gradient(115deg, rgba(255, 230, 170, 0.14) 10%, transparent 35%),
     radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0, 0, 0, 0.45) 100%);
+}
+.book__cover-front > * { position: relative; z-index: 1; }
+/* Inside of the cover: the leather turned over the board, and a madder-red endpaper
+   printed with small gold flowers. */
+.book__cover-back {
+  border-radius: 7px 2px 2px 7px;
+  background: var(--parchment-noise), radial-gradient(ellipse at 60% 40%, #5a2d16, #2e160a);
+  box-shadow: inset -12px 0 18px -8px rgba(0, 0, 0, 0.6);
+}
+.book__cover-back::before {
+  content: '';
+  position: absolute;
+  inset: var(--board);
+  border-radius: 2px;
+  background:
+    radial-gradient(circle, rgba(222, 184, 104, 0.75) 0 1.3px, transparent 1.8px) 0 0 / 16px 16px,
+    radial-gradient(circle, rgba(222, 184, 104, 0.4) 0 2.6px, transparent 3.2px) 8px 8px / 16px 16px,
+    var(--parchment-noise),
+    radial-gradient(ellipse at 50% 40%, #7d2c1a, #561b0f);
+  box-shadow: inset -16px 0 20px -12px rgba(0, 0, 0, 0.55);
 }
 .book__cover-lotus { width: 92px; height: 92px; color: #c9a24a; opacity: 0.9; }
 .book__cover-title {
@@ -1090,40 +1174,107 @@ p { text-wrap: pretty; }
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
 }
 .book__cover-sub { margin: 0; font-family: var(--font-book-sc), Georgia, serif; letter-spacing: 0.2em; font-size: 0.8rem; color: #c9a24a; }
-.book__leaf {
-  z-index: calc(20 - var(--i));
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 1.6rem;
-  border-radius: 0 4px 4px 0;
+
+/* A leaf: parchment with lines of type, shaded by the spine, darkening as it stands up. */
+.leaf__face {
   background:
-    repeating-linear-gradient(180deg, transparent 0 22px, rgba(58, 39, 22, 0.07) 22px 23px),
+    repeating-linear-gradient(180deg, transparent 0 15px, rgba(58, 39, 22, 0.13) 15px 17px, transparent 17px 24px) content-box,
     var(--parchment-noise),
-    linear-gradient(90deg, #e6d3a8, #f6ebd0 18%, #efe0bd);
-  box-shadow: inset 14px 0 18px -14px rgba(90, 60, 20, 0.5);
-  animation: leafFlip var(--leaf-ms) cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  animation-delay: calc(var(--cover-ms) * 0.75 + var(--i) * var(--leaf-gap));
+    linear-gradient(90deg, #ead9b1, #f6ebd0 30%, #efe0bd);
 }
-.book__leaf span { font-family: var(--font-display), serif; color: rgba(122, 46, 27, 0.55); font-size: 1rem; }
-/* Each layer has its own perspective (no shared 3D context), so z-index decides the stack:
-   cover on top, then leaf 0, 1, 2… Past 90° the back face is hidden and the layer vanishes. */
-@keyframes coverOpen { from { transform: perspective(1600px) rotateY(0deg); } to { transform: perspective(1600px) rotateY(-180deg); } }
-@keyframes leafFlip { from { transform: perspective(1600px) rotateY(0deg); } to { transform: perspective(1600px) rotateY(-180deg); } }
+.leaf__half--inner > .leaf__face--front { padding: 15% 0 13% 22%; box-shadow: inset 18px 0 22px -16px rgba(90, 60, 20, 0.45); }
+.leaf__half--outer > .leaf__face--front { padding: 15% 26% 13% 0; border-radius: 0 3px 3px 0; }
+.leaf__half--inner > .leaf__face--back { padding: 15% 22% 13% 0; box-shadow: inset -18px 0 22px -16px rgba(90, 60, 20, 0.45); }
+.leaf__half--outer > .leaf__face--back { padding: 15% 0 13% 26%; border-radius: 3px 0 0 3px; }
+.leaf__face::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(60, 35, 10, 0.55), rgba(60, 35, 10, 0.15));
+  opacity: 0;
+  animation: var(--leaf-ms) ease-in-out both;
+  animation-delay: inherit;
+}
+
+/* Choreography. Leaf i starts on the right, its stack height (z) above the page below it,
+   and lands on the left on top of the ones that went before it. */
+.book--opening .book__cover {
+  --z0: calc((var(--leaves) + 2) * 0.6px);
+  animation: coverOpen var(--cover-ms) cubic-bezier(0.5, 0.02, 0.22, 1) both;
+}
+.book--opening .book__leaf {
+  --z0: calc((var(--leaves) - var(--i)) * 0.6px);
+  --z1: calc((var(--i) + 2) * 0.6px);
+  animation: leafTurn var(--leaf-ms) cubic-bezier(0.45, 0.05, 0.3, 1) both;
+  animation-delay: calc(var(--leaves-start) + var(--i) * var(--leaf-gap));
+}
+.book--opening .leaf__half--outer {
+  animation: leafBend var(--leaf-ms) ease-in-out both;
+  animation-delay: calc(var(--leaves-start) + var(--i) * var(--leaf-gap));
+}
+.book--opening .leaf__half--inner > .leaf__face, .book--opening .leaf__half--outer > .leaf__face { animation-delay: calc(var(--leaves-start) + var(--i) * var(--leaf-gap)); }
+.book--opening .leaf__face--front::after { animation-name: shadeFront; }
+.book--opening .leaf__face--back::after { animation-name: shadeBack; }
+
+@keyframes coverOpen {
+  0% { transform: translateZ(var(--z0)) rotateY(0deg); }
+  45% { transform: translateZ(calc(var(--z0) + 40px)) rotateY(-95deg); }
+  100% { transform: translateZ(0.6px) rotateY(-180deg); }
+}
+@keyframes leafTurn {
+  0% { transform: translateZ(var(--z0)) rotateY(0deg); }
+  50% { transform: translateZ(calc(var(--z0) + 26px)) rotateY(-92deg); }
+  100% { transform: translateZ(var(--z1)) rotateY(-180deg); }
+}
+/* The outer half trails the inner one, so the leaf curves like paper, then flattens. */
+@keyframes leafBend {
+  0%, 100% { transform: rotateY(0deg); }
+  25% { transform: rotateY(24deg); }
+  55% { transform: rotateY(18deg); }
+  80% { transform: rotateY(6deg); }
+}
+@keyframes shadeFront { 0% { opacity: 0; } 50% { opacity: 0.85; } 100% { opacity: 0.85; } }
+@keyframes shadeBack { 0%, 50% { opacity: 0.85; } 100% { opacity: 0; } }
+
+/* Wide: the closed book sits centred (the right half slid left), tilted towards you, and
+   comes to rest flat and centred as it opens. The left page waits under the turning leaves. */
+@container (min-width: 600px) {
+  .book--opening .book__stage { animation: bookSlide var(--cover-ms) cubic-bezier(0.5, 0.02, 0.22, 1) both; }
+  .book--opening .book__tilt { animation: bookTilt var(--total-ms) cubic-bezier(0.4, 0, 0.2, 1) both; }
+  .book--opening .book__spread::before, .book--opening .book__page--left { visibility: hidden; }
+}
+@keyframes bookSlide { from { transform: translateX(-25%); } to { transform: none; } }
+@keyframes bookTilt {
+  0% { transform: rotateX(26deg) scale(0.9); }
+  40% { transform: rotateX(16deg) scale(0.95); }
+  100% { transform: none; }
+}
+/* Once open, the left page's ink comes up. */
+.book--revealed .book__page--left > * { animation: bookFadeIn 700ms ease-out both; }
 @keyframes bookFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* Phone: one page; the cover opens off to the left and the leaves follow it. */
+.book--narrow .book__cover { left: 0; }
+.book--narrow .book__leaf { left: var(--board); }
+.book--narrow.book--opening .book__tilt { animation: bookTiltNarrow var(--total-ms) cubic-bezier(0.4, 0, 0.2, 1) both; }
+@keyframes bookTiltNarrow { 0% { transform: rotateX(18deg) scale(0.94); } 100% { transform: none; } }
+
 .book--skip .book__motion { display: none; }
-.book--waiting .book__cover, .book--waiting .book__leaf, .book--waiting .book__page--left > * { animation-play-state: paused; }
+.book--skip .book__stage, .book--skip .book__tilt { animation: none !important; }
+.book--skip .book__spread::before, .book--skip .book__page--left { visibility: visible !important; }
+.book--waiting *, .book--waiting *::after { animation-play-state: paused !important; }
 @media (prefers-reduced-motion: reduce) {
   .book__motion { display: none; }
+  .book__stage, .book__tilt { animation: none !important; }
+  .book--opening .book__spread::before, .book--opening .book__page--left { visibility: visible; }
   .book-quill { animation: none; }
 }
 
 /* Night theme: the book sits in a pool of candle light. */
 :root:not([data-theme='light']) .book__spread, .theme-night .book__spread {
-  box-shadow: 0 1px 0 #b99a62, 0 3px 0 #e9d9b4, 0 5px 0 #c4a874, 0 0 60px -10px rgba(233, 187, 98, 0.35), 0 24px 50px -22px rgba(0, 0, 0, 0.9);
+  box-shadow: 0 0 70px -10px rgba(233, 187, 98, 0.35), 0 26px 50px -22px rgba(0, 0, 0, 0.9);
 }
 
 /* Wet ink: each new word darkens in as it is written. */
@@ -1131,16 +1282,12 @@ p { text-wrap: pretty; }
 @keyframes inkIn { from { opacity: 0; filter: blur(1.5px); color: #8a6a3e; } to { opacity: 1; filter: none; } }
 
 /* Phone: one page at a time; the page turns from the verse to the reflection. */
-.book--narrow.book--open .book__page { display: none; }
+.book--narrow .book__page { display: none; }
+.book--narrow.book--show-verse .book__page--left,
+.book--narrow.book--show-reflection .book__page--right { display: block; transform-origin: left center; }
 .book--narrow.book--open.book--show-verse .book__page--left,
-.book--narrow.book--open.book--show-reflection .book__page--right {
-  display: block;
-  border-radius: 3px 8px 8px 3px;
-  box-shadow: inset 16px 0 22px -18px rgba(90, 60, 20, 0.55);
-  transform-origin: left center;
-  animation: pageTurnIn 650ms cubic-bezier(0.3, 0.1, 0.2, 1) both;
-}
-@keyframes pageTurnIn { from { transform: perspective(1600px) rotateY(-70deg); opacity: 0.3; } to { transform: none; opacity: 1; } }
+.book--narrow.book--open.book--show-reflection .book__page--right { animation: pageTurnIn 700ms cubic-bezier(0.3, 0.1, 0.2, 1) both; }
+@keyframes pageTurnIn { from { transform: perspective(1600px) rotateY(-80deg); box-shadow: inset 60px 0 60px -20px rgba(60, 35, 10, 0.5); } to { transform: none; } }
 .book__turn { display: flex; justify-content: space-between; gap: 0.5rem; margin-top: 0.6rem; }
 .book__turn button {
   flex: 1;
