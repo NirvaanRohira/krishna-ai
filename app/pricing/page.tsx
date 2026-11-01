@@ -3,6 +3,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { PRODUCTS, rupees } from '@/lib/payments/catalog'
+import { usePlan, formatPlanDate, PLAN_NAMES } from '@/hooks/usePlan'
 
 // Razorpay Standard Checkout. checkout.js is loaded only when someone taps "Buy", so the
 // rest of the site never loads third-party payment code.
@@ -42,6 +43,9 @@ export default function PricingPage() {
   const router = useRouter()
   const [busy, setBusy] = useState<string | null>(null)
   const [status, setStatus] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
+  const current = usePlan()
+  const RANK: Record<string, number> = { free: 0, plus: 1, premium: 2 }
+  const currentRank = RANK[current.plan] ?? 0
 
   async function buy(productId: string) {
     setStatus(null)
@@ -79,6 +83,7 @@ export default function PricingPage() {
           const data = v ? await v.json().catch(() => ({})) : {}
           setBusy(null)
           if (v?.ok && data.ok) {
+            current.refresh()
             const until = data.validUntil ? ` until ${new Date(data.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}` : ''
             setStatus({ kind: 'ok', text: `Thank you. You're on ${data.plan === 'premium' ? 'Premium' : 'Plus'}${until}.` })
           } else {
@@ -107,6 +112,14 @@ export default function PricingPage() {
       <p>Kanha is an AI guide to the Gita, shown in Krishna&rsquo;s likeness. It is not God and not Krishna. Every conversation costs us real compute, so free use is capped.</p>
       <p><strong>No auto-renewal.</strong> You pay once for 30 days or a year. Nothing is charged again unless you choose to buy again, and buying again adds to your remaining time.</p>
 
+      {current.loaded && current.plan !== 'free' && (
+        <p className="pricing-current">
+          You&rsquo;re on <strong>{PLAN_NAMES[current.plan] ?? current.plan}</strong>
+          {current.validUntil ? <> until <strong>{formatPlanDate(current.validUntil)}</strong></> : null}.
+          {' '}Buying again adds to your remaining time.
+        </p>
+      )}
+
       {status && (
         <p role={status.kind === 'error' ? 'alert' : 'status'} className={status.kind === 'error' ? 'auth-error pricing-status' : 'pricing-status pricing-status-ok'}>
           {status.text}
@@ -116,13 +129,20 @@ export default function PricingPage() {
       <div className="plan-grid">
         {PLANS.map((p) => {
           const products = PRODUCTS.filter((x) => x.plan === p.plan)
+          const isCurrent = current.loaded && current.plan === p.plan
+          // A lower plan is already included while a higher one is active.
+          const included = current.loaded && (RANK[p.plan] ?? 0) < currentRank
+          const featured = current.plan === 'free' ? p.plan === 'plus' : isCurrent
           return (
-            <section key={p.plan} className={`plan-card${p.plan === 'plus' ? ' plan-card-featured' : ''}`} aria-labelledby={`plan-${p.plan}`}>
+            <section key={p.plan} className={`plan-card${featured ? ' plan-card-featured' : ''}`} aria-labelledby={`plan-${p.plan}`}>
+              {isCurrent && <span className="plan-badge">Your plan</span>}
               <h2 id={`plan-${p.plan}`}>{p.name}</h2>
               <p className="plan-blurb">{p.blurb}</p>
               <ul>{p.features.map((f) => <li key={f}>{f}</li>)}</ul>
               {products.length === 0 ? (
                 <p className="plan-price">{rupees(0)}</p>
+              ) : included ? (
+                <p className="plan-price plan-included">Included in your {PLAN_NAMES[current.plan] ?? ''} plan</p>
               ) : products.map((x) => (
                 <button
                   key={x.id}
@@ -131,7 +151,7 @@ export default function PricingPage() {
                   disabled={busy !== null}
                   onClick={() => buy(x.id)}
                 >
-                  {busy === x.id ? 'Opening…' : `${rupees(x.amountPaise)} · ${x.days >= 365 ? '1 year' : '30 days'}`}
+                  {busy === x.id ? 'Opening…' : `${isCurrent ? 'Extend · ' : ''}${rupees(x.amountPaise)} · ${x.days >= 365 ? '1 year' : '30 days'}`}
                 </button>
               ))}
             </section>

@@ -2,6 +2,11 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import React from 'react'
 
+vi.mock('@/hooks/usePlan', () => ({
+  usePlan: () => ({ plan: 'free', validUntil: null, signedIn: true, loaded: true, refresh: () => {} }),
+  formatPlanDate: () => '',
+  PLAN_NAMES: { free: 'Free', plus: 'Plus', premium: 'Premium' },
+}))
 vi.mock('@/lib/supabase', () => ({
   createBrowserSupabaseClient: () => ({
     auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'u1' } } }) },

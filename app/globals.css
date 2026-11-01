@@ -283,6 +283,7 @@ p { text-wrap: pretty; }
   transition: color 160ms, background-color 160ms, border-color 160ms;
 }
 .icon-btn:hover { color: var(--ink); background: var(--tint); }
+.icon-btn[data-paid='true'] { color: var(--gold-text); }
 .icon-btn[aria-pressed='true'] { color: var(--gold-text); border-color: var(--gold-line); background: var(--gold-soft); }
 
 /* ── Motion ──────────────────────────────────────────────────────────────── */
@@ -635,6 +636,8 @@ p { text-wrap: pretty; }
   color: var(--ink-3);
 }
 .message-sources summary::-webkit-details-marker { display: none; }
+.message-sources--refs { margin-bottom: 0; font-size: 0.85rem; color: var(--ink-3); }
+.message-sources--refs .src-ref { font-family: var(--font-display), Georgia, serif; font-style: italic; color: var(--ink-2); }
 .message-sources summary:hover { color: var(--ink-2); }
 .message-sources .src-ref { font-family: var(--font-display), Georgia, serif; font-style: italic; color: var(--ink-2); }
 .message-sources[open] summary { margin-bottom: 0.6rem; }
@@ -907,7 +910,11 @@ p { text-wrap: pretty; }
 .plan-grid { display: grid; gap: 1rem; margin-top: 1.5rem; grid-template-columns: 1fr; }
 @media (min-width: 760px) { .plan-grid { grid-template-columns: repeat(3, 1fr); } }
 .plan-card { display: flex; flex-direction: column; gap: 0.6rem; padding: 1.4rem 1.25rem; border: 1px solid var(--hairline); border-radius: var(--radius-m); background: var(--night-2); }
+.plan-card { position: relative; }
 .plan-card h2 { margin: 0; font-size: 1.5rem; }
+.plan-badge { position: absolute; top: 1rem; right: 1rem; padding: 0.15rem 0.6rem; border-radius: var(--radius-pill); background: var(--gold-soft); border: 1px solid var(--gold-line); color: var(--gold-text); font-size: 0.78rem; font-weight: 500; }
+.plan-included { font-size: 0.95rem; color: var(--ink-3); }
+.pricing-current { margin: 1.25rem 0 0; padding: 0.8rem 1rem; border: 1px solid var(--gold-line); border-radius: var(--radius-s); background: var(--gold-soft); color: var(--ink); }
 .plan-card ul { flex: 1; margin: 0.25rem 0 0.75rem; }
 .plan-card-featured { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold-soft); }
 .plan-blurb { margin: 0; color: var(--ink-3); }

@@ -3,6 +3,11 @@ import { render, act } from '@testing-library/react'
 import React from 'react'
 
 // ── Mock all ChatPage dependencies ───────────────────────────────────────────
+vi.mock('@/hooks/usePlan', () => ({
+  usePlan: () => ({ plan: 'free', validUntil: null, signedIn: true, loaded: true, refresh: () => {} }),
+  formatPlanDate: () => '',
+  PLAN_NAMES: { free: 'Free', plus: 'Plus', premium: 'Premium' },
+}))
 vi.mock('@/lib/supabase', () => ({
   createBrowserSupabaseClient: () => ({
     auth: {

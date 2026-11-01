@@ -18,10 +18,10 @@ describe('getGuardrailResponse', () => {
     expect(res!.toLowerCase()).toContain('doctor')
   })
 
-  it('returns LEGAL_FINANCIAL response mentioning a professional', () => {
+  it('returns LEGAL_FINANCIAL response pointing to an adviser or lawyer', () => {
     const res = getGuardrailResponse('LEGAL_FINANCIAL')
     expect(res).toBeDefined()
-    expect(res!.toLowerCase()).toContain('professional')
+    expect(res!.toLowerCase()).toMatch(/adviser|lawyer/)
   })
 
   it('returns DIVINITY_CLAIM response mentioning AI', () => {

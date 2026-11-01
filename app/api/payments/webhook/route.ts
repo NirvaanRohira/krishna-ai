@@ -23,6 +23,8 @@ type Event = {
 export async function POST(req: Request) {
   const raw = await req.text()
   if (!verifyWebhookSignature(raw, req.headers.get('x-razorpay-signature'))) {
+    // Usually a webhook secret mismatch, or a webhook created in the other mode (test vs live).
+    log.warn('payments', 'webhook signature rejected', { hasSignature: Boolean(req.headers.get('x-razorpay-signature')), secretSet: Boolean(process.env.RAZORPAY_WEBHOOK_SECRET) })
     return NextResponse.json({ error: 'bad signature' }, { status: 400 })
   }
   let evt: Event

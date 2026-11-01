@@ -26,14 +26,14 @@ export function MessageBubble({ role, content, streaming = false, sources = [] }
           <span /><span /><span />
         </span>
       ) : content}
-      {showSources && (
+      {showSources && (sources.some((s) => s.text) ? (
         <details className="message-sources">
           <summary>
-            Drawn from
+            Drawn from{' '}
             {sources.slice(0, 4).map((s, i) => (
-              <span key={i} className="src-ref">{shortSourceRef(s)}{i < Math.min(sources.length, 4) - 1 ? ',' : ''}</span>
+              <span key={i} className="src-ref">{shortSourceRef(s)}{i < Math.min(sources.length, 4) - 1 ? ', ' : ''}</span>
             ))}
-            {sources.length > 4 && <span>+{sources.length - 4}</span>}
+            {sources.length > 4 && <span> +{sources.length - 4}</span>}
           </summary>
           <ol>
             {sources.map((s, i) => (
@@ -44,7 +44,16 @@ export function MessageBubble({ role, content, streaming = false, sources = [] }
             ))}
           </ol>
         </details>
-      )}
+      ) : (
+        // Verse text is withheld until licensing is settled (SHOW_VERSE_TEXT): show the
+        // references as a plain line rather than an expandable list with nothing in it.
+        <p className="message-sources message-sources--refs">
+          Drawn from{' '}
+          {sources.map((s, i) => (
+            <span key={i} className="src-ref">{shortSourceRef(s)}{i < sources.length - 1 ? ', ' : ''}</span>
+          ))}
+        </p>
+      ))}
     </div>
   )
 }

@@ -23,12 +23,16 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // ── Only guard /chat and /account ──────────────────────────────
-  if (!pathname.startsWith('/chat') && !pathname.startsWith('/account')) {
+  // ── Only guard /chat and /account; send signed-in visitors past /login ──
+  const isLogin = pathname === '/login'
+  if (!pathname.startsWith('/chat') && !pathname.startsWith('/account') && !isLogin) {
     return NextResponse.next()
   }
 
-  const response = NextResponse.next()
+  // Supabase's recommended pattern: refreshed tokens are written to BOTH the request
+  // (so this request sees them) and the response (so the browser keeps them). Losing a
+  // rotated refresh token signs the user out, so redirects below carry the cookies too.
+  let response = NextResponse.next({ request })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -37,19 +41,23 @@ export async function proxy(request: NextRequest) {
       cookies: {
         getAll: () => request.cookies.getAll(),
         setAll: (cookiesToSet) => {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options)
-          })
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          response = NextResponse.next({ request })
+          cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options))
         },
       },
     }
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return NextResponse.redirect(new URL('/login', request.url))
+  const redirectTo = (path: string) => {
+    const r = NextResponse.redirect(new URL(path, request.url))
+    response.cookies.getAll().forEach((c) => r.cookies.set(c))
+    return r
   }
+
+  if (isLogin) return user ? redirectTo('/chat') : response
+  if (!user) return redirectTo('/login')
 
   // ── Onboarding gate ───────────────────────────────────────────
   // Also catches people who onboarded before the current terms (and the 18+ / consent
@@ -64,17 +72,17 @@ export async function proxy(request: NextRequest) {
   // gate (onboarding_complete only) instead of locking everyone out.
   if (isMissingColumn(profileError)) {
     const { data: legacy } = await supabase.from('user_profiles').select('onboarding_complete').eq('user_id', user.id).single()
-    if (!legacy?.onboarding_complete) return NextResponse.redirect(new URL('/onboarding', request.url))
+    if (!legacy?.onboarding_complete) return redirectTo('/onboarding')
     return response
   }
 
   if (!profile?.onboarding_complete || profile.terms_version !== TERMS_VERSION) {
-    return NextResponse.redirect(new URL('/onboarding', request.url))
+    return redirectTo('/onboarding')
   }
 
   return response
 }
 
 export const config = {
-  matcher: ['/chat', '/chat/:path*', '/account', '/api/:path*'],
+  matcher: ['/chat', '/chat/:path*', '/account', '/login', '/api/:path*'],
 }

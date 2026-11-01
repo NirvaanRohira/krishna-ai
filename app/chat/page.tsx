@@ -10,6 +10,7 @@ import { useTTS } from '@/hooks/useTTS'
 import { cleanSources, type Source } from '@/lib/sources'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { usePlan, formatPlanDate, PLAN_NAMES } from '@/hooks/usePlan'
 
 type Message = { role: 'user' | 'assistant'; content: string; sources?: Source[] }
 
@@ -47,6 +48,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const plan = usePlan()
   // Avatar mode: real-time 3D Krishna rendered on-device, lip-synced to the TTS audio.
   const [videoMode, setVideoMode] = useState(false)
   const router = useRouter()
@@ -286,8 +288,15 @@ export default function ChatPage() {
           </svg>
         </button>
         <ThemeToggle />
-        <Link href="/pricing" className="icon-btn" aria-label="Plans and pricing" title="Plans">
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <Link
+          href="/pricing"
+          className="icon-btn"
+          aria-label={plan.plan === 'free' ? 'Plans and pricing' : `${PLAN_NAMES[plan.plan] ?? plan.plan} plan${plan.validUntil ? ` until ${formatPlanDate(plan.validUntil)}` : ''}`}
+          title={plan.plan === 'free' ? 'Plans' : `${PLAN_NAMES[plan.plan] ?? plan.plan}${plan.validUntil ? ` until ${formatPlanDate(plan.validUntil)}` : ''}`}
+          aria-current={plan.plan !== 'free' ? 'true' : undefined}
+          data-paid={plan.plan !== 'free' ? 'true' : undefined}
+        >
+          <svg width="19" height="19" viewBox="0 0 24 24" fill={plan.plan !== 'free' ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" />
           </svg>
         </Link>

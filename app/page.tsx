@@ -23,7 +23,7 @@ export default function Home() {
             face to face, in English, Hindi or your own language.
           </p>
 
-          <Link href="/login" className="btn-primary landing-begin fade-up fade-up-delay-2">
+          <Link href="/chat" className="btn-primary landing-begin fade-up fade-up-delay-2">
             Begin a conversation
           </Link>
 
