@@ -921,3 +921,15 @@ p { text-wrap: pretty; }
 .plan-price { margin: 0; font-size: 1.2rem; color: var(--ink); }
 .pricing-status { margin: 1.25rem 0 0; text-align: left; }
 .pricing-status-ok { color: var(--peacock-text); }
+
+/* ── Past conversations ───────────────────────────────────── */
+.history-list { list-style: none; margin: 1.25rem 0 0; padding: 0; border-top: 1px solid var(--hairline); }
+.history-list li { border-bottom: 1px solid var(--hairline); }
+.history-item { display: flex; flex-direction: column; gap: 0.2rem; padding: 0.9rem 0.25rem; color: var(--ink); text-decoration: none; transition: padding-left 220ms var(--ease-out); }
+.history-item:hover { color: var(--ink); padding-left: 0.6rem; }
+.history-preview { font-size: 1rem; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.history-meta { font-size: 0.82rem; color: var(--ink-3); }
+.history-messages { display: flex; flex-direction: column; gap: 1.4rem; margin-top: 1.5rem; white-space: pre-wrap; }
+.history-messages .msg-user { margin: 0; }
+.history-messages .msg-assistant { margin: 0; animation: none; }
+.history-continue { margin-top: 2rem; }

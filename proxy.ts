@@ -25,7 +25,7 @@ export async function proxy(request: NextRequest) {
 
   // ── Only guard /chat and /account; send signed-in visitors past /login ──
   const isLogin = pathname === '/login'
-  if (!pathname.startsWith('/chat') && !pathname.startsWith('/account') && !isLogin) {
+  if (!pathname.startsWith('/chat') && !pathname.startsWith('/account') && !pathname.startsWith('/history') && !isLogin) {
     return NextResponse.next()
   }
 
@@ -84,5 +84,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/chat', '/chat/:path*', '/account', '/login', '/api/:path*'],
+  matcher: ['/chat', '/chat/:path*', '/account', '/history', '/history/:path*', '/login', '/api/:path*'],
 }
