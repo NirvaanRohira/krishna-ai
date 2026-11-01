@@ -151,6 +151,13 @@ describe('chat turn, memory clearing, retention', () => {
     expect(t.rows[0].turn_count).toBe(1)
   })
 
+  it('save_exchange stores the reply after the question, so history reads back in order (20261104000000)', async () => {
+    const s = await asUser(db, D, () => db.query<{ id: string }>('insert into sessions (user_id) values ($1) returning id', [D]))
+    for (const n of [1, 2, 3]) await asUser(db, D, () => db.query(`select save_exchange($1, $2, $3)`, [s.rows[0].id, `q${n}`, `a${n}`]))
+    const m = await db.query<{ content: string }>('select content from messages where session_id = $1 order by created_at', [s.rows[0].id])
+    expect(m.rows.map((r) => r.content)).toEqual(['q1', 'a1', 'q2', 'a2', 'q3', 'a3'])
+  })
+
   it('save_exchange into someone else’s session fails and writes nothing', async () => {
     const s = await asUser(db, A, () => db.query<{ id: string }>('insert into sessions (user_id) values ($1) returning id', [A]))
     await expect(asUser(db, D, () => db.query(`select save_exchange($1, 'q', 'a')`, [s.rows[0].id]))).rejects.toThrow()

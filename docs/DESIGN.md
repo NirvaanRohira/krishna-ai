@@ -29,6 +29,7 @@ The model writes the page as `<page ref="…" title="…"><moment/><teaching/><l
 - **The AI label is part of the design, not fine print:** the disclaimer line sits under the chat header, "AI depiction · not divine" sits on the avatar, and the landing page says it in plain words. Never hide or shrink these below `--ink-3` at 0.72rem.
 - **Icons:** hand-authored SVG at a 1.6 stroke weight. No emoji as icons. The brand mark is a peacock-feather eye (`components/Mark.tsx`).
 - **Proof over claims:** answers show "Drawn from" verse citations. The landing page shows a labelled example conversation.
+- **Share cards carry the label too:** a shared page (1080×1350, drawn on the device in `lib/share-card.ts`) always ends with "A reflection written by AI. Not God, not Krishna." It carries the verse, title, teaching and practice only; the personal "In your life" section never leaves the app.
 
 ## Tokens
 

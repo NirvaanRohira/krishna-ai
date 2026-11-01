@@ -2,6 +2,7 @@
 import { useEffect, useRef } from 'react'
 import { MessageBubble } from '@/components/MessageBubble'
 import { InputBar } from '@/components/InputBar'
+import { TodaysVerse } from '@/components/TodaysVerse'
 import type { Source } from '@/lib/sources'
 
 interface Message {
@@ -59,7 +60,7 @@ export function ChatWindow({ messages, onSend, loading }: ChatWindowProps) {
               </li>
             ))}
           </ul>
-          <a href="/verse" className="chat-window__verse-link fade-up fade-up-delay-3">Open today&rsquo;s verse <Arrow /></a>
+          <TodaysVerse onReflect={onSend} disabled={loading} />
         </div>
       ) : (
         <div className="chat-window__messages" aria-live="polite">

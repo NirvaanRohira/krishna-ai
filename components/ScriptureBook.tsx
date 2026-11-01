@@ -4,6 +4,7 @@ import { parseRef, refInSources, toDevanagari, type ScripturePage } from '@/lib/
 import { formatShloka, iastToDevanagari } from '@/lib/devanagari'
 import { GITA_CHAPTERS, BOOK_TITLES, type BookKind } from '@/lib/scripture-meta'
 import { pageRustles } from '@/lib/sfx'
+import { shareCard } from '@/lib/share-card'
 import type { Source } from '@/lib/sources'
 
 /**
@@ -128,6 +129,25 @@ export function ScriptureBook({
   }, [narrow, animate, settled, userTurned, view, lastFilled])
   const turnTo = (v: 'verse' | 'reflection') => { setUserTurned(true); setView(v) }
 
+  const folio = verified && p.verse ? (kind === 'gita' ? `${p.chapter}.${p.verse}` : kind === 'bhagavatam' ? `${p.skandha}.${p.chapter}.${p.verse}` : '') : ''
+  const [sharing, setSharing] = useState<'idle' | 'busy' | 'saved' | 'failed'>('idle')
+  const canShare = settled && page.complete && Boolean(page.title && page.teaching)
+  const onShare = async () => {
+    setSharing('busy')
+    try {
+      const heading = kind === 'gita' && p.chapter
+        ? `Adhyāya ${p.chapter}${verified && p.verse ? ` · Verse ${p.verse}` : ''}`
+        : kind === 'bhagavatam' && p.skandha ? `Skandha ${p.skandha} · Chapter ${p.chapter ?? ''}${p.verse ? ` · Verse ${p.verse}` : ''}` : 'From the teachings'
+      const r = await shareCard(
+        { bookLatin: title.latin, heading, folio, shloka, verseMark, title: page.title, teaching: page.teaching, practice: page.practice, site: window.location.host },
+        `kanha-${(folio || 'page').replace(/\./g, '-')}.png`,
+      )
+      setSharing(r === 'downloaded' ? 'saved' : 'idle')
+    } catch {
+      setSharing('failed')
+    }
+  }
+
   const cls = [
     'book',
     animate && !settled ? 'book--opening' : 'book--open',
@@ -163,7 +183,7 @@ export function ScriptureBook({
           ) : null}
           {page.title && <h3 className="book__title">{page.title}</h3>}
           {page.teaching && <p className="book__essence">{page.teaching}</p>}
-          {verified && p.verse && <p className="book__folio">{kind === 'gita' ? `${p.chapter}.${p.verse}` : kind === 'bhagavatam' ? `${p.skandha}.${p.chapter}.${p.verse}` : ''}</p>}
+          {folio && <p className="book__folio">{folio}</p>}
         </section>
 
         <section className="book__page book__page--right">
@@ -187,6 +207,19 @@ export function ScriptureBook({
           <button type="button" aria-pressed={view === 'verse'} onClick={() => turnTo('verse')}>‹ The verse</button>
           <button type="button" aria-pressed={view === 'reflection'} onClick={() => turnTo('reflection')}>For you ›</button>
         </nav>
+      )}
+
+      {canShare && (
+        <div className="book__share">
+          <button type="button" onClick={(e) => { e.stopPropagation(); void onShare() }} disabled={sharing === 'busy'}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 3v12M7 8l5-5 5 5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" />
+            </svg>
+            {sharing === 'busy' ? 'Making the card…' : 'Share this page'}
+          </button>
+          {sharing === 'saved' && <span role="status">Saved as an image. Post it anywhere.</span>}
+          {sharing === 'failed' && <span role="status">Couldn&rsquo;t make the image on this device.</span>}
+        </div>
       )}
 
       {animate && !settled && (

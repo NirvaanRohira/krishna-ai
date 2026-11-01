@@ -10,7 +10,7 @@ function keyBytes(base64: string): Uint8Array {
 type State = 'unsupported' | 'ios-install' | 'off' | 'on' | 'blocked' | 'busy'
 
 /** "Send me the verse each morning": browser permission + a stored subscription. One tap off. */
-export function DailyVerseToggle() {
+export function DailyVerseToggle({ compact = false }: { compact?: boolean } = {}) {
   const [state, setState] = useState<State>('busy')
   const [msg, setMsg] = useState<string | null>(null)
 
@@ -57,6 +57,17 @@ export function DailyVerseToggle() {
     await sub?.unsubscribe().catch(() => {})
     setState('off')
     setMsg('Turned off. No more morning notifications.')
+  }
+
+  // Inside today's-verse card: just the offer, only when it can be taken up.
+  if (compact) {
+    if (state !== 'off' && !msg) return null
+    return (
+      <div className="verse-toggle verse-toggle--compact">
+        {state === 'off' && <button type="button" onClick={turnOn}>Send me one each morning</button>}
+        {msg && <p className="verse-toggle__note" role="status">{msg}</p>}
+      </div>
+    )
   }
 
   return (

@@ -59,4 +59,26 @@ describe('reply language', () => {
     // stated right before the answer, after the seeker's message
     expect(prompt.trimEnd().split('\n').slice(-2)[0]).toMatch(/Hindi/)
   })
+
+  it('opens the page on the reply after the root question, not later', async () => {
+    const { journeyLine, buildPrompt } = await import('@/lib/prompts/chat')
+    const q = { role: 'assistant' as const, content: 'Torn. Whose face do you see disappointed?' }
+    const u = { role: 'user' as const, content: 'I am torn' }
+    // First turn, short message: room for one question.
+    expect(journeyLine([], 'I am torn', true)).toBe('')
+    // First turn, but they have said a lot already: open now.
+    expect(journeyLine([], 'My father wants me to take over the shop but I have wanted to teach music since I was a child and I cannot sleep', true)).toMatch(/open the page/)
+    // They answered the question: open now.
+    expect(journeyLine([u, q], 'everything', true)).toMatch(/open the page/)
+    // No passages retrieved: no page is possible.
+    expect(journeyLine([u, q], 'everything', false)).toBe('')
+    // Right after a page, let the conversation breathe for two turns.
+    const page = { role: 'assistant' as const, content: '<page ref="x" title="t"><moment>m</moment></page> What next?' }
+    expect(journeyLine([u, q, u, page], 'ok', true)).toBe('')
+    expect(journeyLine([u, q, u, page, u, q], 'ok', true)).toBe('')
+    expect(journeyLine([u, q, u, page, u, q, u, q], 'ok', true)).toMatch(/open the page/)
+    // It sits just before the reply, after the seeker's message.
+    const p = buildPrompt([{ text_source: 'bhagavad_gita', book_chapter: 2, verse: 47, text: 't' } as never], [u, q], 'everything')
+    expect(p.lastIndexOf('Now open the page')).toBeGreaterThan(p.indexOf('Seeker: everything'))
+  })
 })

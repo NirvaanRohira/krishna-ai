@@ -38,6 +38,27 @@ export function replyLanguageLine(message: string): string {
   return name ? `[Write your entire reply in ${name}: the reflection, the question, and every part of a page except its ref.]` : ''
 }
 
+/**
+ * When to open the book is decided here, not left to the model: left alone it kept asking
+ * "one more question" and the page never opened. One question to find the root, then the
+ * page. A seeker who has already said a lot gets the page straight away. After a page,
+ * the conversation can breathe for a couple of turns before the next one.
+ * Only applies when passages were retrieved (no sources means no page is possible).
+ */
+export function journeyLine(history: Message[], message: string, hasSources: boolean): string {
+  if (!hasSources) return ''
+  let since = 0
+  let hadPage = false
+  for (const m of history) {
+    if (m.role !== 'assistant') continue
+    if (m.content.includes('<page')) { hadPage = true; since = 0 } else since++
+  }
+  const words = message.trim().split(/\s+/).filter(Boolean).length
+  const due = hadPage ? since >= 2 : since >= 1 || words >= 18
+  if (!due) return ''
+  return '[Now open the page. You know enough. In one or two sentences name what is underneath, in the seeker\'s own words, then write exactly one <page ref="..." title="..."> with <moment>, <teaching>, <life> and <practice>, exactly in the format above, using a REFERENCE from the retrieved context, then one closing question. Do not ask another question before the page. Skip the page only if this message is a greeting, light small talk, or something outside your domain.]'
+}
+
 export function buildPrompt(
   sources: RRFResult[],
   history: Message[],
@@ -67,6 +88,7 @@ export function buildPrompt(
     '',
     historyBlock,
     `Seeker: ${message}`,
+    journeyLine(history, message, sources.length > 0),
     replyLanguageLine(message),
     'Yogi:',
   ]

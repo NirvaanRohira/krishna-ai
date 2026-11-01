@@ -548,7 +548,7 @@ p { text-wrap: pretty; }
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: safe center;
   padding: 2rem 1.25rem 1rem;
 }
 .chat-window__empty-title {
@@ -1162,5 +1162,57 @@ p { text-wrap: pretty; }
 .verse-toggle { display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-start; margin: 0.6rem 0 1rem; }
 .verse-toggle__note { margin: 0; font-size: 0.92rem; color: var(--ink-2); }
 
-.chat-window__verse-link { display: inline-flex; align-items: center; gap: 0.4rem; margin-top: 1.4rem; font-family: var(--font-book-sc), Georgia, serif; letter-spacing: 0.06em; color: var(--gold-text); text-decoration: none; }
-.chat-window__verse-link:hover { text-decoration: underline; }
+/* Today's verse as a bookmark on the chat's first screen. */
+.todays-verse {
+  margin-top: 1.6rem;
+  padding: 1.1rem 1.2rem 1rem;
+  border-radius: 6px;
+  color: #3a2716;
+  font-family: var(--font-book), Georgia, serif;
+  background: radial-gradient(ellipse at 50% 30%, #f8eed6 0%, #efe0bd 70%, #e3cd9f 100%);
+  box-shadow: 0 1px 0 #c4a874, 0 14px 30px -20px rgba(40, 20, 0, 0.6);
+  border-left: 4px solid #7a2e1b;
+}
+.todays-verse__eyebrow { margin: 0; font-family: var(--font-book-sc), Georgia, serif; font-size: 0.8rem; letter-spacing: 0.12em; color: #7a2e1b; }
+.todays-verse__title { margin: 0.3rem 0 0.35rem; font-family: var(--font-book), Georgia, serif; font-size: 1.45rem; font-weight: 400; line-height: 1.2; }
+.todays-verse__teaching { margin: 0; font-size: 1rem; line-height: 1.55; font-style: italic; color: #4b3620; }
+.todays-verse .book { margin-top: 0.8rem; }
+.todays-verse__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.9rem; }
+.todays-verse__actions button {
+  min-height: 40px;
+  padding: 0 1rem;
+  border-radius: 999px;
+  font-family: var(--font-book-sc), Georgia, serif;
+  letter-spacing: 0.06em;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+.todays-verse__open { border: 1px solid rgba(122, 46, 27, 0.35); background: transparent; color: #7a2e1b; }
+.todays-verse__reflect { border: 1px solid #7a2e1b; background: #7a2e1b; color: #f6ebd0; }
+.todays-verse__reflect:disabled { opacity: 0.6; cursor: default; }
+
+.verse-toggle--compact { margin: 0.7rem 0 0; }
+.verse-toggle--compact button { padding: 0; border: 0; background: none; color: #7a2e1b; font: inherit; font-size: 0.92rem; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.todays-verse .verse-toggle__note { color: #4b3620; }
+
+/* Share a page as an image. */
+.book__share { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin-top: 0.7rem; }
+.book__share button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 40px;
+  padding: 0 1rem;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--gold-text);
+  font-family: var(--font-book-sc), Georgia, serif;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+.book__share button:hover { border-color: var(--hairline-hover); }
+.book__share button:disabled { opacity: 0.6; cursor: progress; }
+.book__share span { font-size: 0.86rem; color: var(--ink-2); }
+.todays-verse .book__share button { color: #7a2e1b; border-color: rgba(122, 46, 27, 0.35); }
+.todays-verse .book__share span { color: #4b3620; }

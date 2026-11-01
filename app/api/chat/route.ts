@@ -8,7 +8,7 @@ import { classifyMessage } from '@/lib/guardrails/classifier'
 import { getGuardrailResponse } from '@/lib/guardrails/responses'
 import { parallelRetrieve } from '@/lib/retrieval/parallelRetrieval'
 import { runCRAG } from '@/lib/crag/loop'
-import { buildPrompt } from '@/lib/prompts/chat'
+import { buildPrompt, journeyLine } from '@/lib/prompts/chat'
 import { generateTextStream, errorCode } from '@/lib/llm'
 import { startSession, saveExchange, endSession, resumeSession } from '@/lib/session'
 import { loadAndInjectProfile } from '@/lib/memory/profileInjector'
@@ -61,6 +61,13 @@ const GREETING_RE = /^(hi|hey|hello|how are you|good morning|namaste|hare krishn
 function isGreetingMessage(message: string): boolean {
   const words = message.trim().split(/\s+/)
   return words.length <= 4 && GREETING_RE.test(message.trim())
+}
+
+/** The book was due on this turn but the model wrote prose instead: worth knowing. */
+function notePageMissing(history: Message[], message: string, hasSources: boolean, reply: string) {
+  if (journeyLine(history, message, hasSources) && !reply.includes('<page')) {
+    log.warn('journey', 'page was due but the reply has none', { historyTurns: history.length, replyChars: reply.length })
+  }
 }
 
 export async function POST(req: Request) {
@@ -195,6 +202,7 @@ export async function POST(req: Request) {
 
         usageResponse = fullResponse
         await saveExchange(supabase, sessionId, message, fullResponse, sources)
+        notePageMissing(recentHistory, message, sources.length > 0, fullResponse)
 
       } else {
         // Emit session ID before CRAG starts so the client can track the session even when
@@ -234,6 +242,7 @@ export async function POST(req: Request) {
         usagePromptChars = buildPrompt(sources, recentHistory, message, systemPrompt, anchors).length
         usageResponse = response
         await saveExchange(supabase, sessionId, message, response, sources)
+        notePageMissing(recentHistory, message, sources.length > 0, response)
       }
 
       await writer.write(sseChunk('[DONE]'))
