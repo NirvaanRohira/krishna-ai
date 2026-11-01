@@ -45,21 +45,26 @@ export default function Home() {
             Begin a conversation
           </Link>
 
-          <figure className="landing-sample fade-up fade-up-delay-3" aria-label="Example conversation">
-            <figcaption className="landing-sample-label">Example conversation</figcaption>
-            <p className="msg-user">I&rsquo;m torn between my duty and what I want.</p>
-            <p className="msg-assistant">Torn between the two. When you picture choosing what you want, whose disappointment do you see first?</p>
-            <p className="msg-user">My father&rsquo;s. He built the business for me.</p>
-            <div className="msg-assistant">
-              <MessageBubble role="assistant" content={SAMPLE_REPLY} sources={SAMPLE_SOURCES} />
-            </div>
-          </figure>
 
           <p className="landing-disclaimer">
             Kanha is an AI drawing from Sanskrit texts. It is not God, not Krishna, and not a spiritual
             authority. <Link href="/pricing">Plans</Link> · <Link href="/privacy">Privacy</Link> · <Link href="/terms">Terms</Link>
           </p>
         </div>
+      </section>
+
+      <section className="landing-journey" aria-labelledby="journey-title">
+        <h2 id="journey-title">Not answers. A conversation that finds what&rsquo;s underneath.</h2>
+        <p className="landing-journey-lede">Kanha asks before it advises. When it understands what is really troubling you, it opens the scripture to the verse that speaks to it.</p>
+            <figure className="landing-sample" aria-label="Example conversation">
+              <figcaption className="landing-sample-label">Example conversation</figcaption>
+              <p className="msg-user">I&rsquo;m torn between my duty and what I want.</p>
+              <p className="msg-assistant">Torn between the two. When you picture choosing what you want, whose disappointment do you see first?</p>
+              <p className="msg-user">My father&rsquo;s. He built the business for me.</p>
+              <div className="msg-assistant">
+                <MessageBubble role="assistant" content={SAMPLE_REPLY} sources={SAMPLE_SOURCES} />
+              </div>
+            </figure>
       </section>
     </main>
   )

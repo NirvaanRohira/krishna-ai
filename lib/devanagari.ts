@@ -54,6 +54,7 @@ export function iastToDevanagari(input: string): string {
 /** A verse laid out as in printed editions: half-verses split by । and closed with ॥ n ॥. */
 export function formatShloka(iast: string, verse?: number | string): string {
   const lines = iast.split(/\n+/).map((l) => l.trim()).filter(Boolean).map(iastToDevanagari)
-  const n = verse !== undefined && String(verse).trim() ? ` ॥ ${iastToDevanagari(String(verse))} ॥` : ' ॥'
-  return lines.map((l, i) => (i < lines.length - 1 ? `${l} ।` : `${l}${n}`)).join('\n')
+  // Non-breaking spaces keep "॥ ३५ ॥" together with the last word of the verse.
+  const n = verse !== undefined && String(verse).trim() ? `\u00a0॥\u00a0${iastToDevanagari(String(verse))}\u00a0॥` : '\u00a0॥'
+  return lines.map((l, i) => (i < lines.length - 1 ? `${l}\u00a0।` : `${l}${n}`)).join('\n')
 }

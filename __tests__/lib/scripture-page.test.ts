@@ -49,3 +49,14 @@ describe('scripture page markup', () => {
     expect(hasPage('plain reply')).toBe(false)
   })
 })
+
+describe('reply language', () => {
+  it('asks for a Hindi reply in Devanagari when the seeker writes in Hindi', async () => {
+    const { replyLanguageLine, buildPrompt } = await import('@/lib/prompts/chat')
+    expect(replyLanguageLine('मन शांत कैसे रहे जब सब कुछ बिखर रहा हो?')).toMatch(/Hindi, in Devanagari/)
+    expect(replyLanguageLine('How do I stay calm?')).toBe('')
+    const prompt = buildPrompt([], [], 'मन शांत कैसे रहे जब सब कुछ बिखर रहा हो?')
+    // stated right before the answer, after the seeker's message
+    expect(prompt.trimEnd().split('\n').slice(-2)[0]).toMatch(/Hindi/)
+  })
+})

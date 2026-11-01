@@ -49,10 +49,16 @@ describe('MessageBubble sources', () => {
   const sources = [{ text_source: 'bhagavad_gita', book_chapter: 2, verse: 47, text: 'You have a right to action alone.' }]
 
   it('shows the verses an answer drew on once streaming finishes', () => {
-    render(<MessageBubble role="assistant" content="Act without craving the fruit." sources={sources} />)
+    const withPage = 'Act without craving the fruit.\n<page ref="bhagavad_gita chapter 2 verse 47" title="The work, not the fruit"><moment>m</moment><teaching>t</teaching><life>l</life><practice>p</practice></page>'
+    render(<MessageBubble role="assistant" content={withPage} sources={sources} />)
     expect(screen.getByText(/Drawn from/)).toBeTruthy()
     expect(screen.getByText('Gita 2.47')).toBeTruthy()
     expect(screen.getByText('Bhagavad Gita 2.47')).toBeTruthy()
+  })
+
+  it('a reply without a page of scripture (e.g. a question) shows no citations', () => {
+    render(<MessageBubble role="assistant" content="What weighs on you most?" sources={sources} />)
+    expect(screen.queryByText(/Drawn from/)).toBeNull()
   })
 
   it('hides sources while the answer is still streaming', () => {

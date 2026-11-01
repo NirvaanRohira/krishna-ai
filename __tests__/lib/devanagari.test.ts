@@ -4,7 +4,7 @@ import { iastToDevanagari, formatShloka } from '@/lib/devanagari'
 describe('IAST → Devanagari', () => {
   it('matches the printed Gita (3.35), joining words that end in a consonant', () => {
     expect(formatShloka('śreyān svadharmo viguṇaḥ paradharmāt svanuṣṭhitāt\nsvadharme nidhanaṃ śreyaḥ paradharmo bhayāvahaḥ', 35)).toBe(
-      'श्रेयान्स्वधर्मो विगुणः परधर्मात्स्वनुष्ठितात् ।\nस्वधर्मे निधनं श्रेयः परधर्मो भयावहः ॥ ३५ ॥',
+      'श्रेयान्स्वधर्मो विगुणः परधर्मात्स्वनुष्ठितात्\u00a0।\nस्वधर्मे निधनं श्रेयः परधर्मो भयावहः\u00a0॥\u00a0३५\u00a0॥',
     )
   })
 

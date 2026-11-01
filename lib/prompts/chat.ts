@@ -16,9 +16,27 @@ function formatRef(source: string, bookChapter: string | number, verse: string |
   return `${src} ${bookChapter}.${verse}`
 }
 import type { RRFResult } from '@/lib/retrieval/rrfMerge'
+import { detectLanguage, type Lang } from '@/lib/language'
 import type { LookupResult } from '@/lib/retrieval/structuralLookup'
 
 type Message = { role: 'user' | 'assistant'; content: string }
+
+const LANGUAGE_NAMES: Partial<Record<Lang, string>> = {
+  hi: 'Hindi, in Devanagari script', bn: 'Bengali, in Bengali script', ta: 'Tamil, in Tamil script', te: 'Telugu, in Telugu script',
+  kn: 'Kannada, in Kannada script', ml: 'Malayalam, in Malayalam script', gu: 'Gujarati, in Gujarati script',
+  pa: 'Punjabi, in Gurmukhi script', or: 'Odia, in Odia script', hinglish: 'Hinglish (Hindi written in Latin letters, the way the seeker writes)',
+}
+
+/**
+ * The reply language, stated right before the answer is written: models drift to English
+ * when the long system prompt and the context are English, so a rule buried at the top of
+ * the prompt isn't enough. Everything the seeker reads (including the page's sections and
+ * title) follows it; the page's ref attribute stays as the context label.
+ */
+export function replyLanguageLine(message: string): string {
+  const name = LANGUAGE_NAMES[detectLanguage(message)]
+  return name ? `[Write your entire reply in ${name}: the reflection, the question, and every part of a page except its ref.]` : ''
+}
 
 export function buildPrompt(
   sources: RRFResult[],
@@ -49,6 +67,7 @@ export function buildPrompt(
     '',
     historyBlock,
     `Seeker: ${message}`,
+    replyLanguageLine(message),
     'Yogi:',
   ]
     .filter(Boolean)

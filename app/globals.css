@@ -400,6 +400,11 @@ p { text-wrap: pretty; }
 .landing-sample .msg-user { align-self: flex-end; max-width: 85%; }
 .landing-sample .msg-assistant { font-size: 0.98rem; }
 
+.landing-journey { width: 100%; max-width: 62rem; margin: 0 auto; padding: 3rem 1.25rem 4.5rem; border-top: 1px solid var(--hairline); }
+.landing-journey h2 { margin: 0 0 0.6rem; font-size: clamp(1.8rem, 5vw, 2.6rem); line-height: 1.1; color: var(--ink); max-width: 36rem; }
+.landing-journey-lede { margin: 0 0 1.8rem; color: var(--ink-2); font-size: 1.08rem; max-width: 36rem; }
+.landing-journey .landing-sample { margin-top: 0; border-top: none; padding-top: 0; }
+.landing-journey .landing-sample .msg-user { max-width: min(85%, 30rem); }
 .landing-disclaimer { margin: 0.5rem 0 0; font-size: 0.82rem; color: var(--ink-3); line-height: 1.5; }
 
 @media (min-width: 900px) {
@@ -980,6 +985,7 @@ p { text-wrap: pretty; }
 .book__page--right { border-radius: 0 0 4px 4px; }
 @container (min-width: 600px) {
   .book__page { min-height: 360px; }
+  .book__shloka { font-size: 1.08rem; }
   .book__page--left { border-radius: 4px 0 0 4px; box-shadow: inset -22px 0 26px -20px rgba(90, 60, 20, 0.55); }
   .book__page--right { border-radius: 0 4px 4px 0; box-shadow: inset 22px 0 26px -20px rgba(90, 60, 20, 0.55); }
 }
@@ -1026,7 +1032,8 @@ p { text-wrap: pretty; }
 .book__motion { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
 @container (min-width: 600px) {
   .book__motion { left: 50%; }
-  .book--opening .book__page--left { animation: bookFadeIn 500ms ease-out both; animation-delay: calc(var(--cover-ms) * 0.55); }
+  /* The left page is already there under the cover; only its ink fades up. */
+  .book--opening .book__page--left > * { animation: bookFadeIn 600ms ease-out both; animation-delay: calc(var(--cover-ms) * 0.6); }
 }
 .book__cover, .book__leaf { position: absolute; inset: 0; transform-origin: left center; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
 .book__cover {
@@ -1108,7 +1115,7 @@ p { text-wrap: pretty; }
 @keyframes leafFlip { from { transform: perspective(1600px) rotateY(0deg); } to { transform: perspective(1600px) rotateY(-180deg); } }
 @keyframes bookFadeIn { from { opacity: 0; } to { opacity: 1; } }
 .book--skip .book__motion { display: none; }
-.book--waiting .book__cover, .book--waiting .book__leaf, .book--waiting .book__page--left { animation-play-state: paused; }
+.book--waiting .book__cover, .book--waiting .book__leaf, .book--waiting .book__page--left > * { animation-play-state: paused; }
 @media (prefers-reduced-motion: reduce) {
   .book__motion { display: none; }
   .book-quill { animation: none; }
@@ -1118,3 +1125,33 @@ p { text-wrap: pretty; }
 :root:not([data-theme='light']) .book__spread, .theme-night .book__spread {
   box-shadow: 0 1px 0 #b99a62, 0 3px 0 #e9d9b4, 0 5px 0 #c4a874, 0 0 60px -10px rgba(233, 187, 98, 0.35), 0 24px 50px -22px rgba(0, 0, 0, 0.9);
 }
+
+/* Wet ink: each new word darkens in as it is written. */
+.ink-word { animation: inkIn 700ms ease-out both; }
+@keyframes inkIn { from { opacity: 0; filter: blur(1.5px); color: #8a6a3e; } to { opacity: 1; filter: none; } }
+
+/* Phone: one page at a time; the page turns from the verse to the reflection. */
+.book--narrow.book--open .book__page { display: none; }
+.book--narrow.book--open.book--show-verse .book__page--left,
+.book--narrow.book--open.book--show-reflection .book__page--right {
+  display: block;
+  border-radius: 3px 8px 8px 3px;
+  box-shadow: inset 16px 0 22px -18px rgba(90, 60, 20, 0.55);
+  transform-origin: left center;
+  animation: pageTurnIn 650ms cubic-bezier(0.3, 0.1, 0.2, 1) both;
+}
+@keyframes pageTurnIn { from { transform: perspective(1600px) rotateY(-70deg); opacity: 0.3; } to { transform: none; opacity: 1; } }
+.book__turn { display: flex; justify-content: space-between; gap: 0.5rem; margin-top: 0.6rem; }
+.book__turn button {
+  flex: 1;
+  min-height: 40px;
+  border: 1px solid rgba(122, 46, 27, 0.25);
+  border-radius: 999px;
+  background: rgba(239, 224, 189, 0.5);
+  color: #7a2e1b;
+  font-family: var(--font-book-sc), Georgia, serif;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+.book__turn button[aria-pressed='true'] { background: #7a2e1b; color: #f6ebd0; border-color: #7a2e1b; }
+@media (prefers-reduced-motion: reduce) { .ink-word, .book--narrow .book__page { animation: none !important; } }

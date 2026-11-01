@@ -30,6 +30,12 @@ function findVerseText(ref: string, sources: Source[]): string | undefined {
   return sources.find((s) => s.text && refInSources(ref, [s]))?.text
 }
 
+function Ink({ text, live }: { text: string; live: boolean }) {
+  if (!live) return <>{text}</>
+  const words = text.match(/\S+\s*/g) ?? []
+  return <>{words.map((w, i) => <span key={i} className="ink-word">{w}</span>)}</>
+}
+
 function Quill() {
   return (
     <svg className="book-quill" viewBox="0 0 32 32" aria-hidden="true">
@@ -63,6 +69,18 @@ export function ScriptureBook({
   const rootRef = useRef<HTMLElement>(null)
   const [settled, setSettled] = useState(!animate)
   const totalMs = COVER_MS + leaves * LEAF_GAP_MS + LEAF_MS
+  // On a phone the book shows one page at a time and turns from the verse to the reflection.
+  const [narrow, setNarrow] = useState(false)
+  const [view, setView] = useState<'verse' | 'reflection'>('verse')
+  const [userTurned, setUserTurned] = useState(false)
+
+  useEffect(() => {
+    const el = rootRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(([e]) => setNarrow(e.contentRect.width < 600))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   useEffect(() => {
     if (!animate || !rootRef.current) return
@@ -102,7 +120,21 @@ export function ScriptureBook({
   const lastFilled = right.reduce((acc, [, t], i) => (t ? i : acc), -1)
   const writing = streaming && !page.complete
 
-  const cls = ['book', animate && !settled ? 'book--opening' : 'book--open', animate && !started ? 'book--waiting' : '', skip ? 'book--skip' : ''].filter(Boolean).join(' ')
+  // Let the verse be read for a moment, then turn the page to the reflection being written.
+  useEffect(() => {
+    if (!narrow || !animate || !settled || userTurned || view !== 'verse' || lastFilled < 0) return
+    const t = setTimeout(() => setView('reflection'), 2600)
+    return () => clearTimeout(t)
+  }, [narrow, animate, settled, userTurned, view, lastFilled])
+  const turnTo = (v: 'verse' | 'reflection') => { setUserTurned(true); setView(v) }
+
+  const cls = [
+    'book',
+    animate && !settled ? 'book--opening' : 'book--open',
+    animate && !started ? 'book--waiting' : '',
+    skip ? 'book--skip' : '',
+    narrow ? `book--narrow book--show-${view}` : '',
+  ].filter(Boolean).join(' ')
 
   return (
     <figure
@@ -140,7 +172,7 @@ export function ScriptureBook({
               <div key={name} className="book__section">
                 <h4>{name}</h4>
                 <p>
-                  {text}
+                  <Ink text={text} live={writing} />
                   {writing && i === lastFilled && <Quill />}
                 </p>
               </div>
@@ -149,6 +181,13 @@ export function ScriptureBook({
           {writing && lastFilled === -1 && <p className="book__waiting">The ink is still wet… <Quill /></p>}
         </section>
       </div>
+
+      {narrow && settled && (
+        <nav className="book__turn" aria-label="Turn the page">
+          <button type="button" aria-pressed={view === 'verse'} onClick={() => turnTo('verse')}>‹ The verse</button>
+          <button type="button" aria-pressed={view === 'reflection'} onClick={() => turnTo('reflection')}>For you ›</button>
+        </nav>
+      )}
 
       {animate && !settled && (
         <div className="book__motion" aria-hidden="true">

@@ -21,7 +21,8 @@ export function MessageBubble({ role, content, streaming = false, sources = [], 
   ].filter(Boolean).join(' ')
 
   // Citations appear once the answer has finished, so they never jump around mid-stream.
-  const showSources = role === 'assistant' && !streaming && sources.length > 0
+  // Citations live in the book now; a reply without one (e.g. a question) shows none.
+  const showSources = role === 'assistant' && !streaming && sources.length > 0 && hasPage(content)
 
   return (
     <div className={cls}>
