@@ -159,6 +159,9 @@ Keep secrets in the hosting platform's secret store (Vercel env or GCP Secret Ma
 | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | for payments | Dashboard → Account & Settings → API Keys. `rzp_test_…` in test mode, `rzp_live_…` when live |
 | `RAZORPAY_WEBHOOK_SECRET` | for payments | Same value as the secret on the webhook (Dashboard → Webhooks → `https://<domain>/api/payments/webhook`; events `payment.captured`, `order.paid`, `payment.failed`, `refund.processed`) |
 | `TTS_HD_PLANS` | no | Plans that get the Chirp 3 HD voice (default `premium`) |
+| `RESEND_API_KEY` | for email | resend.com → API Keys (sending access only). Without it, receipts and reminders are skipped and logged |
+| `EMAIL_FROM` | for email | e.g. `Kanha <hello@yourdomain.in>`; the domain must be verified in Resend (SPF + DKIM DNS records) |
+| `EMAIL_REPLY_TO` | no | where replies to receipts go (e.g. your support inbox) |
 | `SPEND_ALERT_USD_PER_DAY`, `LLM_PRICE_IN_PER_M`, `LLM_PRICE_OUT_PER_M`, `TTS_PRICE_PER_M_CHARS`, `RETENTION_MONTHS` | no | alert thresholds and unit prices for the estimate |
 | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN` | low | error monitoring (leave unset to disable) |
 | `SHOW_VERSE_TEXT` | no | `true` shows verse text under answers; keep unset until `docs/CORPUS_LICENSES.md` is settled |

@@ -13,9 +13,16 @@ const USER = { id: 'user-pay-1', email: 'u@x.in' }
 const insert = vi.fn()
 const del = vi.fn()
 const rpc = vi.fn()
+const getUserById = vi.fn()
+const orderRow = vi.fn()
 const admin = {
-  from: vi.fn(() => ({ insert, delete: () => ({ eq: del }) })),
+  from: vi.fn(() => ({
+    insert,
+    delete: () => ({ eq: del }),
+    select: () => ({ eq: () => ({ maybeSingle: orderRow }) }),
+  })),
   rpc,
+  auth: { admin: { getUserById } },
 }
 
 function userClient(opts: { user?: object | null; ownsOrder?: boolean } = {}) {
@@ -40,12 +47,15 @@ const sign = (s: string, secret: string) => createHmac('sha256', secret).update(
 beforeEach(async () => {
   vi.clearAllMocks()
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
   vi.stubEnv('RAZORPAY_KEY_ID', KEY_ID)
   vi.stubEnv('RAZORPAY_KEY_SECRET', KEY_SECRET)
   vi.stubEnv('RAZORPAY_WEBHOOK_SECRET', WEBHOOK_SECRET)
   insert.mockResolvedValue({ error: null })
   del.mockResolvedValue({ error: null })
   rpc.mockResolvedValue({ data: { ok: true, plan: 'plus', valid_until: '2026-12-01T00:00:00Z' }, error: null })
+  orderRow.mockResolvedValue({ data: { user_id: USER.id, plan: 'plus', days: 30, amount_paise: 19900 } })
+  getUserById.mockResolvedValue({ data: { user: { email: USER.email } } })
   const s = await import('@/lib/supabase-server')
   vi.mocked(s.createServerSupabaseClient).mockResolvedValue(userClient() as never)
   const a = await import('@/lib/supabase-admin')
@@ -149,6 +159,41 @@ describe('POST /api/payments/verify', () => {
     const { POST } = await import('@/app/api/payments/verify/route')
     expect((await POST(post('/api/payments/verify', good()))).status).toBe(409)
     expect(rpc).not.toHaveBeenCalled()
+  })
+})
+
+describe('receipt email', () => {
+  const captured = {
+    event: 'payment.captured',
+    payload: { payment: { entity: { id: 'pay_TEST5678', order_id: 'order_TEST1234', amount: 19900, currency: 'INR', status: 'captured' } } },
+  }
+  const deliver = (evt: object, id: string) => {
+    const raw = JSON.stringify(evt)
+    return post('/api/payments/webhook', raw, { 'x-razorpay-signature': sign(raw, WEBHOOK_SECRET), 'x-razorpay-event-id': id })
+  }
+
+  it('is sent once, only by the call that settled the order', async () => {
+    vi.stubEnv('RESEND_API_KEY', 're_test')
+    vi.stubEnv('EMAIL_FROM', 'Kanha <hello@kanha.app>')
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const { POST } = await import('@/app/api/payments/webhook/route')
+    await POST(deliver(captured, 'evt_r1'))
+    const resendCalls = fetchMock.mock.calls.filter(([u]) => u === 'https://api.resend.com/emails')
+    expect(resendCalls).toHaveLength(1)
+    expect(JSON.parse(resendCalls[0][1].body).to).toEqual([USER.email])
+    // A later settle of the same order reports already=true: no second email.
+    rpc.mockResolvedValue({ data: { ok: true, already: true, plan: 'plus' }, error: null })
+    await POST(deliver(captured, 'evt_r2'))
+    expect(fetchMock.mock.calls.filter(([u]) => u === 'https://api.resend.com/emails')).toHaveLength(1)
+  })
+
+  it('a failing email never fails the payment', async () => {
+    vi.stubEnv('RESEND_API_KEY', 're_test')
+    vi.stubEnv('EMAIL_FROM', 'x@kanha.app')
+    getUserById.mockRejectedValue(new Error('auth down'))
+    const { POST } = await import('@/app/api/payments/webhook/route')
+    expect((await POST(deliver(captured, 'evt_r3'))).status).toBe(200)
   })
 })
 

@@ -2,11 +2,16 @@ import { NextResponse } from 'next/server'
 import { timingSafeEqual } from 'node:crypto'
 import { createAdminClient } from '@/lib/supabase-admin'
 import { log } from '@/lib/log'
+import { sendEmail } from '@/lib/email/send'
+import { expiryReminderEmail } from '@/lib/email/templates'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 // Scheduled jobs, called by Vercel Cron (vercel.json; it sends GET with the bearer
 // secret automatically when CRON_SECRET is set), Google Cloud Scheduler, or GitHub Actions:
 //   POST /api/cron?task=spend   — hourly: estimate today's AI spend, alert if over budget
 //   POST /api/cron?task=purge   — daily: delete conversations past the retention window
+//   POST /api/cron?task=reminders — daily: email people whose paid pass ends in ~3 days
+//   (Vercel Hobby allows two cron jobs, so the daily spend job also runs reminders.)
 // Auth: `Authorization: Bearer $CRON_SECRET`. Not reachable without the secret.
 
 export const dynamic = 'force-dynamic'
@@ -27,6 +32,40 @@ export function estimateSpendUSD(t: { llm_in_tokens: number; llm_out_tokens: num
     + (t.llm_out_tokens / 1e6) * num(process.env.LLM_PRICE_OUT_PER_M, 2.50)
   const tts = (t.voice_chars / 1e6) * num(process.env.TTS_PRICE_PER_M_CHARS, 16)
   return { llm: +llm.toFixed(2), tts: +tts.toFixed(2), total: +(llm + tts).toFixed(2) }
+}
+
+/** Paid passes ending 2–3 days from now get one reminder (the job runs once a day). */
+export async function sendExpiryReminders(admin: SupabaseClient): Promise<{ due: number; sent: number }> {
+  const from = new Date(Date.now() + 2 * 86_400_000).toISOString()
+  const to = new Date(Date.now() + 3 * 86_400_000).toISOString()
+  const { data, error } = await admin
+    .from('entitlements')
+    .select('user_id, plan, valid_until')
+    .eq('source', 'razorpay')
+    .gte('valid_until', from)
+    .lt('valid_until', to)
+    .limit(500)
+  if (error) throw error
+  let sent = 0
+  for (const e of data ?? []) {
+    const { data: u } = await admin.auth.admin.getUserById(e.user_id)
+    const email = u?.user?.email
+    if (!email || !e.valid_until) continue
+    const mail = expiryReminderEmail({ plan: e.plan, validUntil: e.valid_until })
+    if (await sendEmail({ to: email, ...mail, idempotencyKey: `expiry-${e.user_id}-${e.valid_until}` })) sent++
+  }
+  return { due: data?.length ?? 0, sent }
+}
+
+async function runReminders(admin: SupabaseClient) {
+  try {
+    const r = await sendExpiryReminders(admin)
+    log.info('cron', 'expiry reminders', r)
+    return r
+  } catch (err) {
+    log.error('cron', 'expiry reminders failed', {}, err)
+    return { error: 'reminders failed' }
+  }
 }
 
 async function alert(text: string) {
@@ -72,7 +111,8 @@ export async function POST(req: Request) {
     } else {
       log.info('cron', 'daily spend ok', { ...totals, spend_usd: spend.total, budget_usd: budget })
     }
-    return NextResponse.json({ day, totals, spend, budget, over, alerted })
+    const reminders = await runReminders(admin)
+    return NextResponse.json({ day, totals, spend, budget, over, alerted, reminders })
   }
 
   if (task === 'purge') {
@@ -85,6 +125,8 @@ export async function POST(req: Request) {
     log.info('cron', 'retention purge done', { months, ...(data as Record<string, number>) })
     return NextResponse.json({ ok: true, months, result: data })
   }
+
+  if (task === 'reminders') return NextResponse.json(await runReminders(admin))
 
   return NextResponse.json({ error: 'unknown task' }, { status: 400 })
 }
