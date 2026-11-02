@@ -45,8 +45,8 @@ export function replyLanguageLine(message: string): string {
  * the conversation can breathe for a couple of turns before the next one.
  * Only applies when passages were retrieved (no sources means no page is possible).
  */
-export function journeyLine(history: Message[], message: string, hasSources: boolean): string {
-  if (!hasSources) return ''
+function journeyState(history: Message[], message: string, hasSources: boolean): 'open' | 'hold' | 'free' {
+  if (!hasSources) return 'free'
   let since = 0
   let hadPage = false
   for (const m of history) {
@@ -55,9 +55,26 @@ export function journeyLine(history: Message[], message: string, hasSources: boo
   }
   const words = message.trim().split(/\s+/).filter(Boolean).length
   const due = hadPage ? since >= 2 : since >= 1 || words >= 18
-  if (!due) return ''
-  return '[Now open the page. You know enough. In one or two sentences name what is underneath, in the seeker\'s own words, then write exactly one <page ref="..." title="..."> with <moment>, <teaching>, <life> and <practice>, exactly in the format above, using a REFERENCE from the retrieved context, then one closing question. Do not ask another question before the page. Skip the page only if this message is a greeting, light small talk, or something outside your domain.]'
+  if (due) return 'open'
+  // Right after a page, the conversation breathes: no new page until it is due again.
+  // Left alone the model opened one on nearly every turn, and a book every reply stops
+  // feeling like anything.
+  return hadPage ? 'hold' : 'free'
 }
+
+/** True when this reply is meant to open the book (used to log when the model doesn't). */
+export function pageDue(history: Message[], message: string, hasSources: boolean): boolean {
+  return journeyState(history, message, hasSources) === 'open'
+}
+
+export function journeyLine(history: Message[], message: string, hasSources: boolean): string {
+  const state = journeyState(history, message, hasSources)
+  return state === 'open' ? OPEN_PAGE : state === 'hold' ? HOLD_PAGE : ''
+}
+
+const OPEN_PAGE = '[Now open the page. You know enough. In one or two sentences name what is underneath, close to the seeker\'s own words (do not begin with "You feel", "You\'re feeling" or "You sense"), then write exactly one <page ref="..." title="..."> with <moment>, <teaching>, <life> and <practice>, exactly in the format above, using a REFERENCE from the retrieved context, then one closing question. Do not ask another question before the page. Skip the page only if this message is a greeting, light small talk, or something outside your domain.]'
+
+const HOLD_PAGE = '[Do not open a page in this reply. A page was opened a moment ago; now stay with what they just said, in two to four sentences of your own, warmly and specifically, and end with one question. No scripture citations in this reply.]'
 
 export function buildPrompt(
   sources: RRFResult[],

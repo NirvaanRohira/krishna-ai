@@ -8,7 +8,7 @@ import { classifyMessage } from '@/lib/guardrails/classifier'
 import { getGuardrailResponse } from '@/lib/guardrails/responses'
 import { parallelRetrieve } from '@/lib/retrieval/parallelRetrieval'
 import { runCRAG } from '@/lib/crag/loop'
-import { buildPrompt, journeyLine } from '@/lib/prompts/chat'
+import { buildPrompt, pageDue } from '@/lib/prompts/chat'
 import { generateTextStream, errorCode } from '@/lib/llm'
 import { startSession, saveExchange, endSession, resumeSession } from '@/lib/session'
 import { loadAndInjectProfile } from '@/lib/memory/profileInjector'
@@ -65,7 +65,7 @@ function isGreetingMessage(message: string): boolean {
 
 /** The book was due on this turn but the model wrote prose instead: worth knowing. */
 function notePageMissing(history: Message[], message: string, hasSources: boolean, reply: string) {
-  if (journeyLine(history, message, hasSources) && !reply.includes('<page')) {
+  if (pageDue(history, message, hasSources) && !reply.includes('<page')) {
     log.warn('journey', 'page was due but the reply has none', { historyTurns: history.length, replyChars: reply.length })
   }
 }

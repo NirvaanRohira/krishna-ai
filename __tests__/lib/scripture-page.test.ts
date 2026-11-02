@@ -72,10 +72,10 @@ describe('reply language', () => {
     expect(journeyLine([u, q], 'everything', true)).toMatch(/open the page/)
     // No passages retrieved: no page is possible.
     expect(journeyLine([u, q], 'everything', false)).toBe('')
-    // Right after a page, let the conversation breathe for two turns.
+    // Right after a page, the next two replies are told not to open one.
     const page = { role: 'assistant' as const, content: '<page ref="x" title="t"><moment>m</moment></page> What next?' }
-    expect(journeyLine([u, q, u, page], 'ok', true)).toBe('')
-    expect(journeyLine([u, q, u, page, u, q], 'ok', true)).toBe('')
+    expect(journeyLine([u, q, u, page], 'ok', true)).toMatch(/Do not open a page/)
+    expect(journeyLine([u, q, u, page, u, q], 'ok', true)).toMatch(/Do not open a page/)
     expect(journeyLine([u, q, u, page, u, q, u, q], 'ok', true)).toMatch(/open the page/)
     // It sits just before the reply, after the seeker's message.
     const p = buildPrompt([{ text_source: 'bhagavad_gita', book_chapter: 2, verse: 47, text: 't' } as never], [u, q], 'everything')

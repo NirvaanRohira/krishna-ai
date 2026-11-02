@@ -54,12 +54,18 @@ export function ScriptureBook({
   verified = true,
   animate = true,
   streaming = false,
+  lead = '',
+  question = '',
 }: {
   page: ScripturePage
   sources?: Source[]
   verified?: boolean
   animate?: boolean
   streaming?: boolean
+  /** Kanha's opening line (what it heard), written at the head of the reflection page. */
+  lead?: string
+  /** The closing question, written at the foot of the reflection page after the page closes. */
+  question?: string
 }) {
   const p = parseRef(page.ref)
   const kind = verified ? bookKind(page.ref) : 'other'
@@ -122,6 +128,8 @@ export function ScriptureBook({
   ]
   const lastFilled = right.reduce((acc, [, t], i) => (t ? i : acc), -1)
   const writing = streaming && !page.complete
+  // The question streams in after </page>, so it is still being written once the page is done.
+  const askingLive = streaming && page.complete
 
   // A page turn on the phone: forward, the verse lifts and turns over to the left,
   // uncovering the reflection beneath it; back, it turns back over the reflection.
@@ -210,6 +218,7 @@ export function ScriptureBook({
         </section>
 
         <section className="book__page book__page--right">
+          {lead && <p className="book__lead">{lead}</p>}
           {right.map(([name, text], i) =>
             text ? (
               <div key={name} className="book__section">
@@ -222,6 +231,12 @@ export function ScriptureBook({
             ) : null,
           )}
           {writing && lastFilled === -1 && <p className="book__waiting">The ink is still wet… <Quill /></p>}
+          {question && (
+            <p className="book__question">
+              <Ink text={question} live={askingLive} />
+              {askingLive && <Quill />}
+            </p>
+          )}
         </section>
       </div>
 

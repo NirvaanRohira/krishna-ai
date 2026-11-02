@@ -48,12 +48,15 @@ describe('MessageBubble', () => {
 describe('MessageBubble sources', () => {
   const sources = [{ text_source: 'bhagavad_gita', book_chapter: 2, verse: 47, text: 'You have a right to action alone.' }]
 
-  it('shows the verses an answer drew on once streaming finishes', () => {
-    const withPage = 'Act without craving the fruit.\n<page ref="bhagavad_gita chapter 2 verse 47" title="The work, not the fruit"><moment>m</moment><teaching>t</teaching><life>l</life><practice>p</practice></page>'
-    render(<MessageBubble role="assistant" content={withPage} sources={sources} />)
-    expect(screen.getByText(/Drawn from/)).toBeTruthy()
-    expect(screen.getByText('Gita 2.47')).toBeTruthy()
-    expect(screen.getByText('Bhagavad Gita 2.47')).toBeTruthy()
+  it('a reply with a page is one book: the opening line and the question are written inside it', () => {
+    const withPage = 'Act without craving the fruit.\n<page ref="bhagavad_gita chapter 2 verse 47" title="The work, not the fruit"><moment>m</moment><teaching>t</teaching><life>l</life><practice>p</practice></page>\nWhat would you do if the result were not yours to decide?'
+    const { container } = render(<MessageBubble role="assistant" content={withPage} sources={sources} />)
+    // The citation is the book itself (chapter and folio), not a separate list under it.
+    expect(screen.queryByText(/Drawn from/)).toBeNull()
+    expect(screen.getByText('2.47')).toBeTruthy()
+    expect(container.querySelector('.book__lead')?.textContent).toBe('Act without craving the fruit.')
+    expect(container.querySelector('.book__question')?.textContent).toBe('What would you do if the result were not yours to decide?')
+    expect(container.querySelector('.reply-text')).toBeNull()
   })
 
   it('a reply without a page of scripture (e.g. a question) shows no citations', () => {

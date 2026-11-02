@@ -1063,8 +1063,8 @@ p { text-wrap: pretty; }
 .book__section + .book__section { margin-top: 1rem; }
 .book__section h4 { margin: 0 0 0.2rem; font-family: var(--font-book-sc), Georgia, serif; font-weight: 400; font-size: 0.86rem; letter-spacing: 0.12em; color: var(--rubric); }
 .book__section p { margin: 0; font-size: 1.06rem; line-height: 1.7; color: var(--ink); }
-.book__section:first-child p { font-style: italic; }
-.book__section:first-child p::first-letter {
+.book__section:first-of-type p { font-style: italic; }
+.book__section:first-of-type p::first-letter {
   float: left;
   margin: 0.08em 0.12em 0 0;
   font-family: var(--font-book), Georgia, serif;
@@ -1073,7 +1073,34 @@ p { text-wrap: pretty; }
   line-height: 0.82;
   color: var(--rubric);
 }
-.book__section:last-child:not(:first-child) { padding-top: 0.8rem; border-top: 1px solid rgba(122, 46, 27, 0.25); }
+.book__section:last-of-type:not(:first-of-type) { padding-top: 0.8rem; border-top: 1px solid rgba(122, 46, 27, 0.25); }
+/* Kanha's own words, written into the book: what it heard (head of the page) and the
+   question it leaves with the reader (foot of the page). */
+.book__lead {
+  margin: 0 0 1rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid rgba(122, 46, 27, 0.2);
+  font-size: 1.08rem;
+  line-height: 1.6;
+  color: var(--ink);
+}
+.book__question {
+  margin: 1.1rem 0 0;
+  font-style: italic;
+  font-size: 1.1rem;
+  line-height: 1.55;
+  color: var(--rubric);
+  text-align: center;
+}
+.book__question::before {
+  content: '❦';
+  display: block;
+  margin: 0 auto 0.4rem;
+  font-style: normal;
+  font-size: 1rem;
+  color: var(--gilt);
+  background: linear-gradient(90deg, transparent, rgba(122, 46, 27, 0.28) 30%, transparent 44%, transparent 56%, rgba(122, 46, 27, 0.28) 70%, transparent) center / 100% 1px no-repeat;
+}
 .book__waiting { margin: 0; font-style: italic; color: var(--ink-soft); }
 
 /* The quill writes at the end of the line while the reply streams. */
