@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef } from 'react'
+import { memo, useEffect, useRef } from 'react'
 import { MessageBubble } from '@/components/MessageBubble'
 import { InputBar } from '@/components/InputBar'
 import { TodaysVerse } from '@/components/TodaysVerse'
@@ -25,6 +25,10 @@ const STARTERS = [
   'What does the Gita say about failure?',
 ]
 
+// Each streamed word re-renders the list; only the reply being written needs to. Earlier
+// messages keep the same props (same objects), so memo skips them, books and all.
+const Bubble = memo(MessageBubble)
+
 function Arrow() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -34,11 +38,23 @@ function Arrow() {
 }
 
 export function ChatWindow({ messages, onSend, loading }: ChatWindowProps) {
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  const pinned = useRef(true)
+  const sent = messages.filter((m) => m.role === 'user').length
 
+  // Follow the reply as it is written, but only while the reader is at the bottom: if they
+  // scroll up to reread, leave them there. Instant, not smooth: a smooth scroll restarted on
+  // every word is what makes cheap phones stutter.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    const el = listRef.current
+    if (el && pinned.current) el.scrollTop = el.scrollHeight
   }, [messages])
+  // A new message from the seeker always brings the view down.
+  useEffect(() => { pinned.current = true }, [sent])
+  const onScroll = () => {
+    const el = listRef.current
+    if (el) pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+  }
 
   return (
     <div className="chat-window">
@@ -63,9 +79,9 @@ export function ChatWindow({ messages, onSend, loading }: ChatWindowProps) {
           <TodaysVerse onReflect={onSend} disabled={loading} />
         </div>
       ) : (
-        <div className="chat-window__messages" aria-live="polite">
+        <div className="chat-window__messages" aria-live="polite" ref={listRef} onScroll={onScroll}>
           {messages.map((m, i) => (
-            <MessageBubble
+            <Bubble
               key={i}
               role={m.role}
               content={m.content}
@@ -73,7 +89,6 @@ export function ChatWindow({ messages, onSend, loading }: ChatWindowProps) {
               streaming={loading && i === messages.length - 1 && m.role === 'assistant'}
             />
           ))}
-          <div ref={bottomRef} />
         </div>
       )}
       <InputBar onSubmit={onSend} loading={loading} />

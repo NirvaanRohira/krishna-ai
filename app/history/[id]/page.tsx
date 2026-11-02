@@ -29,6 +29,15 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
         </p>
       )}
       {failed && <p role="alert" className="auth-error" style={{ textAlign: 'left' }}>This conversation could not be found.</p>}
+      {!data && !failed && (
+        <div className="history-messages" aria-busy="true" aria-label="Loading the conversation">
+          <span className="skeleton skeleton--line" style={{ width: '55%', marginLeft: 'auto' }} />
+          <span className="skeleton skeleton--line" />
+          <span className="skeleton skeleton--line" style={{ width: '85%' }} />
+          <span className="skeleton skeleton--line" style={{ width: '40%', marginLeft: 'auto', marginTop: '1.4rem' }} />
+          <span className="skeleton skeleton--line" style={{ width: '92%' }} />
+        </div>
+      )}
       {data && (
         <div className="history-messages">
           {data.messages.map((m, i) => (

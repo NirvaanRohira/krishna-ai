@@ -27,6 +27,16 @@ export default function HistoryPage() {
       <h1>Past conversations</h1>
       <p>Your earlier conversations with Kanha, newest first. Conversations are kept for 12 months, and you can delete everything from your <Link href="/account">account</Link>.</p>
       {failed && <p role="alert" className="auth-error" style={{ textAlign: 'left' }}>Could not load your conversations. Please try again.</p>}
+      {!items && !failed && (
+        <ul className="history-list" aria-busy="true" aria-label="Loading your conversations">
+          {[0, 1, 2, 3].map((i) => (
+            <li key={i} className="history-item" aria-hidden="true">
+              <span className="skeleton skeleton--line" style={{ width: `${78 - i * 9}%` }} />
+              <span className="skeleton skeleton--meta" />
+            </li>
+          ))}
+        </ul>
+      )}
       {items && items.length === 0 && <p className="memory-empty">Nothing here yet. Your conversations will appear here.</p>}
       {items && items.length > 0 && (
         <ul className="history-list">

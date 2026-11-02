@@ -26,22 +26,39 @@ export default function Home() {
     <main className="landing-page">
       <div className="landing-theme"><ThemeToggle /></div>
       <section className="landing-hero">
-        <div className="landing-figure fade-up">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/avatar/poster-divine-v2.webp" alt="An artistic, AI-animated depiction of Krishna playing the flute" />
+        <div className="landing-figure settle-in">
+          {/* The first thing anyone sees, so it loads first, at the size this screen needs:
+              AVIF where supported (63 KB on most phones, vs 316 KB for the full WebP). */}
+          <picture>
+            <source
+              type="image/avif"
+              srcSet="/avatar/poster-divine-v2-480.avif 480w, /avatar/poster-divine-v2-720.avif 720w"
+              sizes="(min-width: 900px) 41vh, 24vh"
+            />
+            <img
+              src="/avatar/poster-divine-v2.webp"
+              srcSet="/avatar/poster-divine-v2-480.webp 480w, /avatar/poster-divine-v2.webp 720w"
+              sizes="(min-width: 900px) 41vh, 24vh"
+              width={720}
+              height={1440}
+              fetchPriority="high"
+              decoding="async"
+              alt="An artistic, AI-animated depiction of Krishna playing the flute"
+            />
+          </picture>
         </div>
 
         <div className="landing-copy">
-          <h1 className="landing-title fade-up fade-up-delay-1">
+          <h1 className="landing-title settle-in">
             Kanha
             <span lang="hi">कान्हा</span>
           </h1>
-          <p className="landing-lede fade-up fade-up-delay-1">
+          <p className="landing-lede settle-in">
             Bring what is on your mind. <strong>Talk it through with the Bhagavad Gita</strong>, by text or
             face to face, in English, Hindi or your own language.
           </p>
 
-          <Link href="/chat" className="btn-primary landing-begin fade-up fade-up-delay-2">
+          <Link href="/chat" className="btn-primary landing-begin settle-in">
             Begin a conversation
           </Link>
 

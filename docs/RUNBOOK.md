@@ -153,7 +153,7 @@ Keep secrets in the hosting platform's secret store (Vercel env or GCP Secret Ma
 | `SUPABASE_SERVICE_ROLE_KEY` | **yes — highest** | account deletion and cron jobs only |
 | `GROQ_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `DEEPSEEK_API_KEY`, `NVIDIA_API_KEY` | yes | LLMs and embeddings |
 | `LLM_PROVIDER`, `LLM_GENERATION_MODEL`, `LLM_FALLBACK`, `OPENROUTER_PROVIDERS` | no | model choice and routing |
-| `GOOGLE_TTS_API_KEY`, `SARVAM_API_KEY`, `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` | yes | voice |
+| `GOOGLE_TTS_API_KEY` (and optionally `SARVAM_API_KEY`) | yes | voice (AWS Polly was removed; delete any `AWS_*` variables) |
 | `TTS_PROVIDER`, `TTS_FALLBACK`, `GOOGLE_TTS_VOICE` | no | voice choice |
 | `CRON_SECRET` | yes | scheduled jobs |
 | `ALERT_WEBHOOK_URL` | yes | spend alerts |

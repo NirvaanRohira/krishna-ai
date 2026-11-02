@@ -30,6 +30,17 @@ export function TodaysVerse({ onReflect, disabled }: { onReflect: (message: stri
   }, [])
 
   const v = data?.verse
+  // While it loads, hold its place so the screen doesn't jump when it arrives.
+  if (!data) {
+    return (
+      <section className="todays-verse todays-verse--loading" aria-busy="true" aria-label="Loading today's verse">
+        <span className="skeleton skeleton--parchment skeleton--meta" />
+        <span className="skeleton skeleton--parchment skeleton--title" />
+        <span className="skeleton skeleton--parchment skeleton--line" />
+        <span className="skeleton skeleton--parchment skeleton--line" style={{ width: '70%' }} />
+      </section>
+    )
+  }
   if (!v) return null
   const where = `Bhagavad Gita ${v.book_chapter}.${v.verse}`
   const reflect = () =>

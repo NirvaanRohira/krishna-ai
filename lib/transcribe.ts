@@ -1,7 +1,14 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { fetchWithTimeout } from '@/lib/retry'
+
+// Speech-to-text must never hang the microphone: a stalled provider gives up after this.
+const STT_TIMEOUT_MS = 20_000
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-const model = genAI.getGenerativeModel({ model: process.env.GEMINI_STT_MODEL || 'gemini-2.5-flash-lite' })
+const model = genAI.getGenerativeModel(
+  { model: process.env.GEMINI_STT_MODEL || 'gemini-2.5-flash-lite' },
+  { timeout: STT_TIMEOUT_MS },
+)
 
 export async function transcribeAudio(audio: Blob): Promise<string> {
   const base64 = Buffer.from(await audio.arrayBuffer()).toString('base64')
@@ -20,11 +27,11 @@ export async function transcribeAudioGroq(audio: Blob, filename = 'audio.webm'):
   form.append('model', 'whisper-large-v3')
   form.append('response_format', 'json')
 
-  const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+  const res = await fetchWithTimeout('https://api.groq.com/openai/v1/audio/transcriptions', {
     method: 'POST',
     headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}` },
     body: form,
-  })
+  }, STT_TIMEOUT_MS)
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err?.error?.message ?? `Groq STT ${res.status}`)

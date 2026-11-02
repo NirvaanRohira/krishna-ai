@@ -66,7 +66,7 @@ function parseJson(raw: string): Record<string, string> | null {
 
 /** Creates today's verse if it doesn't exist yet. Service-role client (cron). */
 export async function ensureDailyVerse(admin: SupabaseClient, day = indiaDay()): Promise<DailyVerse | null> {
-  const { data: existing } = await admin.from('daily_verses').select('*').eq('day', day).maybeSingle()
+  const { data: existing } = await admin.from('daily_verses').select('day, text_source, book_chapter, verse, title, moment, teaching, life, practice').eq('day', day).maybeSingle()
   if (existing) return existing as DailyVerse
 
   const [chapter, verse] = verseForDay(day)

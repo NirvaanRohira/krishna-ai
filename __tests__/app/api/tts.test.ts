@@ -1,15 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// Mock the Polly SDK so tests never hit AWS. send() is controllable per-test.
-const mockSend = vi.fn()
-vi.mock('@aws-sdk/client-polly', () => ({
-  PollyClient: class {
-    send = mockSend
-  },
-  SynthesizeSpeechCommand: vi.fn(function (this: Record<string, unknown>, input: unknown) {
-    this.input = input
-  }),
-}))
+// The default provider is Google Cloud TTS over fetch; tests never reach the network.
+const googleOk = () => new Response(JSON.stringify({ audioContent: Buffer.from([1, 2, 3]).toString('base64') }), { status: 200 })
+const mockFetch = vi.fn()
 
 vi.mock('@/lib/supabase-server', () => ({ createServerSupabaseClient: vi.fn() }))
 
@@ -31,21 +24,16 @@ function makeRequest(body: object) {
   })
 }
 
-// A minimal async-iterable audio stream, as Polly returns.
-function fakeAudioStream() {
-  return {
-    async *[Symbol.asyncIterator]() {
-      yield new Uint8Array([1, 2, 3])
-    },
-  }
-}
 
 describe('POST /api/tts', () => {
   let createServerSupabaseClient: ReturnType<typeof vi.fn>
 
   beforeEach(async () => {
     vi.clearAllMocks()
-    mockSend.mockResolvedValue({ AudioStream: fakeAudioStream() })
+    vi.stubEnv('GOOGLE_TTS_API_KEY', 'g-key')
+    mockFetch.mockReset()
+    mockFetch.mockImplementation(async () => googleOk())
+    vi.stubGlobal('fetch', mockFetch)
 
     const supabaseLib = await import('@/lib/supabase-server')
     createServerSupabaseClient = vi.mocked(supabaseLib.createServerSupabaseClient)
@@ -60,8 +48,8 @@ describe('POST /api/tts', () => {
     const { POST } = await import('@/app/api/tts/route')
     const res = await POST(makeRequest({ text: 'hello' }))
     expect(res.status).toBe(401)
-    // Polly must never be invoked for an unauthenticated caller.
-    expect(mockSend).not.toHaveBeenCalled()
+    // The paid voice service must never be called for an unauthenticated caller.
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 
   it('returns 400 when text is missing', async () => {
@@ -78,20 +66,19 @@ describe('POST /api/tts', () => {
   })
 
   it('caps text at 3000 characters before synthesis', async () => {
-    const { SynthesizeSpeechCommand } = await import('@aws-sdk/client-polly')
     const { POST } = await import('@/app/api/tts/route')
     await POST(makeRequest({ text: 'x'.repeat(5000) }))
-    const call = vi.mocked(SynthesizeSpeechCommand).mock.calls[0][0] as { Text: string }
-    expect(call.Text.length).toBe(3000)
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body) as { input: { text: string } }
+    expect(body.input.text.length).toBe(3000)
   })
 
-  it('returns a generic 500 (no raw error) when Polly throws', async () => {
-    mockSend.mockRejectedValue(new Error('AWS secret internal detail'))
+  it('returns a generic 500 (no raw error) when the voice service throws', async () => {
+    mockFetch.mockRejectedValue(new Error('secret internal detail'))
     const { POST } = await import('@/app/api/tts/route')
     const res = await POST(makeRequest({ text: 'hello' }))
     expect(res.status).toBe(500)
     const bodyText = await res.text()
-    expect(bodyText).not.toContain('AWS secret internal detail')
+    expect(bodyText).not.toContain('secret internal detail')
   })
 
   it('returns 429 once the per-user rate limit is exceeded', async () => {
@@ -124,7 +111,6 @@ describe('POST /api/tts', () => {
       const body = JSON.parse(init.body)
       // English text → English (India) variant of the configured voice persona
       expect(body.voice).toEqual({ languageCode: 'en-IN', name: 'en-IN-Chirp3-HD-Charon' })
-      expect(mockSend).not.toHaveBeenCalled()
     } finally {
       vi.unstubAllEnvs()
       vi.unstubAllGlobals()
@@ -201,16 +187,18 @@ describe('POST /api/tts', () => {
     }
   })
 
-  it('falls back to Polly when the primary provider fails and TTS_FALLBACK=polly', async () => {
+  it('falls back to the second provider when the primary fails (TTS_FALLBACK)', async () => {
     vi.stubEnv('TTS_PROVIDER', 'sarvam')
     vi.stubEnv('SARVAM_API_KEY', 's-key')
-    vi.stubEnv('TTS_FALLBACK', 'polly')
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('nope', { status: 503 })))
+    vi.stubEnv('TTS_FALLBACK', 'google')
+    const fetchMock = vi.fn().mockImplementation(async (url: string) =>
+      String(url).includes('sarvam') ? new Response('nope', { status: 503 }) : googleOk())
+    vi.stubGlobal('fetch', fetchMock)
     try {
       const { POST } = await import('@/app/api/tts/route')
       const res = await POST(makeRequest({ text: 'Namaste' }))
       expect(res.status).toBe(200)
-      expect(mockSend).toHaveBeenCalledTimes(1)
+      expect(fetchMock.mock.calls.some(([u]) => String(u).includes('texttospeech.googleapis.com'))).toBe(true)
     } finally {
       vi.unstubAllEnvs()
       vi.unstubAllGlobals()

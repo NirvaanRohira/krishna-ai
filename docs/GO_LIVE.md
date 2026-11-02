@@ -80,7 +80,7 @@ In Vercel, put the **staging** Supabase URL and keys under **Preview** environme
 
 Vercel → Project → Settings → Environment Variables (Production). Variables starting with `NEXT_PUBLIC_` are baked in at build time, so **redeploy after changing them**.
 
-**Keep** what you already have: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `GROQ_API_KEY`, `GEMINI_API_KEY`, the AWS keys, `LLM_PROVIDER`, `DEEPSEEK_API_KEY`, etc.
+**Keep** what you already have: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `GROQ_API_KEY`, `GEMINI_API_KEY`, `LLM_PROVIDER`, `DEEPSEEK_API_KEY`, etc.
 
 **Add (needed):**
 
@@ -95,7 +95,7 @@ Vercel → Project → Settings → Environment Variables (Production). Variable
 
 | Name | Value |
 |---|---|
-| `TTS_PROVIDER` / `TTS_FALLBACK` | `google` / `polly` — Indian voices, with Polly as backup |
+| `TTS_PROVIDER` / `TTS_FALLBACK` | `google` (default) / optional `sarvam` backup — Indian voices |
 | `GOOGLE_TTS_API_KEY` | a GCP key with Cloud Text-to-Speech enabled (paid from credits) |
 | `ALERT_WEBHOOK_URL` | a Slack or Google Chat incoming-webhook URL, for spend alerts |
 | `SPEND_ALERT_USD_PER_DAY` | e.g. `10` |

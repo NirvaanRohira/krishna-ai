@@ -41,6 +41,18 @@ export async function runCRAG(
 
     if (sources.length > 0 && bestSources.length === 0) bestSources = sources
 
+    // The relevance check only matters when it can change what happens next: a retry with
+    // an expanded query. When there is no expansion to try, both outcomes write from these
+    // same passages, so asking costs a whole model round trip before the first word for
+    // nothing. Skip it then.
+    const canRetry = attempt < MAX_RETRIES && expandQuery(query) !== currentQuery
+    if (!canRetry && sources.length > 0) {
+      const displayMessage = options.originalMessage ?? query
+      const prompt = buildPrompt(sources, history, displayMessage, options.systemPrompt, options.anchors)
+      const response = await generate(prompt, options.onChunk)
+      return { response, sources }
+    }
+
     const relevant = await checkRelevance(currentQuery, sources)
     console.log(`[timing] CRAG attempt ${attempt}: relevance=${relevant} (${Date.now()-t}ms)`)
     if (relevant) {

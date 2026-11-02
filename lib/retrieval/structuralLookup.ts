@@ -21,7 +21,7 @@ export async function queryStructuralLookup(
 
   const { data, error } = await supabase
     .from('structural_lookup')
-    .select('*')
+    .select('id, label, intent_keywords, text_source, book_chapter, verse_start, verse_end')
     .overlaps('intent_keywords', keywords)
 
   if (error) throw new Error(error.message)

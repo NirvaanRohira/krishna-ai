@@ -1,21 +1,17 @@
 // Text-to-speech provider abstraction.
 //
-// Select with TTS_PROVIDER = 'polly' (default) | 'google' | 'sarvam'.
+// Select with TTS_PROVIDER = 'google' (default) | 'sarvam'.
 // TTS_FALLBACK (optional) names a second provider tried if the primary throws.
-//
-// Why more than Polly: Polly has no Indian-English or Hindi *male* neural voice
-// (Matthew is US-English). For the Indian market Krishna should sound Indian:
-//   - google: Cloud TTS en-IN / hi-IN voices (Chirp 3 HD, Neural2, WaveNet).
-//             Billed to GCP — runs on GCP credits.
+//   - google: Cloud TTS en-IN / hi-IN voices (WaveNet, Chirp 3 HD). Billed to GCP.
 //   - sarvam: Sarvam Bulbul — Indian-built, 11 Indian languages, many male voices.
-// All three return audio the browser can play directly; the avatar's lip-sync is
-// driven from the audio itself, so no provider-specific viseme data is needed.
+// (AWS Polly was removed: it has no Indian male neural voice, and its keys were retired.)
+// Both return audio the browser can play directly; the avatar's lip-sync is driven from
+// the audio itself, so no provider-specific viseme data is needed.
 
-import { PollyClient, SynthesizeSpeechCommand } from '@aws-sdk/client-polly'
 import { withRetry, HttpError, fetchWithTimeout } from '@/lib/retry'
 
 export type TTSResult = { audio: Buffer; contentType: string }
-export type TTSProviderName = 'polly' | 'google' | 'sarvam'
+export type TTSProviderName = 'google' | 'sarvam'
 
 export type TTSOptions = {
   /** BCP-47 locale, e.g. 'en-IN', 'hi-IN', 'ta-IN'. */
@@ -24,37 +20,6 @@ export type TTSOptions = {
   quality?: 'standard' | 'hd'
 }
 type Synth = (text: string, opts: TTSOptions) => Promise<TTSResult>
-
-// ── AWS Polly ───────────────────────────────────────────────────────────────
-let _polly: PollyClient | undefined
-function polly(): PollyClient {
-  if (!_polly) {
-    _polly = new PollyClient({
-      region: process.env.AWS_REGION ?? 'us-east-1',
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-      },
-    })
-  }
-  return _polly
-}
-
-const synthPolly: Synth = async (text) => {
-  // Polly has no Indian male neural voices; it is the English fallback only.
-  const result = await polly().send(
-    new SynthesizeSpeechCommand({
-      Text: text,
-      VoiceId: (process.env.POLLY_VOICE_ID ?? 'Matthew') as 'Matthew',
-      Engine: 'neural',
-      OutputFormat: 'mp3',
-    })
-  )
-  if (!result.AudioStream) throw new Error('Polly returned no audio')
-  const chunks: Uint8Array[] = []
-  for await (const chunk of result.AudioStream as AsyncIterable<Uint8Array>) chunks.push(chunk)
-  return { audio: Buffer.concat(chunks), contentType: 'audio/mpeg' }
-}
 
 // ── Google Cloud TTS (REST, API key) ────────────────────────────────────────
 // Two quality tiers, picked per request from the user's plan (see app/api/tts):
@@ -133,7 +98,6 @@ const synthSarvam: Synth = async (text, opts) => {
 }
 
 const PROVIDERS: Record<TTSProviderName, Synth> = {
-  polly: synthPolly,
   google: synthGoogle,
   sarvam: synthSarvam,
 }
@@ -143,7 +107,7 @@ function resolve(name: string | undefined): TTSProviderName | undefined {
 }
 
 export function activeTTSProvider(): TTSProviderName {
-  return resolve(process.env.TTS_PROVIDER) ?? 'polly'
+  return resolve(process.env.TTS_PROVIDER) ?? 'google'
 }
 
 export async function synthesize(text: string, opts: TTSOptions = {}): Promise<TTSResult> {

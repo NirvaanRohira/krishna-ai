@@ -161,6 +161,28 @@ Wrap the web app with Capacitor (reuses this codebase; WebGL avatar works in the
 6. Enforce CSP (now report-only); shared zod schemas; move remaining `console.*` to `lib/log.ts`.
 7. Payments (Razorpay webhooks: signature + idempotency), then apps.
 
+## Performance (2 Nov 2026)
+
+Lighthouse, mobile (mid-range phone, slow 4G), production build:
+
+| Page | Score | Largest paint (measured) | Blocking time |
+|---|---|---|---|
+| Home, before | 52 | 6.6 s (simulated) | 1,250 ms |
+| Home, after | 78–82 | 3.1 s | 100–420 ms |
+| Today's verse | 85–88 | 2.6 s | 190–340 ms |
+
+What changed: the old-book fonts and the Devanagari faces are no longer preloaded (they still
+load when used); the hero image is served as AVIF at the size the screen needs (63–110 KB, was
+316 KB) with high fetch priority; the first screen no longer fades in from invisible.
+Also: earlier messages don't re-render while a reply streams; the scroll follows the reply
+only while the reader is at the bottom; loading placeholders; a timeout on speech-to-text;
+unused `groq-sdk` and AWS Polly removed; real-user speed via Vercel Speed Insights.
+First word of a reply: the CRAG relevance check is skipped when no retry is possible (both
+verdicts wrote from the same passages), saving a model round trip before every reply.
+
+Not needed yet: Redis (Postgres is enough at this scale), OpenTelemetry (Sentry plus timing
+logs), list virtualisation (lists are capped at 50), search debouncing (no search box).
+
 ## Definition of done (run before every PR)
 
 ```bash

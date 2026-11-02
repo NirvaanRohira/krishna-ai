@@ -19,6 +19,7 @@ describe('runCRAG', () => {
     vi.clearAllMocks()
     const parallel = await import('@/lib/retrieval/parallelRetrieval')
     parallelRetrieve = vi.mocked(parallel.parallelRetrieve)
+    parallelRetrieve.mockReset()
     parallelRetrieve.mockResolvedValue(FAKE_SOURCES)
 
     const llm = await import('@/lib/llm')
@@ -29,7 +30,16 @@ describe('runCRAG', () => {
 
     const rel = await import('@/lib/crag/relevanceCheck')
     checkRelevance = vi.mocked(rel.checkRelevance)
+    checkRelevance.mockReset()
     checkRelevance.mockResolvedValue(true)
+  })
+
+  it('does not spend a relevance check when there is no expanded query to retry with', async () => {
+    // Either verdict would write from the same passages, so the check would only delay the first word.
+    const { runCRAG } = await import('@/lib/crag/loop')
+    const result = await runCRAG('why is my life so hard right now', [], {})
+    expect(checkRelevance).not.toHaveBeenCalled()
+    expect(result.sources).toEqual(FAKE_SOURCES)
   })
 
   it('returns generated response and sources on happy path', async () => {
