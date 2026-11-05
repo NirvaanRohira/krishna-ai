@@ -36,6 +36,34 @@ Partly. Here is what each one is good for:
 - **Practical AI pipeline:** image-to-3D for each outfit → retopo/cleanup (an artist, or an auto-retopo tool) → Mixamo or the tool's auto-rig → Blender MCP for shape keys, naming and export → `/avatar-preview` to check. Expect 3–10 days with one person who knows basic Blender, versus 2–5 weeks for a commissioned model.
 - **Quality bar:** AI meshes of faces often look uncanny up close. For a religious figure, have the face (at least) cleaned up by an artist before launch.
 
+## Building it with Claude + Blender on your own computer
+
+Blender MCP talks to Blender over `localhost:9876`, so this has to run in a Claude Code session **on the
+computer where Blender is installed** (Claude desktop app → Code, or the `claude` CLI), not in a cloud session.
+
+One-time setup:
+1. Install the Blender MCP add-on in Blender (github.com/ahujasid/blender-mcp: download `addon.py`,
+   Edit → Preferences → Add-ons → Install, enable it, then in the 3D view sidebar (N) → BlenderMCP → **Connect**).
+2. Install `uv` (`brew install uv` on a Mac), then in your local clone of this repo:
+   `claude mcp add blender -- uvx blender-mcp`
+3. `git pull` so you have `.claude/skills/` with the Blender skills (from arjun988/blender-skills, MIT; only
+   the character-relevant ones are included: blender-director, character-artist, sculpting, retopology,
+   uv-workflow, texture-workflow, materials, lookdev, hair-groom, cloth-sim, rigging, animation, lighting,
+   stylized-style, asset-optimization, export-pipeline, qa-review, plus shared references).
+
+Starting prompt to paste into that session:
+
+> Read docs/AVATAR_PIPELINE.md (the export contract below is what the app needs) and look at
+> public/avatar/poster-divine-v2.webp as the reference. Using the Blender MCP and the blender-director,
+> character-artist and rigging skills, build the Divine Krishna as a stylised youth, about 1.4 m tall:
+> one armature with Spine/Chest/Head bones, face shape keys aa, oh, ou, ee, ih, blink and smile, the outfit
+> under a node named `outfit_divine`, an `Idle` action, under 60k triangles, then export and compress to
+> public/avatar/krishna.glb as in the "Compress" step. Work in stages and show me a render after each one
+> (blockout, sculpt, textures, rig, shape keys) before moving on. This is an artistic, reverent depiction
+> of Krishna for a spiritual app: keep it dignified, no caricature.
+
+Check the result at `/avatar-preview` (`npm run dev`), then commit `public/avatar/krishna.glb`.
+
 ## Export contract (what the code expects)
 
 **File:** `public/avatar/krishna.glb`, or a CDN URL in `NEXT_PUBLIC_AVATAR_MODEL_URL`. Blender's glTF exporter with default axes (Y-up, faces +Z), in metres. Krishna as a youth is about 1.3–1.5 m tall. The camera frames the full body automatically.
