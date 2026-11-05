@@ -3,6 +3,8 @@ import { memo, useEffect, useRef } from 'react'
 import { MessageBubble } from '@/components/MessageBubble'
 import { InputBar } from '@/components/InputBar'
 import { TodaysVerse } from '@/components/TodaysVerse'
+import { useLang } from '@/components/LangProvider'
+import type { MessageKey } from '@/lib/i18n'
 import type { Source } from '@/lib/sources'
 
 interface Message {
@@ -18,12 +20,7 @@ interface ChatWindowProps {
 }
 
 // Real first questions people bring, in the languages they bring them.
-const STARTERS = [
-  'I’m torn between my duty and what I want',
-  'How do I stop overthinking about the future?',
-  'मन शांत कैसे रहे जब सब कुछ बिखर रहा हो?',
-  'What does the Gita say about failure?',
-]
+const STARTERS: MessageKey[] = ['chat.starter_1', 'chat.starter_2', 'chat.starter_3', 'chat.starter_4']
 
 // Each streamed word re-renders the list; only the reply being written needs to. Earlier
 // messages keep the same props (same objects), so memo skips them, books and all.
@@ -38,6 +35,7 @@ function Arrow() {
 }
 
 export function ChatWindow({ messages, onSend, loading }: ChatWindowProps) {
+  const { t } = useLang()
   const listRef = useRef<HTMLDivElement>(null)
   const pinned = useRef(true)
   const sent = messages.filter((m) => m.role === 'user').length
@@ -61,16 +59,16 @@ export function ChatWindow({ messages, onSend, loading }: ChatWindowProps) {
       {messages.length === 0 ? (
         <div className="chat-window__empty">
           <h1 className="chat-window__empty-title fade-up">
-            Namaste<span lang="hi">नमस्ते</span>
+            {t('chat.greeting')}<span lang={t('chat.greeting_alt') === 'नमस्ते' ? 'hi' : 'en'}>{t('chat.greeting_alt')}</span>
           </h1>
           <p className="chat-window__empty-hint fade-up fade-up-delay-1">
-            What is weighing on you today? Write the way you would say it to a friend, in any language.
+            {t('chat.hint')}
           </p>
-          <ul className="starters fade-up fade-up-delay-2" aria-label="Ways to begin">
-            {STARTERS.map((s) => (
+          <ul className="starters fade-up fade-up-delay-2" aria-label={t('chat.starters')}>
+            {STARTERS.map((k) => t(k)).map((s) => (
               <li key={s}>
                 <button type="button" onClick={() => onSend(s)} disabled={loading}>
-                  <span lang={/[ऀ-ॿ]/.test(s) ? 'hi' : undefined}>{s}</span>
+                  <span lang={/[ऀ-ॿ]/.test(s) ? 'hi' : 'en'}>{s}</span>
                   <Arrow />
                 </button>
               </li>

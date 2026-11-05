@@ -127,7 +127,7 @@ export function useTTS({ defaultEnabled = true }: { defaultEnabled?: boolean } =
         const res = await fetch('/api/tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text }),
+          body: JSON.stringify({ text, lang: document.documentElement.lang === 'hi' ? 'hi' : 'en' }),
         })
         // A stop() during the fetch invalidates this generation — drop the stale result.
         if (gen !== generationRef.current) return

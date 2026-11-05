@@ -3,6 +3,8 @@ import { Tiro_Devanagari_Hindi, Mukta, IM_Fell_English, IM_Fell_English_SC } fro
 import './globals.css'
 import { PwaSetup } from '@/components/PwaSetup'
 import { SpeedInsights } from '@vercel/speed-insights/next'
+import { LangProvider } from '@/components/LangProvider'
+import { getLang } from '@/lib/i18n/server'
 
 // Both families cover Latin AND Devanagari, so Hindi replies get real typography rather
 // than a system fallback. Self-hosted by next/font at build: no runtime call to Google.
@@ -48,16 +50,19 @@ export const viewport: Viewport = {
 
 const THEME_SCRIPT = `try{var t=localStorage.getItem('kanha.theme');if(t==='dark'||t==='light'){document.documentElement.dataset.theme=t}}catch(e){}`
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  // The interface language comes from the saved choice (cookie) or the browser's language,
+  // so the very first paint is already in the right language.
+  const lang = await getLang()
   return (
     // Light ("Vrindavan dawn") is the default; a saved choice is applied before first paint
     // so there is no flash. suppressHydrationWarning: the script may change data-theme.
-    <html lang="en" data-theme="light" className={`${display.variable} ${body.variable} ${book.variable} ${bookCaps.variable}`} suppressHydrationWarning>
+    <html lang={lang} data-theme="light" className={`${display.variable} ${body.variable} ${book.variable} ${bookCaps.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body>
-        {children}
+        <LangProvider lang={lang}>{children}</LangProvider>
         <PwaSetup />
         {/* Real-user speed (Core Web Vitals) from people's own phones; no personal data, no cookies. */}
         <SpeedInsights />

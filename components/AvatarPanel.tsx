@@ -6,6 +6,7 @@
 import dynamic from 'next/dynamic'
 import { useState } from 'react'
 import { InputBar } from '@/components/InputBar'
+import { useLang } from '@/components/LangProvider'
 import { OUTFITS, loadSavedOutfit, saveOutfit } from '@/lib/avatar/config'
 
 // three.js (~150 KB gz) only downloads when someone opens avatar mode.
@@ -21,6 +22,7 @@ type Props = {
 }
 
 export default function AvatarPanel({ onClose, onSend, loading, caption, getAnalyser }: Props) {
+  const { lang, t } = useLang()
   // Avatar mode only ever renders on the client (opened by a tap), so reading the saved
   // outfit in the initial state is safe and avoids a second render.
   const [outfitId, setOutfitId] = useState(() => (typeof window === 'undefined' ? 'divine' : loadSavedOutfit()))
@@ -48,14 +50,14 @@ export default function AvatarPanel({ onClose, onSend, loading, caption, getAnal
       />
 
       <div className="avatar-topbar">
-        <button className="avatar-icon-btn" onClick={onClose} type="button" aria-label="Close avatar">
+        <button className="avatar-icon-btn" onClick={onClose} type="button" aria-label={t('avatar.close')}>
           ✕
         </button>
         <button
           className="avatar-icon-btn"
           onClick={() => setPickerOpen((v) => !v)}
           type="button"
-          aria-label="Choose outfit"
+          aria-label={t('avatar.choose')}
           aria-expanded={pickerOpen}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -64,15 +66,15 @@ export default function AvatarPanel({ onClose, onSend, loading, caption, getAnal
         </button>
       </div>
 
-      <p className="avatar-ai-label">AI depiction · not divine</p>
+      <p className="avatar-ai-label">{lang === 'hi' ? 'AI चित्रण · दैवी नहीं' : 'AI depiction · not divine'}</p>
 
       {caption && !pickerOpen && (
         <p className="avatar-caption" aria-live="polite">{caption}</p>
       )}
 
       {pickerOpen ? (
-        <div className="avatar-sheet" role="dialog" aria-label="Choose outfit">
-          <h2 className="avatar-sheet-title">Choose Outfit</h2>
+        <div className="avatar-sheet" role="dialog" aria-label={t('avatar.choose')}>
+          <h2 className="avatar-sheet-title">{t('avatar.choose_title')}</h2>
           <div className="avatar-outfits">
             {OUTFITS.map((o) => {
               const enabled = selectable(o.id)
@@ -92,12 +94,12 @@ export default function AvatarPanel({ onClose, onSend, loading, caption, getAnal
                       : { background: o.swatch }}
                   />
                   <span className="avatar-outfit-label">{o.label}</span>
-                  {!enabled && <span className="avatar-outfit-soon">Soon</span>}
+                  {!enabled && <span className="avatar-outfit-soon">{t('avatar.soon')}</span>}
                 </button>
               )
             })}
           </div>
-          <button className="avatar-done" type="button" onClick={() => setPickerOpen(false)}>Done</button>
+          <button className="avatar-done" type="button" onClick={() => setPickerOpen(false)}>{t('avatar.done')}</button>
         </div>
       ) : (
         <div className="avatar-input">

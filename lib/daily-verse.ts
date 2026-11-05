@@ -25,6 +25,8 @@ export type DailyVerse = {
   teaching: string
   life: string
   practice: string
+  /** The same page in Hindi (Devanagari), when the model provided it. */
+  hi?: { title: string; moment: string; teaching: string; life: string; practice: string } | null
 }
 
 /** Today's date in India (the verse changes at midnight IST). */
@@ -48,17 +50,30 @@ Return ONLY a JSON object with these string fields, in English, faithful to what
 - "moment": 2 sentences: where in the Gita this is spoken, and what Arjuna is facing.
 - "teaching": 1 to 2 sentences: what the verse teaches.
 - "life": 2 sentences: what it can mean for an ordinary person's day today (work, family, worry), without assuming their circumstances.
-- "practice": 1 sentence: one small thing to try today.`
+- "practice": 1 sentence: one small thing to try today, drawn from this verse (not a breathing exercise unless the verse is about the breath).
+- "hi": an object with the same five fields written in natural, simple Hindi (Devanagari script), as people actually speak, respectful (आप). Same meaning, not a word-for-word translation.`
 }
 
-function parseJson(raw: string): Record<string, string> | null {
+const KEYS = ['title', 'moment', 'teaching', 'life', 'practice'] as const
+
+function fields(o: Record<string, unknown> | null | undefined): Page | null {
+  if (!o || typeof o !== 'object') return null
+  if (!KEYS.every((k) => typeof o[k] === 'string' && (o[k] as string).trim())) return null
+  return Object.fromEntries(KEYS.map((k) => [k, String(o[k]).trim().slice(0, 600)])) as Page
+}
+
+type Page = { title: string; moment: string; teaching: string; life: string; practice: string }
+
+export function parseJson(raw: string): (Page & { hi: Page | null }) | null {
   const m = raw.match(/\{[\s\S]*\}/)
   if (!m) return null
   try {
     const o = JSON.parse(m[0]) as Record<string, unknown>
-    const keys = ['title', 'moment', 'teaching', 'life', 'practice']
-    if (!keys.every((k) => typeof o[k] === 'string' && (o[k] as string).trim())) return null
-    return Object.fromEntries(keys.map((k) => [k, String(o[k]).trim().slice(0, 600)]))
+    const en = fields(o)
+    if (!en) return null
+    // Hindi is a bonus: a missing or malformed Hindi page never costs the English one.
+    const hi = fields(o.hi as Record<string, unknown>)
+    return { ...en, hi: hi && /[\u0900-\u097F]/.test(hi.title) ? hi : null }
   } catch {
     return null
   }
@@ -66,7 +81,7 @@ function parseJson(raw: string): Record<string, string> | null {
 
 /** Creates today's verse if it doesn't exist yet. Service-role client (cron). */
 export async function ensureDailyVerse(admin: SupabaseClient, day = indiaDay()): Promise<DailyVerse | null> {
-  const { data: existing } = await admin.from('daily_verses').select('day, text_source, book_chapter, verse, title, moment, teaching, life, practice').eq('day', day).maybeSingle()
+  const { data: existing } = await admin.from('daily_verses').select('day, text_source, book_chapter, verse, title, moment, teaching, life, practice, hi').eq('day', day).maybeSingle()
   if (existing) return existing as DailyVerse
 
   const [chapter, verse] = verseForDay(day)

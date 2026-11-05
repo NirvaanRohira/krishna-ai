@@ -5,6 +5,7 @@ import { formatShloka, iastToDevanagari } from '@/lib/devanagari'
 import { GITA_CHAPTERS, BOOK_TITLES, type BookKind } from '@/lib/scripture-meta'
 import { pageRustles } from '@/lib/sfx'
 import { shareCard } from '@/lib/share-card'
+import { useLang } from '@/components/LangProvider'
 import type { Source } from '@/lib/sources'
 
 /**
@@ -67,6 +68,7 @@ export function ScriptureBook({
   /** The closing question, written at the foot of the reflection page after the page closes. */
   question?: string
 }) {
+  const { lang, t } = useLang()
   const p = parseRef(page.ref)
   const kind = verified ? bookKind(page.ref) : 'other'
   const title = BOOK_TITLES[kind]
@@ -115,16 +117,16 @@ export function ScriptureBook({
 
   const place =
     kind === 'gita' && p.chapter
-      ? { heading: `Adhyāya ${p.chapter}`, sub: GITA_CHAPTERS[p.chapter - 1]?.[1] ?? '', name: GITA_CHAPTERS[p.chapter - 1]?.[0] }
+      ? { heading: t('book.chapter', { n: lang === 'hi' ? toDevanagari(p.chapter) : p.chapter }), sub: lang === 'hi' ? '' : GITA_CHAPTERS[p.chapter - 1]?.[1] ?? '', name: GITA_CHAPTERS[p.chapter - 1]?.[0] }
       : kind === 'bhagavatam' && p.skandha
-        ? { heading: `Skandha ${p.skandha} · Chapter ${p.chapter ?? ''}`, sub: '', name: undefined }
-        : { heading: 'From the teachings', sub: '', name: undefined }
+        ? { heading: t('book.skandha', { s: p.skandha, c: p.chapter ?? '' }), sub: '', name: undefined }
+        : { heading: t('book.from_teachings'), sub: '', name: undefined }
   const verseMark = verified && p.verse ? toDevanagari(p.verse) : null
 
   const right: [string, string][] = [
-    ['The moment', page.moment],
-    ['In your life', page.life],
-    ['For today', page.practice],
+    [t('book.moment'), page.moment],
+    [t('book.life'), page.life],
+    [t('book.today'), page.practice],
   ]
   const lastFilled = right.reduce((acc, [, t], i) => (t ? i : acc), -1)
   const writing = streaming && !page.complete
@@ -163,10 +165,11 @@ export function ScriptureBook({
     setSharing('busy')
     try {
       const heading = kind === 'gita' && p.chapter
-        ? `Adhyāya ${p.chapter}${verified && p.verse ? ` · Verse ${p.verse}` : ''}`
-        : kind === 'bhagavatam' && p.skandha ? `Skandha ${p.skandha} · Chapter ${p.chapter ?? ''}${p.verse ? ` · Verse ${p.verse}` : ''}` : 'From the teachings'
+        ? `${t('book.chapter', { n: p.chapter })}${verified && p.verse ? ` · ${lang === 'hi' ? 'श्लोक' : 'Verse'} ${p.verse}` : ''}`
+        : kind === 'bhagavatam' && p.skandha ? `${t('book.skandha', { s: p.skandha, c: p.chapter ?? '' })}${p.verse ? ` · ${lang === 'hi' ? 'श्लोक' : 'Verse'} ${p.verse}` : ''}` : t('book.from_teachings')
       const r = await shareCard(
-        { bookLatin: title.latin, heading, folio, shloka, verseMark, title: page.title, teaching: page.teaching, practice: page.practice, site: window.location.host },
+        { bookLatin: title.latin, heading, folio, shloka, verseMark, title: page.title, teaching: page.teaching, practice: page.practice, site: window.location.host,
+          labels: { today: t('book.today'), footer: lang === 'hi' ? 'AI द्वारा लिखा गया चिंतन। भगवान नहीं, कृष्ण नहीं।' : 'A reflection written by AI. Not God, not Krishna.' } },
         `kanha-${(folio || 'page').replace(/\./g, '-')}.png`,
       )
       setSharing(r === 'downloaded' ? 'saved' : 'idle')
@@ -199,7 +202,7 @@ export function ScriptureBook({
         <section className="book__page book__page--left">
           <p className="book__running">{title.latin}</p>
           <p className="book__chapter">{place.heading}</p>
-          {place.name && <p className="book__chapter-name">{iastToDevanagari(place.name)} · {place.sub}</p>}
+          {place.name && <p className="book__chapter-name">{iastToDevanagari(place.name)}{place.sub ? ` · ${place.sub}` : ''}</p>}
           <svg className="book__ornament" viewBox="0 0 120 16" aria-hidden="true">
             <path d="M2 8h44M74 8h44" stroke="currentColor" strokeWidth="0.8" />
             <path d="M60 2c4 3 4 9 0 12-4-3-4-9 0-12Z M52 8c3-2 6-2 8 0-2 2-5 2-8 0Z M68 8c-3-2-6-2-8 0 2 2 5 2 8 0Z" fill="currentColor" />
@@ -230,7 +233,7 @@ export function ScriptureBook({
               </div>
             ) : null,
           )}
-          {writing && lastFilled === -1 && <p className="book__waiting">The ink is still wet… <Quill /></p>}
+          {writing && lastFilled === -1 && <p className="book__waiting">{t('book.ink_wet')} <Quill /></p>}
           {question && (
             <p className="book__question">
               <Ink text={question} live={askingLive} />
@@ -241,9 +244,9 @@ export function ScriptureBook({
       </div>
 
       {narrow && settled && (
-        <nav className="book__turn" aria-label="Turn the page">
-          <button type="button" aria-pressed={view === 'verse'} onClick={() => turnTo('verse')}>‹ The verse</button>
-          <button type="button" aria-pressed={view === 'reflection'} onClick={() => turnTo('reflection')}>For you ›</button>
+        <nav className="book__turn" aria-label={t('book.turn')}>
+          <button type="button" aria-pressed={view === 'verse'} onClick={() => turnTo('verse')}>{t('book.to_verse')}</button>
+          <button type="button" aria-pressed={view === 'reflection'} onClick={() => turnTo('reflection')}>{t('book.to_you')}</button>
         </nav>
       )}
 
@@ -253,10 +256,10 @@ export function ScriptureBook({
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M12 3v12M7 8l5-5 5 5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" />
             </svg>
-            {sharing === 'busy' ? 'Making the card…' : 'Share this page'}
+            {sharing === 'busy' ? t('book.sharing') : t('book.share')}
           </button>
-          {sharing === 'saved' && <span role="status">Saved as an image. Post it anywhere.</span>}
-          {sharing === 'failed' && <span role="status">Couldn&rsquo;t make the image on this device.</span>}
+          {sharing === 'saved' && <span role="status">{t('book.shared_saved')}</span>}
+          {sharing === 'failed' && <span role="status">{t('book.share_failed')}</span>}
         </div>
       )}
 

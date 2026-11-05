@@ -1,7 +1,11 @@
+'use client'
+import { useLang } from '@/components/LangProvider'
+
 export function DisclaimerBadge() {
+  const { t } = useLang()
   return (
     <p className="disclaimer-badge" role="note">
-      AI from sacred texts · not God, not Krishna, not an authority
+      {t('common.disclaimer_badge')}
     </p>
   )
 }

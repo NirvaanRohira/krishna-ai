@@ -16,6 +16,7 @@ import { queryStructuralLookup } from '@/lib/retrieval/structuralLookup'
 import { withVoiceMode } from '@/lib/prompts/voice'
 import { closeStaleSessions } from '@/lib/memory/postSession'
 import { log } from '@/lib/log'
+import { detectLanguage } from '@/lib/language'
 import { publicSources } from '@/lib/sources-server'
 import { consumeQuota, quotaMessage, recordLlmUsage, estimateTokens } from '@/lib/quota'
 
@@ -74,6 +75,9 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
   // `history` from the client is deliberately ignored — see resumeSession().
   const { message, sessionId: existingSessionId, mode } = body
+  // Interface language (validated): decides the wording of limits and errors. Fixed safety
+  // replies follow the message itself when it is written in Hindi.
+  const uiLang: 'en' | 'hi' = body.lang === 'hi' ? 'hi' : 'en'
   // 'voice' = reply will be spoken by the avatar → shorter, conversational answers.
   const voice = mode === 'voice'
 
@@ -103,7 +107,7 @@ export async function POST(req: Request) {
   ])
   if (!quota.allowed) {
     return NextResponse.json(
-      { error: quotaMessage(quota, 'message'), code: quota.reason, plan: quota.plan },
+      { error: quotaMessage(quota, 'message', uiLang), code: quota.reason, plan: quota.plan },
       { status: 429, headers: quota.reason === 'rate' ? { 'Retry-After': '60' } : {} }
     )
   }
@@ -166,7 +170,9 @@ export async function POST(req: Request) {
       const systemPrompt = withVoiceMode(profilePrompt, voice)
 
       // ── Guardrail gate (checked after parallel fan-out) ────────
-      const fixedResponse = getGuardrailResponse(category)
+      const msgLang = detectLanguage(message)
+      const replyLang: 'en' | 'hi' = msgLang === 'hi' || (uiLang === 'hi' && msgLang !== 'en') ? 'hi' : 'en'
+      const fixedResponse = getGuardrailResponse(category, replyLang)
 
       if (fixedResponse !== undefined) {
         await writer.write(sseChunk({ t: 's', id: sessionId, src: [] }))
@@ -252,7 +258,7 @@ export async function POST(req: Request) {
       // "something went wrong" diagnosable; the full error stays in the server logs.
       const code = errorCode(err)
       log.error('chat', 'stream failed', { sessionId, userId: user.id, code }, err)
-      await writer.write(sseChunk({ t: 'e', msg: 'Something went wrong. Please try again.', code }))
+      await writer.write(sseChunk({ t: 'e', msg: uiLang === 'hi' ? 'कुछ गड़बड़ हो गई। कृपया फिर से कोशिश करें।' : 'Something went wrong. Please try again.', code }))
     } finally {
       // After [DONE] has been sent, so it never delays the reply.
       if (usagePromptChars > 0) {

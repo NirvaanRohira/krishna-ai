@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { HairlineFigure } from '@/components/HairlineFigure'
 import { DailyVerseToggle } from '@/components/DailyVerseToggle'
 import { InstallButton } from '@/components/InstallButton'
+import { useLang } from '@/components/LangProvider'
+import { formatDate } from '@/lib/i18n'
 
 const PHRASE = 'DELETE MY ACCOUNT'
 
@@ -20,6 +22,7 @@ type Memory = {
 }
 
 export default function AccountPage() {
+  const { lang, t } = useLang()
   const [memory, setMemory] = useState<Memory | null>(null)
   const [loadError, setLoadError] = useState(false)
   const [confirm, setConfirm] = useState('')
@@ -42,8 +45,8 @@ export default function AccountPage() {
     setBusy(null)
     if (res?.ok && memory) {
       setMemory({ ...memory, life_context: null, life_stage: null, themes: [], attachments: [], past_topics: [] })
-      setStatus('Done. Kanha no longer remembers anything about you from past conversations.')
-    } else setStatus('Could not clear your profile. Please try again.')
+      setStatus(t('account.cleared'))
+    } else setStatus(t('account.clear_failed'))
   }
 
   async function setMarketing(on: boolean) {
@@ -56,7 +59,7 @@ export default function AccountPage() {
     }).catch(() => null)
     setBusy(null)
     if (res?.ok) setMemory({ ...memory, marketing_opt_in: on })
-    else setStatus('Could not save your email preference.')
+    else setStatus(t('account.email_failed'))
   }
 
   async function remove() {
@@ -69,54 +72,54 @@ export default function AccountPage() {
     }).catch(() => null)
     setBusy(null)
     if (res?.ok) router.push('/')
-    else setStatus('Deletion failed. Please try again, or contact the grievance officer.')
+    else setStatus(t('account.delete_failed'))
   }
 
   const remembered = memory && (memory.life_context || memory.life_stage || memory.themes.length || memory.attachments.length || memory.past_topics.length)
 
   return (
     <main className="legal-page">
-      <p><Link href="/chat">← Back to chat</Link></p>
-      <h1>Your account</h1>
+      <p><Link href="/chat">{t('common.back_to_chat')}</Link></p>
+      <h1>{t('account.title')}</h1>
       {memory && (
         <p>
-          Plan: <strong style={{ textTransform: 'capitalize' }}>{memory.plan}</strong>
-          {memory.plan_until && <> · until {new Date(memory.plan_until).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</>}
-          {' · '}<Link href="/pricing">{memory.plan === 'free' ? 'See plans' : 'Extend'}</Link>
+          {t('account.plan')}: <strong>{t(memory.plan === 'premium' ? 'plan.premium' : memory.plan === 'plus' ? 'plan.plus' : 'plan.free')}</strong>
+          {memory.plan_until && <> · {t('pricing.until', { date: formatDate(lang, memory.plan_until) })}</>}
+          {' · '}<Link href="/pricing">{memory.plan === 'free' ? t('account.see_plans') : t('account.extend')}</Link>
         </p>
       )}
 
-      <h2>What Kanha remembers about you</h2>
-      <p>Kanha keeps a short summary of past conversations so it doesn&rsquo;t ask you to repeat yourself. You can see it here and erase it at any time.</p>
-      {loadError && <p role="alert" className="auth-error" style={{ textAlign: 'left' }}>Could not load your profile.</p>}
+      <h2>{t('account.memory_title')}</h2>
+      <p>{t('account.memory_intro')}</p>
+      {loadError && <p role="alert" className="auth-error" style={{ textAlign: 'left' }}>{t('account.load_failed')}</p>}
       {memory && (remembered ? (
         <dl className="memory-list">
-          {memory.life_context && (<><dt>Your situation</dt><dd>{memory.life_context}</dd></>)}
-          {memory.life_stage && (<><dt>Life stage</dt><dd style={{ textTransform: 'capitalize' }}>{memory.life_stage}</dd></>)}
-          {memory.themes.length > 0 && (<><dt>Themes that come up</dt><dd>{memory.themes.join(', ')}</dd></>)}
-          {memory.attachments.length > 0 && (<><dt>What you hold on to</dt><dd>{memory.attachments.join(', ')}</dd></>)}
-          {memory.past_topics.length > 0 && (<><dt>Past conversations</dt><dd>{memory.past_topics.map((t) => t.topic).filter(Boolean).join(' · ')}</dd></>)}
+          {memory.life_context && (<><dt>{t('account.situation')}</dt><dd>{memory.life_context}</dd></>)}
+          {memory.life_stage && (<><dt>{t('account.life_stage')}</dt><dd style={{ textTransform: 'capitalize' }}>{memory.life_stage}</dd></>)}
+          {memory.themes.length > 0 && (<><dt>{t('account.themes')}</dt><dd>{memory.themes.join(', ')}</dd></>)}
+          {memory.attachments.length > 0 && (<><dt>{t('account.attachments')}</dt><dd>{memory.attachments.join(', ')}</dd></>)}
+          {memory.past_topics.length > 0 && (<><dt>{t('account.past')}</dt><dd>{memory.past_topics.map((t) => t.topic).filter(Boolean).join(' · ')}</dd></>)}
         </dl>
       ) : (
         <>
-          <HairlineFigure name="diyas" label="Five clay lamps on a ledge, waiting to be lit." />
-          <p className="memory-empty">Nothing yet. Kanha learns from your conversations as you talk.</p>
+          <HairlineFigure name="diyas" label={t('account.lamps')} />
+          <p className="memory-empty">{t('account.nothing')}</p>
         </>
       ))}
       {remembered ? (
         <div className="account-actions">
           <button type="button" className="btn-ghost" onClick={clearMemory} disabled={busy !== null}>
-            {busy === 'clear' ? 'Clearing…' : 'Forget all of this'}
+            {busy === 'clear' ? t('account.clearing') : t('account.forget')}
           </button>
         </div>
       ) : null}
 
-      <h2>Morning verse</h2>
-      <p>A notification each morning with the day&rsquo;s verse. <Link href="/verse">See today&rsquo;s</Link>.</p>
+      <h2>{t('account.morning_title')}</h2>
+      <p>{t('account.morning_body')} <Link href="/verse">{t('account.see_today')}</Link>.</p>
       <DailyVerseToggle />
       <InstallButton />
 
-      <h2>Emails</h2>
+      <h2>{t('account.emails_title')}</h2>
       {memory && (
         <label className="toggle-row">
           <input
@@ -125,28 +128,28 @@ export default function AccountPage() {
             disabled={busy !== null}
             onChange={(e) => setMarketing(e.target.checked)}
           />
-          <span>Send me occasional updates. Turn this off any time; we stop immediately.</span>
+          <span>{t('account.emails_opt')}</span>
         </label>
       )}
 
-      <h2>Download your data</h2>
-      <p>Everything we hold about you as one file: profile, conversations and consent history.</p>
+      <h2>{t('account.download_title')}</h2>
+      <p>{t('account.download_body')}</p>
       <div className="account-actions">
-        <a className="btn-ghost" href="/api/account/export" download>Download my data</a>
+        <a className="btn-ghost" href="/api/account/export" download>{t('account.download')}</a>
       </div>
 
-      <h2>Delete your account</h2>
-      <p>This permanently deletes your account, conversations and profile. It cannot be undone. Type <strong>{PHRASE}</strong> to confirm.</p>
+      <h2>{t('account.delete_title')}</h2>
+      <p>{t('account.delete_body', { phrase: PHRASE })}</p>
       <div className="account-actions">
-        <label htmlFor="confirm-delete" className="sr-only">Confirmation phrase</label>
+        <label htmlFor="confirm-delete" className="sr-only">{t('account.confirm_label')}</label>
         <input id="confirm-delete" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder={PHRASE} autoComplete="off" />
         <button className="btn-primary btn-danger" type="button" disabled={confirm !== PHRASE || busy !== null} onClick={remove}>
-          {busy === 'delete' ? 'Deleting…' : 'Permanently delete'}
+          {busy === 'delete' ? t('account.deleting') : t('account.delete')}
         </button>
       </div>
       {status && <p role="status" style={{ marginTop: '1rem' }}>{status}</p>}
 
-      <p style={{ marginTop: '2.5rem' }}><Link href="/privacy">Privacy Notice</Link> · <Link href="/terms">Terms</Link></p>
+      <p style={{ marginTop: '2.5rem' }}><Link href="/privacy">{t('common.privacy_notice')}</Link> · <Link href="/terms">{t('common.terms')}</Link></p>
     </main>
   )
 }

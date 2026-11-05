@@ -27,10 +27,20 @@ export async function consumeQuota(supabase: SupabaseClient, kind: QuotaKind, am
 
 const UPGRADE = { free: 'Plus', plus: 'Premium' } as Record<string, string | undefined>
 
-/** Friendly, honest wording for a blocked request (shown in chat). */
-export function quotaMessage(r: QuotaResult, kind: QuotaKind): string {
-  if (r.reason === 'rate') return 'You are sending messages quickly. Take a breath, and try again in a minute.'
+const PLAN_HI: Record<string, string> = { free: 'फ़्री', plus: 'प्लस', premium: 'प्रीमियम' }
+
+/** Friendly, honest wording for a blocked request (shown in chat), in the interface language. */
+export function quotaMessage(r: QuotaResult, kind: QuotaKind, lang: 'en' | 'hi' = 'en'): string {
   const next = r.plan ? UPGRADE[r.plan] : undefined
+  if (lang === 'hi') {
+    if (r.reason === 'rate') return 'आप बहुत जल्दी-जल्दी लिख रहे हैं। एक साँस लीजिए, और एक मिनट बाद फिर कोशिश कीजिए।'
+    const plan = r.plan ? PLAN_HI[r.plan] ?? r.plan : ''
+    if (kind === 'voice_chars') {
+      return `आज के बोले गए जवाब${plan ? ` ${plan} प्लान में` : ''} पूरे हो गए। जवाब लिखकर आते रहेंगे, और आवाज़ रात 12 बजे (IST) फिर शुरू होगी।`
+    }
+    return `आज के ${r.limit ?? ''} संदेश${plan ? ` ${plan} प्लान में` : ''} पूरे हो गए। रात 12 बजे (IST) फिर शुरू होंगे।${next ? ` ${PLAN_HI[next.toLowerCase()] ?? next} में रोज़ ज़्यादा संदेश मिलते हैं।` : ''}`.replace('  ', ' ')
+  }
+  if (r.reason === 'rate') return 'You are sending messages quickly. Take a breath, and try again in a minute.'
   if (kind === 'voice_chars') {
     return `Today's spoken replies are used up${next ? ` on the ${r.plan} plan` : ''}. Replies will still appear as text, and voice resets at midnight IST.`
   }

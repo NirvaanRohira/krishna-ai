@@ -1,4 +1,5 @@
 import { TERMS_VERSION } from '@/lib/legal'
+import { EnglishOnlyNote } from '@/components/EnglishOnlyNote'
 
 export const metadata = { title: 'Terms of Use' }
 
@@ -6,6 +7,7 @@ export const metadata = { title: 'Terms of Use' }
 export default function TermsPage() {
   return (
     <main className="legal-page">
+      <EnglishOnlyNote />
       <h1>Terms of Use</h1>
       <p className="legal-draft">Draft version {TERMS_VERSION}. Pending legal review; not yet final.</p>
 

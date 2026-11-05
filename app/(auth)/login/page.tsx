@@ -3,8 +3,11 @@
 import { useState } from 'react'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 import { Mark } from '@/components/Mark'
+import { useLang } from '@/components/LangProvider'
+import { LanguageToggle } from '@/components/LanguageToggle'
 
 export default function LoginPage() {
+  const { lang, t } = useLang()
   const [email, setEmail] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -16,7 +19,7 @@ export default function LoginPage() {
     const { error: otpError } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=/chat` } })
     if (otpError) {
       // Do NOT claim success when the link was never sent (rate limits, provider errors).
-      setError(otpError.message || 'Could not send the sign-in link. Please try again.')
+      setError(t('login.otp_failed'))
       return
     }
     setSubmitted(true)
@@ -30,7 +33,7 @@ export default function LoginPage() {
       options: { redirectTo: `${window.location.origin}/auth/callback?next=/chat` },
     })
     if (oauthError) {
-      setError(oauthError.message || 'Could not start Google sign-in. Please try again.')
+      setError(t('login.google_failed'))
     }
   }
 
@@ -39,8 +42,8 @@ export default function LoginPage() {
       <main className="auth-page">
         <div className="auth-card auth-sent fade-up">
           <Mark className="auth-mark" />
-          <h1>Check your email</h1>
-          <p>We sent a sign-in link to <strong>{email}</strong>. Open it on this device to continue.</p>
+          <h1>{t('login.check_title')}</h1>
+          <p>{t('login.check_body', { email })}</p>
         </div>
       </main>
     )
@@ -48,11 +51,12 @@ export default function LoginPage() {
 
   return (
     <main className="auth-page">
+      <div className="auth-lang"><LanguageToggle /></div>
       <div className="auth-card fade-up">
         <div>
           <Mark className="auth-mark" />
-          <h1 className="auth-title">Kanha</h1>
-          <p className="auth-subtitle">Sign in to begin</p>
+          <h1 className="auth-title">{lang === 'hi' ? 'कान्हा' : 'Kanha'}</h1>
+          <p className="auth-subtitle">{t('login.subtitle')}</p>
         </div>
 
         {/* Google OAuth */}
@@ -63,14 +67,14 @@ export default function LoginPage() {
             <path d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.548 0 9s.348 2.825.957 4.039l3.007-2.332z" fill="#FBBC05"/>
             <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z" fill="#EA4335"/>
           </svg>
-          Continue with Google
+          {t('login.google')}
         </button>
 
-        <div className="auth-divider">or</div>
+        <div className="auth-divider">{t('login.or')}</div>
 
         {/* Magic link */}
         <form onSubmit={handleSubmit} className="auth-form">
-          <label htmlFor="email" className="sr-only">Email address</label>
+          <label htmlFor="email" className="sr-only">{t('login.email')}</label>
           <input
             id="email"
             type="email"
@@ -79,11 +83,11 @@ export default function LoginPage() {
             onChange={(e) => setEmail(e.target.value)}
             required
             className="field-input"
-            aria-label="Email address"
+            aria-label={t('login.email')}
             autoComplete="email"
           />
           <button type="submit" className="btn-primary">
-            Send me a sign-in link
+            {t('login.send_link')}
           </button>
         </form>
 
@@ -94,7 +98,7 @@ export default function LoginPage() {
         )}
 
         <p className="auth-fine">
-          Kanha is an AI, not God or a guru, and not a substitute for professional help.
+          {t('login.fine')}
         </p>
       </div>
     </main>

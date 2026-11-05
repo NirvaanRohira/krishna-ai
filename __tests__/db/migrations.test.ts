@@ -315,6 +315,15 @@ describe('daily verse and push (20261103000000)', () => {
     expect((await db.query<{ title: string }>(`select title from daily_verses`)).rows[0].title).toBe('t')
   })
 
+  it('the Hindi page is optional, must have every field when present, and is readable like the rest (20261105000000)', async () => {
+    await db.exec('set role service_role')
+    await db.query(`insert into daily_verses (day, text_source, book_chapter, verse, title, moment, teaching, life, practice, hi) values ('2026-11-04','bhagavad_gita',2,48,'t','m','te','l','p', '{"title":"शी","moment":"प्र","teaching":"शि","life":"जी","practice":"अ"}')`)
+    await expect(db.query(`insert into daily_verses (day, text_source, book_chapter, verse, title, moment, teaching, life, practice, hi) values ('2026-11-05','bhagavad_gita',2,49,'t','m','te','l','p', '{"title":"only a title"}')`)).rejects.toThrow()
+    await db.exec('reset role')
+    const anon = await asUser(db, null, () => db.query<{ hi: { title: string } }>(`select hi from daily_verses where day = '2026-11-04'`))
+    expect(anon.rows[0].hi.title).toBe('शी')
+  })
+
   it('users manage only their own push subscriptions, and only https endpoints', async () => {
     await asUser(db, U, () => db.query(`insert into push_subscriptions (user_id, endpoint, p256dh, auth) values ($1, 'https://fcm.googleapis.com/fcm/send/abc', 'k', 'a')`, [U]))
     await expect(asUser(db, U, () => db.query(`insert into push_subscriptions (user_id, endpoint, p256dh, auth) values ($1, 'https://fcm.googleapis.com/fcm/send/x', 'k', 'a')`, [V]))).rejects.toThrow()

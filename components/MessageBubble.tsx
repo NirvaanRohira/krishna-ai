@@ -1,6 +1,7 @@
 import type { Source } from '@/lib/sources'
 import { splitReply, hasPage, refInSources, type ScripturePage } from '@/lib/scripture-page'
 import { ScriptureBook } from '@/components/ScriptureBook'
+import { ThinkingDots } from '@/components/ThinkingDots'
 
 /**
  * Lays a reply out as books: the text before the first page becomes its lead, the text after
@@ -45,9 +46,7 @@ export function MessageBubble({ role, content, streaming = false, sources = [], 
   return (
     <div className={cls}>
       {isThinking ? (
-        <span className="thinking-dots" data-thinking="true" aria-label="Reflecting">
-          <span /><span /><span />
-        </span>
+        <ThinkingDots />
       ) : role === 'assistant' && hasPage(content) ? (
         // One reply, one object: Kanha's opening line and closing question are written into
         // the book itself (head and foot of the reflection page), not around it.

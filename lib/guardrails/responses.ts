@@ -17,6 +17,21 @@ const FIXED_RESPONSES: Partial<Record<GuardrailCategory, string>> = {
     'This is not a domain I can help with. I can only speak to the inner life — your dharma, your relationships, your own path. Political questions require different wisdom than what I carry.',
 }
 
-export function getGuardrailResponse(category: GuardrailCategory): string | undefined {
-  return FIXED_RESPONSES[category]
+// The same replies in Hindi, for people writing in Hindi. The crisis lines are the same
+// numbers; Tele-MANAS answers in Indian languages.
+const FIXED_RESPONSES_HI: Partial<Record<GuardrailCategory, string>> = {
+  CRISIS:
+    'मैं समझ रहा हूँ कि आप बहुत गहरे दर्द में हैं, और अच्छा हुआ कि आपने यह कहा। कृपया अभी किसी प्रशिक्षित व्यक्ति से बात कीजिए: टेली-मानस 14416 (मुफ़्त, किसी भी समय, भारतीय भाषाओं में) या iCall 9152987821। अगर आप तुरंत ख़तरे में हैं, तो 112 पर कॉल करें। आप अकेले नहीं हैं, और यह बोझ आपको अकेले नहीं उठाना है।',
+  MEDICAL:
+    'इस पर मैं मार्गदर्शन नहीं दे सकता। कृपया किसी डॉक्टर से बात करें। गीता भीतर के जीवन पर ज्ञान देती है, पर आपके शरीर के स्वास्थ्य के लिए एक योग्य डॉक्टर ज़रूरी है।',
+  LEGAL_FINANCIAL:
+    'किसी ख़ास निवेश, टैक्स या क़ानूनी क़दम पर मैं सलाह नहीं दे सकता; उसके लिए किसी योग्य वित्तीय सलाहकार या वकील से मिलें। पर अगर यह बात मन पर भारी है, तो मैं आपके साथ इस पर सोचने को तैयार हूँ: इसमें आपको सबसे ज़्यादा क्या परेशान कर रहा है?',
+  DIVINITY_CLAIM:
+    'नहीं। मैं एक AI हूँ, भगवान नहीं और कृष्ण नहीं। आप कृष्ण का रूप श्रद्धा के कारण देखते हैं, पर ये शब्द एक सॉफ़्टवेयर लिखता है जो पवित्र ग्रंथों पर आधारित है। कृष्ण के अपने वचन गीता में हैं; मैं बस उन पर सोचने में आपकी मदद कर सकता हूँ।',
+  POLITICAL:
+    'इस विषय में मैं मदद नहीं कर सकता। मैं केवल भीतर के जीवन की बात कर सकता हूँ: आपका धर्म, आपके रिश्ते, आपकी अपनी राह। राजनीतिक प्रश्नों के लिए अलग तरह की समझ चाहिए।',
+}
+
+export function getGuardrailResponse(category: GuardrailCategory, lang: 'en' | 'hi' = 'en'): string | undefined {
+  return (lang === 'hi' ? FIXED_RESPONSES_HI[category] : undefined) ?? FIXED_RESPONSES[category]
 }

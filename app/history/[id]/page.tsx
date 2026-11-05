@@ -2,11 +2,13 @@
 import { use, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { MessageBubble } from '@/components/MessageBubble'
+import { useLang } from '@/components/LangProvider'
 
 type Msg = { role: 'user' | 'assistant'; content: string }
 
 export default function ConversationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
+  const { lang, t } = useLang()
   const [data, setData] = useState<{ startedAt: string; messages: Msg[] } | null>(null)
   const [failed, setFailed] = useState(false)
 
@@ -21,16 +23,16 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
 
   return (
     <main className="legal-page history-thread">
-      <p><Link href="/history">← All conversations</Link></p>
-      <h1>Conversation</h1>
+      <p><Link href="/history">{t('history.all')}</Link></p>
+      <h1>{t('history.one_title')}</h1>
       {data && (
         <p className="history-meta">
-          {new Date(data.startedAt).toLocaleString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+          {new Date(data.startedAt).toLocaleString(lang === 'hi' ? 'hi-IN' : 'en-IN', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
         </p>
       )}
-      {failed && <p role="alert" className="auth-error" style={{ textAlign: 'left' }}>This conversation could not be found.</p>}
+      {failed && <p role="alert" className="auth-error" style={{ textAlign: 'left' }}>{t('history.not_found')}</p>}
       {!data && !failed && (
-        <div className="history-messages" aria-busy="true" aria-label="Loading the conversation">
+        <div className="history-messages" aria-busy="true" aria-label={t('history.loading_one')}>
           <span className="skeleton skeleton--line" style={{ width: '55%', marginLeft: 'auto' }} />
           <span className="skeleton skeleton--line" />
           <span className="skeleton skeleton--line" style={{ width: '85%' }} />
@@ -45,8 +47,8 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
           ))}
         </div>
       )}
-      <p className="history-continue"><Link href="/chat" className="btn-primary">Start a new conversation</Link></p>
-      <p className="landing-disclaimer">Kanha is an AI drawing from Sanskrit texts. It is not God, not Krishna, and not a spiritual authority.</p>
+      <p className="history-continue"><Link href="/chat" className="btn-primary">{t('history.new')}</Link></p>
+      <p className="landing-disclaimer">{t('common.disclaimer')}</p>
     </main>
   )
 }

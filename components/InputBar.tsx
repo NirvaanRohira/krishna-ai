@@ -1,5 +1,6 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
+import { useLang } from '@/components/LangProvider'
 
 interface InputBarProps {
   onSubmit: (message: string) => void
@@ -38,6 +39,7 @@ function SendIcon() {
 }
 
 export function InputBar({ onSubmit, loading = false }: InputBarProps) {
+  const { lang, t } = useLang()
   const [value, setValue] = useState('')
   const [interim, setInterim] = useState('')
   const [recording, setRecording] = useState(false)
@@ -87,7 +89,7 @@ export function InputBar({ onSubmit, loading = false }: InputBarProps) {
 
     const SR = window.SpeechRecognition ?? window.webkitSpeechRecognition
     if (!SR) {
-      alert('Your browser does not support voice input. Try Chrome or Edge.')
+      alert(t('input.no_voice'))
       return
     }
 
@@ -99,8 +101,9 @@ export function InputBar({ onSubmit, loading = false }: InputBarProps) {
     recognition.interimResults = true
     // Indian English understands Indian accents and names far better than en-US; a phone set
     // to Hindi/Tamil/etc. (hi-IN, ta-IN...) gets recognition in that language.
+    // Hindi chosen for the interface means Hindi speech recognition.
     const navLang = typeof navigator !== 'undefined' ? navigator.language : ''
-    recognition.lang = /-IN$/i.test(navLang) ? navLang : 'en-IN'
+    recognition.lang = lang === 'hi' ? 'hi-IN' : /-IN$/i.test(navLang) ? navLang : 'en-IN'
     recognitionRef.current = recognition
 
     recognition.onresult = (e: SpeechRecognitionEvent) => {
@@ -129,18 +132,18 @@ export function InputBar({ onSubmit, loading = false }: InputBarProps) {
         value={displayValue}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
-        placeholder={recording ? 'Listening…' : 'Speak your mind…'}
+        placeholder={recording ? t('input.listening') : t('input.placeholder')}
         disabled={loading}
         className="input-bar__textarea"
-        aria-label="Your message"
+        aria-label={t('input.label')}
       />
 
       <button
         onClick={toggleRecording}
         disabled={loading}
         className={`input-bar__icon-btn${recording ? ' input-bar__icon-btn--recording' : ''}`}
-        title={recording ? 'Stop recording' : 'Voice input'}
-        aria-label={recording ? 'Stop recording' : 'Start voice input'}
+        title={recording ? t('input.voice_stop') : t('input.voice')}
+        aria-label={recording ? t('input.voice_stop') : t('input.voice_start')}
         type="button"
       >
         {recording ? <StopIcon /> : <MicIcon />}
@@ -150,8 +153,8 @@ export function InputBar({ onSubmit, loading = false }: InputBarProps) {
         onClick={submit}
         disabled={!canSend}
         className="input-bar__send"
-        title="Send"
-        aria-label="Send message"
+        title={t('input.send')}
+        aria-label={t('input.send_label')}
         type="button"
       >
         <SendIcon />

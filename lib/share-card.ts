@@ -13,6 +13,8 @@ export type ShareCardData = {
   teaching: string
   practice: string
   site: string               // "kanhacall.vercel.app"
+  /** Interface-language labels; English when absent. */
+  labels?: { today: string; footer: string }
 }
 
 export const CARD_W = 1080
@@ -132,7 +134,7 @@ export function drawShareCard(ctx: CanvasRenderingContext2D, d: ShareCardData, f
       yy += 34
       ctx.fillStyle = RUBRIC
       ctx.font = `30px ${fonts.caps}`
-      text('FOR TODAY', cx, yy)
+      text((d.labels?.today ?? 'For today').toUpperCase(), cx, yy)
       yy += 50
       ctx.fillStyle = INK
       ctx.font = `34px ${fonts.book}`
@@ -150,7 +152,7 @@ export function drawShareCard(ctx: CanvasRenderingContext2D, d: ShareCardData, f
   ctx.fillText(`Kanha  ·  ${d.site}`, cx, H - 132)
   ctx.fillStyle = INK_SOFT
   ctx.font = `italic 26px ${fonts.book}`
-  ctx.fillText('A reflection written by AI. Not God, not Krishna.', cx, H - 90)
+  ctx.fillText(d.labels?.footer ?? 'A reflection written by AI. Not God, not Krishna.', cx, H - 90)
 }
 
 /** Renders the card and hands it to the share sheet (or downloads it where sharing files isn't supported). */
@@ -160,7 +162,7 @@ export async function shareCard(d: ShareCardData, fileName: string): Promise<'sh
     await Promise.all([
       document.fonts?.load(`64px ${fonts.book}`, d.title),
       document.fonts?.load(`italic 38px ${fonts.book}`, d.teaching),
-      document.fonts?.load(`30px ${fonts.caps}`, 'FOR TODAY'),
+      document.fonts?.load(`30px ${fonts.caps}`, (d.labels?.today ?? 'FOR TODAY').toUpperCase()),
       d.shloka ? document.fonts?.load(`44px ${fonts.deva}`, d.shloka) : undefined,
     ])
   } catch { /* draw with whatever has loaded */ }

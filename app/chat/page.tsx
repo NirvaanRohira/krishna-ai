@@ -12,7 +12,10 @@ import Link from 'next/link'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { toSpeech, toPlain } from '@/lib/scripture-page'
 import { useAmbient } from '@/hooks/useAmbient'
-import { usePlan, formatPlanDate, PLAN_NAMES } from '@/hooks/usePlan'
+import { usePlan } from '@/hooks/usePlan'
+import { useLang } from '@/components/LangProvider'
+import { LanguageToggle } from '@/components/LanguageToggle'
+import { formatDate } from '@/lib/i18n'
 
 type Message = { role: 'user' | 'assistant'; content: string; sources?: Source[] }
 
@@ -51,6 +54,9 @@ export default function ChatPage() {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const plan = usePlan()
+  const { lang, t } = useLang()
+  const planName = t(plan.plan === 'premium' ? 'plan.premium' : plan.plan === 'plus' ? 'plan.plus' : 'plan.free')
+  const planDate = plan.validUntil ? formatDate(lang, plan.validUntil) : ''
   const ambient = useAmbient()
   // Avatar mode: real-time 3D Krishna rendered on-device, lip-synced to the TTS audio.
   const [videoMode, setVideoMode] = useState(false)
@@ -171,7 +177,7 @@ export default function ChatPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         // History is loaded server-side from the session; the client only names the session.
-        body: JSON.stringify({ message, sessionId, mode: videoMode ? 'voice' : 'text' }),
+        body: JSON.stringify({ message, sessionId, mode: videoMode ? 'voice' : 'text', lang }),
       })
 
       if (res.status === 401) {
@@ -182,7 +188,7 @@ export default function ChatPage() {
       if (!res.ok || !res.body) {
         const data = await res.json().catch(() => ({}))
         // A short status code makes "something went wrong" diagnosable from a screenshot.
-        setMessages([...withUser, { role: 'assistant', content: data.error ?? `${FALLBACK_ERROR} (code: http_${res.status})` }])
+        setMessages([...withUser, { role: 'assistant', content: data.error ?? `${t('common.something_wrong')} (code: http_${res.status})` }])
         return
       }
 
@@ -225,7 +231,7 @@ export default function ChatPage() {
       )
 
       if (assembled === '') {
-        setMessages([...withUser, { role: 'assistant', content: errorMsg || `${FALLBACK_ERROR} (code: empty_reply)` }])
+        setMessages([...withUser, { role: 'assistant', content: errorMsg || `${t('common.something_wrong')} (code: empty_reply)` }])
       } else {
         // The model streamed partial content and *then* the server emitted an
         // error event. Without a visible marker the user (and TTS) would treat
@@ -246,7 +252,7 @@ export default function ChatPage() {
         if (rest) enqueue(rest)
       }
     } catch {
-      setMessages([...withUser, { role: 'assistant', content: `${FALLBACK_ERROR} (code: network)` }])
+      setMessages([...withUser, { role: 'assistant', content: `${t('common.something_wrong')} (code: network)` }])
     } finally {
       if (thinkingTimer !== undefined) clearTimeout(thinkingTimer)
       if (thinkingInterval !== undefined) clearInterval(thinkingInterval)
@@ -259,13 +265,13 @@ export default function ChatPage() {
   return (
     <main className="chat-page">
       <header className="chat-header">
-        <Link href="/" className="chat-wordmark" aria-label="Kanha home">Kanha</Link>
+        <Link href="/" className="chat-wordmark" aria-label={t('chat.home')}>{lang === 'hi' ? 'कान्हा' : 'Kanha'}</Link>
         <button
           onClick={() => { toggle(); stop() }}
           className="icon-btn"
           aria-pressed={ttsEnabled}
-          title={ttsEnabled ? 'Mute voice' : 'Unmute voice'}
-          aria-label={ttsEnabled ? 'Mute voice' : 'Unmute voice'}
+          title={ttsEnabled ? t('chat.mute') : t('chat.unmute')}
+          aria-label={ttsEnabled ? t('chat.mute') : t('chat.unmute')}
           type="button"
         >
           {ttsEnabled ? (
@@ -282,8 +288,8 @@ export default function ChatPage() {
           onClick={() => setVideoMode(v => !v)}
           className="icon-btn"
           aria-pressed={videoMode}
-          title="Talk face to face"
-          aria-label="Talk to Krishna (3D avatar)"
+          title={t('chat.face')}
+          aria-label={t('chat.face_label')}
           type="button"
         >
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -295,16 +301,17 @@ export default function ChatPage() {
           className="icon-btn"
           onClick={ambient.toggle}
           aria-pressed={ambient.on}
-          aria-label={ambient.on ? 'Turn off ambient tanpura' : 'Play ambient tanpura'}
-          title={ambient.on ? 'Ambient sound on' : 'Ambient sound'}
+          aria-label={ambient.on ? t('chat.ambient_on') : t('chat.ambient_off')}
+          title={ambient.on ? t('chat.ambient_title_on') : t('chat.ambient_title_off')}
         >
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M12 3v11" /><circle cx="12" cy="17.5" r="3.5" /><path d="M12 3c2.5 1.5 4.5 1.5 6 0" />
             {ambient.on && <path d="M4 10c1.2 1.2 1.2 4.8 0 6" />}
           </svg>
         </button>
+        <LanguageToggle />
         <ThemeToggle />
-        <Link href="/history" className="icon-btn" aria-label="Past conversations" title="Past conversations">
+        <Link href="/history" className="icon-btn" aria-label={t('chat.history')} title={t('chat.history')}>
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /><path d="M12 7v5l3 2" />
           </svg>
@@ -312,8 +319,8 @@ export default function ChatPage() {
         <Link
           href="/pricing"
           className="icon-btn"
-          aria-label={plan.plan === 'free' ? 'Plans and pricing' : `${PLAN_NAMES[plan.plan] ?? plan.plan} plan${plan.validUntil ? ` until ${formatPlanDate(plan.validUntil)}` : ''}`}
-          title={plan.plan === 'free' ? 'Plans' : `${PLAN_NAMES[plan.plan] ?? plan.plan}${plan.validUntil ? ` until ${formatPlanDate(plan.validUntil)}` : ''}`}
+          aria-label={plan.plan === 'free' ? t('chat.plans_label') : planDate ? t('chat.plan_until', { plan: planName, date: planDate }) : t('chat.plan_named', { plan: planName })}
+          title={plan.plan === 'free' ? t('common.plans') : planDate ? t('chat.plan_until', { plan: planName, date: planDate }) : t('chat.plan_named', { plan: planName })}
           aria-current={plan.plan !== 'free' ? 'true' : undefined}
           data-paid={plan.plan !== 'free' ? 'true' : undefined}
         >
@@ -321,7 +328,7 @@ export default function ChatPage() {
             <path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" />
           </svg>
         </Link>
-        <Link href="/account" className="icon-btn" aria-label="Your account and data" title="Account">
+        <Link href="/account" className="icon-btn" aria-label={t('chat.account_label')} title={t('chat.account')}>
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" />
           </svg>

@@ -1,5 +1,6 @@
 'use client'
 import { useSyncExternalStore } from 'react'
+import { useLang } from '@/components/LangProvider'
 
 type Theme = 'light' | 'dark'
 const KEY = 'kanha.theme'
@@ -16,6 +17,7 @@ const read = (): Theme => (document.documentElement.dataset.theme === 'dark' ? '
 /** Dawn (light, default) ↔ night. The choice is saved on this device only. */
 export function ThemeToggle({ className = 'icon-btn' }: { className?: string }) {
   const theme = useSyncExternalStore(subscribe, read, () => 'light' as Theme)
+  const { t } = useLang()
 
   function flip() {
     const next: Theme = theme === 'dark' ? 'light' : 'dark'
@@ -23,7 +25,7 @@ export function ThemeToggle({ className = 'icon-btn' }: { className?: string }) 
     try { window.localStorage.setItem(KEY, next) } catch { /* storage blocked */ }
   }
 
-  const label = theme === 'dark' ? 'Switch to dawn (light) theme' : 'Switch to night (dark) theme'
+  const label = theme === 'dark' ? t('theme.to_light') : t('theme.to_dark')
   return (
     <button type="button" className={className} onClick={flip} aria-label={label} title={label}>
       {theme === 'dark' ? (

@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useLang } from '@/components/LangProvider'
 
 function keyBytes(base64: string): Uint8Array {
   const padded = (base64 + '='.repeat((4 - (base64.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/')
@@ -11,6 +12,7 @@ type State = 'unsupported' | 'ios-install' | 'off' | 'on' | 'blocked' | 'busy'
 
 /** "Send me the verse each morning": browser permission + a stored subscription. One tap off. */
 export function DailyVerseToggle({ compact = false }: { compact?: boolean } = {}) {
+  const { t } = useLang()
   const [state, setState] = useState<State>('busy')
   const [msg, setMsg] = useState<string | null>(null)
 
@@ -39,13 +41,13 @@ export function DailyVerseToggle({ compact = false }: { compact?: boolean } = {}
       const reg = await navigator.serviceWorker.ready
       const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!) as BufferSource })
       const res = await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sub.toJSON()) })
-      if (res.status === 401) { await sub.unsubscribe(); setMsg('Sign in first, then turn this on.'); setState('off'); return }
+      if (res.status === 401) { await sub.unsubscribe(); setMsg(t('push.sign_in')); setState('off'); return }
       if (!res.ok) { await sub.unsubscribe(); throw new Error('subscribe failed') }
       setState('on')
-      setMsg('Done. Your verse will arrive each morning around 6:30.')
+      setMsg(t('push.done'))
     } catch {
       setState('off')
-      setMsg('Could not turn on notifications. Please try again.')
+      setMsg(t('push.failed'))
     }
   }
 
@@ -56,7 +58,7 @@ export function DailyVerseToggle({ compact = false }: { compact?: boolean } = {}
     await fetch('/api/push/subscribe', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: sub?.endpoint }) }).catch(() => null)
     await sub?.unsubscribe().catch(() => {})
     setState('off')
-    setMsg('Turned off. No more morning notifications.')
+    setMsg(t('push.stopped'))
   }
 
   // Inside today's-verse card: just the offer, only when it can be taken up.
@@ -64,7 +66,7 @@ export function DailyVerseToggle({ compact = false }: { compact?: boolean } = {}
     if (state !== 'off' && !msg) return null
     return (
       <div className="verse-toggle verse-toggle--compact">
-        {state === 'off' && <button type="button" onClick={turnOn}>Send me one each morning</button>}
+        {state === 'off' && <button type="button" onClick={turnOn}>{t('push.on_compact')}</button>}
         {msg && <p className="verse-toggle__note" role="status">{msg}</p>}
       </div>
     )
@@ -72,12 +74,12 @@ export function DailyVerseToggle({ compact = false }: { compact?: boolean } = {}
 
   return (
     <div className="verse-toggle">
-      {state === 'on' && <button type="button" className="btn-ghost" onClick={turnOff}>Stop the morning verse</button>}
-      {state === 'off' && <button type="button" className="btn-primary" onClick={turnOn}>Send me a verse each morning</button>}
-      {state === 'busy' && <button type="button" className="btn-ghost" disabled>One moment…</button>}
-      {state === 'blocked' && <p className="verse-toggle__note">Notifications are blocked for this site. Allow them in your browser&rsquo;s site settings to get the morning verse.</p>}
-      {state === 'ios-install' && <p className="verse-toggle__note">On iPhone: tap <strong>Share</strong> → <strong>Add to Home Screen</strong>, open Kanha from there, and then you can turn on the morning verse.</p>}
-      {state === 'unsupported' && <p className="verse-toggle__note">This browser can&rsquo;t receive notifications. Come back here each morning for the day&rsquo;s verse.</p>}
+      {state === 'on' && <button type="button" className="btn-ghost" onClick={turnOff}>{t('push.off')}</button>}
+      {state === 'off' && <button type="button" className="btn-primary" onClick={turnOn}>{t('push.on')}</button>}
+      {state === 'busy' && <button type="button" className="btn-ghost" disabled>{t('push.busy')}</button>}
+      {state === 'blocked' && <p className="verse-toggle__note">{t('push.blocked')}</p>}
+      {state === 'ios-install' && <p className="verse-toggle__note">{t('push.ios')}</p>}
+      {state === 'unsupported' && <p className="verse-toggle__note">{t('push.unsupported')}</p>}
       {msg && <p className="verse-toggle__note" role="status">{msg}</p>}
     </div>
   )

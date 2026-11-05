@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { EnglishOnlyNote } from '@/components/EnglishOnlyNote'
 import { GRIEVANCE_OFFICER, PRIVACY_VERSION } from '@/lib/legal'
 
 export const metadata = { title: 'Privacy Notice' }
@@ -8,6 +9,7 @@ export const metadata = { title: 'Privacy Notice' }
 export default function PrivacyPage() {
   return (
     <main className="legal-page">
+      <EnglishOnlyNote />
       <h1>Privacy Notice</h1>
       <p className="legal-draft">Draft version {PRIVACY_VERSION}. Pending legal review; not yet final.</p>
 
