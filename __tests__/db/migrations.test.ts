@@ -297,6 +297,25 @@ describe('payments (20261102000000)', () => {
   })
 })
 
+describe('answer reviews (20261106010000)', () => {
+  const R = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  beforeAll(async () => { await db.query('insert into auth.users (id) values ($1)', [R]) })
+
+  it('only the service role sees reviews, even of your own replies, and they go with the message', async () => {
+    const s = await asUser(db, R, () => db.query<{ id: string }>('insert into sessions (user_id) values ($1) returning id', [R]))
+    await asUser(db, R, () => db.query(`select save_exchange($1, 'q', '<page ref="x">a</page>')`, [s.rows[0].id]))
+    const m = await db.query<{ id: string }>(`select id from messages where session_id = $1 and role = 'assistant'`, [s.rows[0].id])
+    await db.exec('set role service_role')
+    await db.query(`insert into answer_reviews (message_id, verdict, flags, notes) values ($1, 'concern', '{"faithful": false}', 'n')`, [m.rows[0].id])
+    await db.exec('reset role')
+    expect((await asUser(db, R, () => db.query('select * from answer_reviews'))).rows).toHaveLength(0)
+    await expect(asUser(db, R, () => db.query(`insert into answer_reviews (message_id, verdict) values ($1, 'ok')`, [m.rows[0].id]))).rejects.toThrow()
+    await expect(db.query(`insert into answer_reviews (message_id, verdict) values ($1, 'great')`, [m.rows[0].id])).rejects.toThrow()
+    await db.query('delete from sessions where id = $1', [s.rows[0].id])
+    expect((await db.query('select * from answer_reviews where message_id = $1', [m.rows[0].id])).rows).toHaveLength(0)
+  })
+})
+
 describe('daily verse and push (20261103000000)', () => {
   const U = '88888888-8888-4888-8888-888888888888'
   const V = '99999999-9999-4999-8999-999999999999'
@@ -331,5 +350,12 @@ describe('daily verse and push (20261103000000)', () => {
     expect((await asUser(db, V, () => db.query('select * from push_subscriptions'))).rows).toHaveLength(0)
     await asUser(db, V, () => db.query('delete from push_subscriptions'))
     expect((await db.query('select * from push_subscriptions')).rows).toHaveLength(1)
+  })
+
+  it('a subscription remembers its language, English or Hindi only (20261106000000)', async () => {
+    await asUser(db, V, () => db.query(`insert into push_subscriptions (user_id, endpoint, p256dh, auth, lang) values ($1, 'https://fcm.googleapis.com/fcm/send/hi1', 'k', 'a', 'hi')`, [V]))
+    await expect(asUser(db, V, () => db.query(`insert into push_subscriptions (user_id, endpoint, p256dh, auth, lang) values ($1, 'https://fcm.googleapis.com/fcm/send/xx', 'k', 'a', 'fr')`, [V]))).rejects.toThrow()
+    const r = await db.query<{ lang: string }>(`select lang from push_subscriptions where endpoint like '%/hi1'`)
+    expect(r.rows[0].lang).toBe('hi')
   })
 })

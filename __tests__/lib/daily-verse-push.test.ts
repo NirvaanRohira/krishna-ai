@@ -58,3 +58,27 @@ describe('daily verse', () => {
     expect(await ensureDailyVerse(admin as never, '2026-11-04')).toBeNull()
   })
 })
+
+describe('morning notification language', () => {
+  it('sends each subscriber the notification in their interface language', async () => {
+    vi.resetModules()
+    const sent: { endpoint: string; body: string }[] = []
+    vi.doMock('web-push', () => ({ default: { setVapidDetails: vi.fn(), sendNotification: vi.fn(async (sub: { endpoint: string }, body: string) => { sent.push({ endpoint: sub.endpoint, body }) }) } }))
+    vi.stubEnv('VAPID_PRIVATE_KEY', 'k')
+    vi.stubEnv('NEXT_PUBLIC_VAPID_PUBLIC_KEY', 'p')
+    const rows = [
+      { id: 1, endpoint: 'https://fcm.googleapis.com/fcm/send/a', p256dh: 'x', auth: 'y', lang: 'hi' },
+      { id: 2, endpoint: 'https://fcm.googleapis.com/fcm/send/b', p256dh: 'x', auth: 'y', lang: 'en' },
+    ]
+    const admin = { from: () => ({ select: () => ({ order: () => ({ range: async () => ({ data: rows, error: null }) }) }) }) }
+    const { sendToAll } = await import('@/lib/push')
+    await sendToAll(admin as never, {
+      en: { title: "Today's verse", body: 'Self as friend', url: '/verse' },
+      hi: { title: 'आज का श्लोक', body: 'मन ही मित्र', url: '/verse' },
+    })
+    expect(JSON.parse(sent.find((s) => s.endpoint.endsWith('/a'))!.body).title).toBe('आज का श्लोक')
+    expect(JSON.parse(sent.find((s) => s.endpoint.endsWith('/b'))!.body).title).toBe("Today's verse")
+    vi.unstubAllEnvs()
+    vi.doUnmock('web-push')
+  })
+})

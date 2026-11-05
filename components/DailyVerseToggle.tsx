@@ -12,7 +12,7 @@ type State = 'unsupported' | 'ios-install' | 'off' | 'on' | 'blocked' | 'busy'
 
 /** "Send me the verse each morning": browser permission + a stored subscription. One tap off. */
 export function DailyVerseToggle({ compact = false }: { compact?: boolean } = {}) {
-  const { t } = useLang()
+  const { lang, t } = useLang()
   const [state, setState] = useState<State>('busy')
   const [msg, setMsg] = useState<string | null>(null)
 
@@ -29,9 +29,19 @@ export function DailyVerseToggle({ compact = false }: { compact?: boolean } = {}
       const reg = await navigator.serviceWorker.getRegistration()
       const sub = await reg?.pushManager.getSubscription()
       if (live) setState(sub ? 'on' : 'off')
+      // Already subscribed but the interface language changed since: tell the server, so the
+      // morning notification arrives in the language they now use.
+      if (sub) {
+        let saved: string | null = null
+        try { saved = localStorage.getItem('kanha.push_lang') } catch { /* storage blocked */ }
+        if (saved !== lang) {
+          const r = await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sub.toJSON(), lang }) }).catch(() => null)
+          if (r?.ok) try { localStorage.setItem('kanha.push_lang', lang) } catch { /* storage blocked */ }
+        }
+      }
     })().catch(() => { if (live) setState('unsupported') })
     return () => { live = false }
-  }, [])
+  }, [lang])
 
   async function turnOn() {
     setMsg(null)
@@ -40,9 +50,10 @@ export function DailyVerseToggle({ compact = false }: { compact?: boolean } = {}
       if ((await Notification.requestPermission()) !== 'granted') { setState('blocked'); return }
       const reg = await navigator.serviceWorker.ready
       const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!) as BufferSource })
-      const res = await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sub.toJSON()) })
+      const res = await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sub.toJSON(), lang }) })
       if (res.status === 401) { await sub.unsubscribe(); setMsg(t('push.sign_in')); setState('off'); return }
       if (!res.ok) { await sub.unsubscribe(); throw new Error('subscribe failed') }
+      try { localStorage.setItem('kanha.push_lang', lang) } catch { /* storage blocked */ }
       setState('on')
       setMsg(t('push.done'))
     } catch {

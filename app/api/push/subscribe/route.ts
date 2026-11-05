@@ -26,7 +26,8 @@ export async function POST(req: Request) {
   }
   // Same browser re-subscribing: replace (RLS limits the delete to the caller's own rows).
   await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint)
-  const { error } = await supabase.from('push_subscriptions').insert({ user_id: u.id, endpoint, p256dh, auth })
+  const lang = body?.lang === 'hi' ? 'hi' : 'en'
+  const { error } = await supabase.from('push_subscriptions').insert({ user_id: u.id, endpoint, p256dh, auth, lang })
   if (error) {
     console.error('[push] subscribe failed', error.code)
     return NextResponse.json({ error: 'Could not turn on notifications.' }, { status: 500 })

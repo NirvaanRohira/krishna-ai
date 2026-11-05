@@ -27,7 +27,7 @@ export default function PrivacyPage() {
       <p>Only to provide and improve the guidance you ask for, to keep the service safe (for example, to detect crisis messages and show helpline information), and, if you opted in, to send you occasional updates. We do not sell your data.</p>
 
       <h2>Who processes it</h2>
-      <p>We share your messages with AI providers only to generate replies, voice and transcripts. These providers include AI model hosts, a text-to-speech provider, and our database host (Supabase). They act on our instructions and are not permitted to use your data for their own purposes. [List the exact processors and regions before launch.]</p>
+      <p>We share your messages with AI providers only to generate replies, voice and transcripts, and to check, after the fact, that replies quoting scripture represent it faithfully and respectfully (an automated review; its notes are kept with the message and deleted with it). These providers include AI model hosts, a text-to-speech provider, and our database host (Supabase). They act on our instructions and are not permitted to use your data for their own purposes. [List the exact processors and regions before launch.]</p>
 
       <h2>How long we keep it</h2>
       <p>Conversations are deleted automatically 12 months after they took place. The short profile summary is kept while your account exists, and you can see it or erase it at any time from <Link href="/account">Account</Link>. When you delete your account, we erase all of your data.</p>

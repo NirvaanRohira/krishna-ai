@@ -27,22 +27,27 @@ export function pushConfigured(): boolean {
   return Boolean(process.env.VAPID_PRIVATE_KEY && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY)
 }
 
-type Sub = { id: number; endpoint: string; p256dh: string; auth: string }
+type Sub = { id: number; endpoint: string; p256dh: string; auth: string; lang?: string | null }
+export type PushPayload = { title: string; body: string; url: string }
 
-/** Sends one notification to every subscriber; removes subscriptions the browser has dropped. */
-export async function sendToAll(admin: SupabaseClient, payload: { title: string; body: string; url: string }) {
+/**
+ * Sends one notification to every subscriber, in their interface language (English when no
+ * Hindi payload is given); removes subscriptions the browser has dropped.
+ */
+export async function sendToAll(admin: SupabaseClient, payload: PushPayload | { en: PushPayload; hi?: PushPayload }) {
+  const byLang = 'en' in payload ? payload : { en: payload }
   if (!pushConfigured()) return { sent: 0, removed: 0, skipped: 'push not configured' }
   webpush.setVapidDetails(process.env.VAPID_SUBJECT || 'mailto:hello@example.com', process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!, process.env.VAPID_PRIVATE_KEY!)
   let sent = 0
   let removed = 0
   for (let from = 0; ; from += 500) {
-    const { data, error } = await admin.from('push_subscriptions').select('id, endpoint, p256dh, auth').order('id').range(from, from + 499)
+    const { data, error } = await admin.from('push_subscriptions').select('id, endpoint, p256dh, auth, lang').order('id').range(from, from + 499)
     if (error) throw error
     const subs = (data ?? []) as Sub[]
     await Promise.all(subs.map(async (s) => {
       if (!isAllowedPushEndpoint(s.endpoint)) return
       try {
-        await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify(payload), { TTL: 6 * 3600, urgency: 'normal' })
+        await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify(s.lang === 'hi' && byLang.hi ? byLang.hi : byLang.en), { TTL: 6 * 3600, urgency: 'normal' })
         sent++
       } catch (err) {
         const status = (err as { statusCode?: number }).statusCode

@@ -177,3 +177,33 @@ Keep secrets in the hosting platform's secret store (Vercel env or GCP Secret Ma
 | Date | Drill | Result | Time taken |
 |---|---|---|---|
 | — | First restore drill | not yet run | — |
+
+
+## Answer review (the spiritual reviewer)
+
+Every morning the daily job (`/api/cron?task=daily`) reviews up to `REVIEW_DAILY_LIMIT` (default 20)
+of the last day's replies that opened a page of scripture (`lib/review/spiritual.ts`). For each it
+checks: the citation was retrieved, the teaching matches the passage, the scene belongs to it, no
+invented quotes, never speaks as Krishna or God, respectful, safe advice, a practice that fits.
+Verdicts (`ok` / `concern` / `serious`) go to `answer_reviews` (service role only; deleted with the
+message). Serious ones are also logged as `review: serious concern in a reply`.
+
+Read them in the Supabase SQL editor:
+
+```sql
+select r.reviewed_at, r.verdict, r.notes, r.flags, left(m.content, 300) as reply
+from answer_reviews r join messages m on m.id = r.message_id
+where r.verdict <> 'ok'
+order by r.reviewed_at desc limit 50;
+```
+
+Share of replies with a problem, by day:
+
+```sql
+select date(reviewed_at) as day, count(*) as reviewed,
+       count(*) filter (where verdict <> 'ok') as flagged,
+       count(*) filter (where verdict = 'serious') as serious
+from answer_reviews group by 1 order by 1 desc limit 30;
+```
+
+It costs one generation call per reviewed reply (a few rupees a day at the default limit).

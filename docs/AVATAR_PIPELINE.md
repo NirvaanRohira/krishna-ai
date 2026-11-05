@@ -51,7 +51,7 @@ One-time setup:
    uv-workflow, texture-workflow, materials, lookdev, hair-groom, cloth-sim, rigging, animation, lighting,
    stylized-style, asset-optimization, export-pipeline, qa-review, plus shared references).
 
-Starting prompt to paste into that session:
+Starting prompt to paste into that session (the full version, with the four outfits described, is in `docs/AVATAR_SESSION_PROMPT.md`):
 
 > Read docs/AVATAR_PIPELINE.md (the export contract below is what the app needs) and look at
 > public/avatar/poster-divine-v2.webp as the reference. Using the Blender MCP and the blender-director,
