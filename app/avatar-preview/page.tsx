@@ -1,6 +1,6 @@
 'use client'
 // Dev-only harness for checking an exported GLB: outfits, framing, blinks and lip-sync,
-// without logging in or spending LLM/TTS calls. Drop the model at public/avatar/krishna.glb
+// without logging in or spending LLM/TTS calls. Drop the models at public/avatar/krishna-light.glb and krishna-dark.glb
 // and open /avatar-preview. "Test voice" plays a synthetic vowel sweep through the same
 // analyser path the real TTS uses. Returns 404 in production builds.
 
@@ -53,13 +53,13 @@ export default function AvatarPreview() {
   }
 
   return (
-    <main style={{ position: 'fixed', inset: 0, background: 'radial-gradient(60% 45% at 50% 38%, rgba(120,140,255,.18), transparent 70%), #07070d' }}>
+    <main style={{ position: 'fixed', inset: 0, background: 'radial-gradient(60% 45% at 50% 38%, var(--stage-glow), transparent 70%), linear-gradient(var(--night-1), var(--night-0))' }}>
       <KrishnaAvatar
         getAnalyser={getAnalyser}
         outfitId={outfitId}
         onModelInfo={(i) => setInfo(`${i.mode}${i.outfits.length ? ` · outfits in GLB: ${i.outfits.join(', ')}` : ''}`)}
       />
-      <div style={{ position: 'absolute', top: 12, left: 12, right: 12, display: 'flex', gap: 8, flexWrap: 'wrap', fontFamily: 'system-ui', fontSize: 13, color: '#eee' }}>
+      <div style={{ position: 'absolute', top: 12, left: 12, right: 12, display: 'flex', gap: 8, flexWrap: 'wrap', fontFamily: 'system-ui', fontSize: 13, color: 'var(--ink-2)' }}>
         <button type="button" onClick={testVoice}>Test voice</button>
         {OUTFITS.map((o) => (
           <button type="button" key={o.id} onClick={() => setOutfitId(o.id)} aria-pressed={o.id === outfitId}>

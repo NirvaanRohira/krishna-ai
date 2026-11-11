@@ -7,8 +7,8 @@
 //
 // If the GLB isn't present yet, falls back to the 2D poster with a voice-reactive aura.
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { AVATAR_MODEL_URL, AVATAR_POSTER_URL, OUTFITS, OUTFIT_NODE_PREFIX, outfitsPresentInModel } from '@/lib/avatar/config'
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { avatarModelUrl, AVATAR_POSTER_URL, OUTFITS, OUTFIT_NODE_PREFIX, outfitsPresentInModel } from '@/lib/avatar/config'
 import {
   analyseSpectrum, bandsToVisemes, smoothVisemes, resolveMorphIndices,
   ZERO_VISEMES, type VisemeWeights,
@@ -23,10 +23,19 @@ type Props = {
 
 type Mode = 'loading' | 'model' | 'poster'
 
+function subscribeTheme(onChange: () => void) {
+  const mo = new MutationObserver(onChange)
+  mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+  return () => mo.disconnect()
+}
+const readTheme = (): 'light' | 'dark' => (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light')
+
 export default function KrishnaAvatar({ getAnalyser, outfitId, onModelInfo }: Props) {
   const mountRef = useRef<HTMLDivElement>(null)
   const auraRef = useRef<HTMLDivElement>(null)
   const [mode, setMode] = useState<Mode>('loading')
+  // The model's painted glow suits one background: reload the matching one when the theme flips.
+  const theme = useSyncExternalStore(subscribeTheme, readTheme, () => 'light' as const)
   // Latest props for the long-lived render loop, synced after each render.
   const getAnalyserRef = useRef(getAnalyser)
   const onModelInfoRef = useRef(onModelInfo)
@@ -56,7 +65,7 @@ export default function KrishnaAvatar({ getAnalyser, outfitId, onModelInfo }: Pr
 
         const loader = new GLTFLoader()
         loader.setMeshoptDecoder(MeshoptDecoder)
-        const gltf = await loader.loadAsync(AVATAR_MODEL_URL)
+        const gltf = await loader.loadAsync(avatarModelUrl(theme))
         if (disposed) return
 
         // ── Renderer (tuned for mid-range Android phones) ───────────────
@@ -83,6 +92,27 @@ export default function KrishnaAvatar({ getAnalyser, outfitId, onModelInfo }: Pr
         scene.add(rim)
 
         const root = gltf.scene
+
+        // A flat, layered cut-out (painted artwork on unlit planes) rather than a sculpted body:
+        // show the paint exactly as painted (no tone mapping), draw the layers back to front,
+        // and don't add the procedural sway below, which would skew flat layers.
+        let unlit = 0
+        const layers: { mesh: import('three').Mesh; z: number }[] = []
+        root.traverse((o) => {
+          const m = o as import('three').Mesh
+          if (!m.isMesh) return
+          const mats = Array.isArray(m.material) ? m.material : [m.material]
+          for (const mat of mats) {
+            if ((mat as import('three').MeshBasicMaterial).isMeshBasicMaterial) {
+              unlit++
+              mat.toneMapped = false
+              if (mat.transparent) mat.depthWrite = false
+            }
+          }
+          m.geometry.computeBoundingBox()
+          layers.push({ mesh: m, z: m.geometry.boundingBox?.getCenter(new THREE.Vector3()).z ?? 0 })
+        })
+        layers.sort((a, b) => a.z - b.z).forEach((l, i) => { l.mesh.renderOrder = i })
         // VRM 0.x (older VRoid Studio exports) faces -Z; turn it to face the camera.
         const ext = (gltf.parser.json as { extensions?: Record<string, unknown> }).extensions
         if (ext?.VRM && !ext?.VRMC_vrm) root.rotation.y = Math.PI
@@ -93,6 +123,7 @@ export default function KrishnaAvatar({ getAnalyser, outfitId, onModelInfo }: Pr
         const box = new THREE.Box3().setFromObject(root, true) // precise: respects skinning
         const size = box.getSize(new THREE.Vector3())
         const center = box.getCenter(new THREE.Vector3())
+        const flat = unlit > 0 && size.z < size.y * 0.05
         const camera = new THREE.PerspectiveCamera(30, 1, 0.01, 100)
         const fitHeight = size.y * 1.08
         const dist = fitHeight / 2 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))
@@ -134,13 +165,23 @@ export default function KrishnaAvatar({ getAnalyser, outfitId, onModelInfo }: Pr
         const base = new Map<import('three').Object3D, import('three').Euler>()
         for (const b of [spine, head]) if (b) base.set(b, b.rotation.clone())
 
-        // ── Baked animations: play an idle clip if the artist provided one ──
+        // ── Baked animations: Idle always; Speak (if provided) fades in while the voice plays ──
         let mixer: import('three').AnimationMixer | undefined
+        let idleAction: import('three').AnimationAction | undefined
+        let speakAction: import('three').AnimationAction | undefined
         const idleClip = gltf.animations.find((c) => /idle|breath/i.test(c.name)) ?? gltf.animations[0]
+        const speakClip = gltf.animations.find((c) => /speak|talk/i.test(c.name))
         if (idleClip) {
           mixer = new THREE.AnimationMixer(root)
-          mixer.clipAction(idleClip).play()
+          idleAction = mixer.clipAction(idleClip)
+          idleAction.play()
+          if (speakClip && speakClip !== idleClip) {
+            speakAction = mixer.clipAction(speakClip)
+            speakAction.setEffectiveWeight(0)
+            speakAction.play()
+          }
         }
+        let speaking = 0
 
         // ── Resize ─────────────────────────────────────────────────────
         const resize = () => {
@@ -199,7 +240,10 @@ export default function KrishnaAvatar({ getAnalyser, outfitId, onModelInfo }: Pr
           }
 
           for (const f of faces) {
-            setShape(f, 'aa', visemes.aa)
+            // A model with a single "mouth open" shape gets the overall openness of the mouth.
+            const jawOnly = !f.idx.oh && !f.idx.ou && !f.idx.ee && !f.idx.ih
+            const open = Math.min(1, visemes.aa + 0.7 * visemes.oh + 0.5 * visemes.ou + 0.4 * visemes.ee + 0.4 * visemes.ih)
+            setShape(f, 'aa', jawOnly ? open : visemes.aa)
             setShape(f, 'oh', visemes.oh)
             setShape(f, 'ou', visemes.ou)
             setShape(f, 'ee', visemes.ee)
@@ -208,13 +252,20 @@ export default function KrishnaAvatar({ getAnalyser, outfitId, onModelInfo }: Pr
             setShape(f, 'smile', 0.22) // serene half-smile, as in the reference art
           }
 
+          if (speakAction && idleAction) {
+            // Ease into the speaking motion while there's voice, and back to idle after a pause.
+            const want = level > 0.02 ? 1 : 0
+            speaking += (want - speaking) * Math.min(1, dt * (want ? 4 : 1.5))
+            speakAction.setEffectiveWeight(speaking)
+            idleAction.setEffectiveWeight(1 - speaking)
+          }
           mixer?.update(dt)
-          // Procedural breathing + gentle head motion layered on top
-          if (spine && base.has(spine)) {
+          // Procedural breathing + gentle head motion layered on top (sculpted models only)
+          if (!flat && spine && base.has(spine)) {
             const b = base.get(spine)!
             spine.rotation.x = (mixer ? spine.rotation.x : b.x) + Math.sin(t * 1.4) * 0.012
           }
-          if (head && base.has(head)) {
+          if (!flat && head && base.has(head)) {
             const b = base.get(head)!
             head.rotation.y = (mixer ? head.rotation.y : b.y) + Math.sin(t * 0.5) * 0.04
             head.rotation.x = (mixer ? head.rotation.x : b.x) + Math.sin(t * 0.8) * 0.015 + level * 0.06
@@ -267,7 +318,7 @@ export default function KrishnaAvatar({ getAnalyser, outfitId, onModelInfo }: Pr
     })()
 
     return () => { disposed = true; cleanup?.() }
-  }, [])
+  }, [theme])
 
   // ── Poster fallback: voice-reactive aura + breathing ──────────────
   useEffect(() => {

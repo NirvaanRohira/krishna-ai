@@ -64,9 +64,27 @@ Starting prompt to paste into that session (the full version, with the four outf
 
 Check the result at `/avatar-preview` (`npm run dev`), then commit `public/avatar/krishna.glb`.
 
+## What's live now (alpha): the 2.5D cut-out
+
+The alpha ships a layered **2.5D cut-out** of the Divine look, made from the reference painting
+in Blender: flat unlit layers (body, head, arms, flute tassel, lips, blink) on a small rig
+(`root`, `chest`, `head`, `forearm.L/R`, `drape.L/R`, `tassel`, `blink`), one `mouthOpen` shape
+key, and two actions, `Idle` and `Speak` (8 s loops).
+
+- Two files, one per theme, because the glow is painted into the artwork:
+  `public/avatar/krishna-light.glb` (dawn theme) and `public/avatar/krishna-dark.glb` (night).
+- The viewer shows them unlit and untone-mapped (true painted colour), draws the layers back to
+  front, fades from `Idle` into `Speak` while the voice plays, and drives `mouthOpen` from the audio.
+  It skips its procedural sway for flat models (it would skew the layers).
+- A model with no `outfit_*` nodes counts as the default outfit (Divine). Fusion is out of the
+  alpha; Royal and Pastoral show as "Soon" until their nodes exist.
+- Compressed with the command under "Compress" (3 MB → about 340 KB each).
+
+The full 3D sculpted model described below is still the target for later.
+
 ## Export contract (what the code expects)
 
-**File:** `public/avatar/krishna.glb`, or a CDN URL in `NEXT_PUBLIC_AVATAR_MODEL_URL`. Blender's glTF exporter with default axes (Y-up, faces +Z), in metres. Krishna as a youth is about 1.3–1.5 m tall. The camera frames the full body automatically.
+**File:** `public/avatar/krishna-light.glb` and `public/avatar/krishna-dark.glb` (one per theme), or one CDN URL for both in `NEXT_PUBLIC_AVATAR_MODEL_URL`. Blender's glTF exporter with default axes (Y-up, faces +Z), in metres. Krishna as a youth is about 1.3–1.5 m tall. The camera frames the full body automatically.
 
 **Skeleton:** one armature. Standard bone names (Mixamo, Rigify or Auto-Rig Pro) are fine. The code looks for bones matching `Spine/Chest` and `Head` to add breathing and head motion.
 
@@ -87,7 +105,7 @@ Blender's **Faceit** add-on generates the ARKit set semi-automatically. Otherwis
 **Outfits:** a top-level object (an empty, or a mesh with children) per outfit, named exactly:
 
 ```
-outfit_divine   outfit_royal   outfit_pastoral   outfit_fusion
+outfit_divine   outfit_royal   outfit_pastoral        (fusion: out of the alpha)
 ```
 
 Every outfit mesh is skinned to the **same armature**. In Blender, use a Data Transfer modifier to copy vertex weights from the body. Accessories that change with the look (crown vs. mukut with peacock feather, flute, garlands, jewellery) go **inside** the outfit object. Body, face and hair go outside all of them. The app shows one outfit node and hides the rest. Outfits missing from the file are greyed out in the picker as "Soon", so you can ship with only `outfit_divine` and add the others later.

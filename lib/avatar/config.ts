@@ -19,7 +19,15 @@ export type Outfit = {
   poster?: string
 }
 
-export const AVATAR_MODEL_URL = process.env.NEXT_PUBLIC_AVATAR_MODEL_URL || '/avatar/krishna.glb'
+// One model per theme: the artwork's glow is painted for its background (a soft white glow on
+// the dawn theme, a dark glow at night). NEXT_PUBLIC_AVATAR_MODEL_URL overrides both.
+export const AVATAR_MODEL_URLS = {
+  light: '/avatar/krishna-light.glb',
+  dark: '/avatar/krishna-dark.glb',
+} as const
+export function avatarModelUrl(theme: 'light' | 'dark'): string {
+  return process.env.NEXT_PUBLIC_AVATAR_MODEL_URL || AVATAR_MODEL_URLS[theme]
+}
 export const AVATAR_POSTER_URL = '/avatar/poster-divine-v2.webp'
 export const OUTFIT_NODE_PREFIX = 'outfit_'
 
@@ -27,7 +35,7 @@ export const OUTFITS: Outfit[] = [
   { id: 'divine', label: 'Divine', swatch: 'linear-gradient(135deg,#f6c9ff,#9fd8ff 55%,#f4c26b)', poster: AVATAR_POSTER_URL },
   { id: 'royal', label: 'Royal', swatch: 'linear-gradient(135deg,#1d2a6b,#c9a24a)' },
   { id: 'pastoral', label: 'Pastoral', swatch: 'linear-gradient(135deg,#c9b98a,#e2a35b)' },
-  { id: 'fusion', label: 'Fusion', swatch: 'linear-gradient(135deg,#e8f6ff,#1f7a5a 60%,#2b2b3a)' },
+  // Fusion (contemporary kurta) is out of the alpha: it didn't land with testers.
 ]
 
 export const DEFAULT_OUTFIT_ID = 'divine'
@@ -45,8 +53,12 @@ export function saveOutfit(id: string): void {
   try { window.localStorage.setItem(STORAGE_KEY, id) } catch { /* storage blocked */ }
 }
 
-/** Given node names found in the GLB, which configured outfits are actually present. */
+/**
+ * Given node names found in the GLB, which configured outfits are actually present. A model
+ * with no outfit nodes at all is one look, the default (Divine).
+ */
 export function outfitsPresentInModel(nodeNames: string[]): string[] {
+  if (!nodeNames.some((n) => n.startsWith(OUTFIT_NODE_PREFIX))) return [DEFAULT_OUTFIT_ID]
   const set = new Set(nodeNames)
   return OUTFITS.filter((o) => set.has(OUTFIT_NODE_PREFIX + o.id)).map((o) => o.id)
 }
