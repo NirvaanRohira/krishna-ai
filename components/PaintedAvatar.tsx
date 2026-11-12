@@ -40,7 +40,7 @@ export default function PaintedAvatar({ url, getAnalyser, onFail, onReady }: Pro
     let disposed = false
     let raf = 0
     let ro: ResizeObserver | undefined
-    let avatar: { destroy(): void; setVoiceLevel(v: number): void; setSpeaking(on: boolean): void; setAutoIdle(on: boolean): void } | undefined
+    let avatar: { destroy(): void } | undefined
 
     ;(async () => {
       try {
@@ -66,6 +66,10 @@ export default function PaintedAvatar({ url, getAnalyser, onFail, onReady }: Pro
         ro.observe(stage)
 
         loaded.setAutoIdle(true)
+        // Gentle, not chatty: a smaller mouth, slower to snap open, and less head movement.
+        // (The default settings open the painted mouth wide enough to show teeth.)
+        loaded.setLipSync({ openness: 0.1, granularity: 0.3, closeSpeed: 0.6 })
+        loaded.setTalkGain(0.45)
         setReady(true)
         onReadyRef.current?.()
 
@@ -85,7 +89,7 @@ export default function PaintedAvatar({ url, getAnalyser, onFail, onReady }: Pro
             target = Math.min(1, analyseSpectrum(freq, analyser.context.sampleRate, analyser.fftSize).volume * 3)
           }
           level += (target - level) * (target > level ? 0.5 : 0.18)
-          loaded.setVoiceLevel(level)
+          loaded.setVoiceLevel(level * 0.7)
           if (level > 0.04) {
             quietSince = 0
             if (!speaking) { speaking = true; loaded.setSpeaking(true) }

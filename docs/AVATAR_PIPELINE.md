@@ -4,8 +4,8 @@ The app loads **one GLB file** and handles everything else: lighting, framing, i
 
 Reference art: `public/avatar/poster-divine-v2.webp` (the "Divine" look). Outfits in the alpha: **Divine, Royal, Pastoral** (Fusion is out).
 
-> The default avatar in the app is now the **painted** one (see "What's live now" below); the GLBs
-> are the **3D** style and the fallback.
+> The default avatar in the app is the **3D** (Blender GLB) one; the **painted** style is an
+> option in the outfit sheet (see "What's live now" below).
 
 ## Ways to get the model
 
@@ -67,18 +67,25 @@ Starting prompt to paste into that session (the full version, with the four outf
 
 Check the result at `/avatar-preview` (`npm run dev`), then commit `public/avatar/krishna.glb`.
 
-## What's live now (alpha): the painted avatar (default) and the 2.5D cut-outs
+## What's live now (alpha): the 2.5D cut-outs (default) and the painted avatar
 
 Avatar mode has two styles, switched in the outfit sheet (**Painted** / **3D**), remembered per
-device. Painted is the default. If the painted player can't start (no WebGL, a bad file), the
-panel switches to 3D for that session.
+device. **3D is the default**: testers found the painted mouth (warped open, without drawn
+mouth shapes) unnatural; Painted stays as an option with a smaller mouth and less head
+movement. If the painted player can't start (no WebGL, a bad file), the panel uses 3D.
+
+Avatar mode is a **hands-free voice conversation** (`hooks/useVoiceConversation.ts`): it
+listens on open, sends after a 1.6 s pause, keeps the mic closed while Kanha speaks, and
+listens again afterwards. Tapping the orb interrupts him (the rest of that reply stays
+silent), sends early, or pauses. Typing is behind the keyboard button, and shown
+automatically where the browser has no speech recognition or the mic is refused.
 
 Avatar mode **opens on Royal**; the outfit sheet offers Divine and Pastoral (which also shows
 people there's a choice). **Divine is the Blender model only**: its painted version (the flute
 art, glowing red-orange eyes) read as unsettling rather than divine and was removed. Divine is
 still the face of the landing page.
 
-### Painted (`mesh-avatar`, default)
+### Painted (`mesh-avatar`, option)
 
 One illustration per outfit that breathes, blinks, sways its hair and moves its mouth, drawn
 with WebGL by [`mesh-avatar`](https://github.com/shinshin86/mesh-avatar-studio/tree/main/packages/runtime)

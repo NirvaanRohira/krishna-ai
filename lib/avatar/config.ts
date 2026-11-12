@@ -27,13 +27,14 @@ export type Outfit = {
 }
 
 /**
- * How the avatar is drawn. "painted" is a single illustration that breathes, blinks and talks
- * (mesh-avatar); "3d" is the Blender GLB. Painted is the default; 3D stays as the alternative
- * and as the fallback when the painted player can't start.
+ * How the avatar is drawn. "3d" is the Blender GLB (the default: its movement is subtle and
+ * reads as natural); "painted" is a single illustration that breathes, blinks and talks
+ * (mesh-avatar), offered in the outfit sheet. Without drawn mouth shapes the painted mouth is
+ * warped open, which testers found unnatural, so it isn't the default.
  */
 export type AvatarStyle = 'painted' | '3d'
-export const AVATAR_STYLES: AvatarStyle[] = ['painted', '3d']
-export const DEFAULT_AVATAR_STYLE: AvatarStyle = 'painted'
+export const AVATAR_STYLES: AvatarStyle[] = ['3d', 'painted']
+export const DEFAULT_AVATAR_STYLE: AvatarStyle = '3d'
 const STYLE_KEY = 'krishna.avatarStyle'
 
 export function loadSavedStyle(): AvatarStyle {

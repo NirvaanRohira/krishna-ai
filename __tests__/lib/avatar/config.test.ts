@@ -43,13 +43,13 @@ describe('avatar config', () => {
     expect(outfitsWithModels()).toEqual(['royal', 'divine', 'pastoral'])
   })
 
-  it('painted is the default style, remembered, and unknown values are ignored', () => {
-    expect(DEFAULT_AVATAR_STYLE).toBe('painted')
-    expect(loadSavedStyle()).toBe('painted')
-    saveStyle('3d')
+  it('3D is the default style, the choice is remembered, and unknown values are ignored', () => {
+    expect(DEFAULT_AVATAR_STYLE).toBe('3d')
     expect(loadSavedStyle()).toBe('3d')
-    window.localStorage.setItem('krishna.avatarStyle', 'video')
+    saveStyle('painted')
     expect(loadSavedStyle()).toBe('painted')
+    window.localStorage.setItem('krishna.avatarStyle', 'video')
+    expect(loadSavedStyle()).toBe('3d')
   })
 
   it('draws each outfit with the chosen style, and falls back to what the outfit has', () => {

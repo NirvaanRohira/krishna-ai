@@ -247,6 +247,14 @@ export const en = {
   'avatar.style': 'Style',
   'avatar.style_painted': 'Painted',
   'avatar.style_3d': '3D',
+  'voice.listening': 'Listening… pause when you’re done',
+  'voice.thinking': 'Reflecting…',
+  'voice.speaking': 'Tap to interrupt',
+  'voice.paused': 'Paused · tap to talk',
+  'voice.unsupported': 'Voice isn’t available in this browser. You can type instead.',
+  'voice.denied': 'Microphone access is off. Allow it in your browser settings, or type instead.',
+  'voice.type_instead': 'Type instead',
+  'voice.talk_instead': 'Talk instead',
 
   // ── Legal pages ─────────────────────────────────────────────────────────
   'legal.english_only': '',
@@ -483,6 +491,14 @@ export const hi: Record<MessageKey, string> = {
   'avatar.style': 'शैली',
   'avatar.style_painted': 'चित्र',
   'avatar.style_3d': '3D',
+  'voice.listening': 'सुन रहा हूँ… बात पूरी हो तो रुकें',
+  'voice.thinking': 'विचार कर रहा हूँ…',
+  'voice.speaking': 'रोकने के लिए टैप करें',
+  'voice.paused': 'रुका हुआ · बोलने के लिए टैप करें',
+  'voice.unsupported': 'इस ब्राउज़र में आवाज़ उपलब्ध नहीं है। आप लिख सकते हैं।',
+  'voice.denied': 'माइक्रोफ़ोन की अनुमति बंद है। ब्राउज़र सेटिंग में अनुमति दें, या लिखें।',
+  'voice.type_instead': 'लिखकर बात करें',
+  'voice.talk_instead': 'बोलकर बात करें',
 
   'legal.english_only': 'यह पृष्ठ अभी केवल अंग्रेज़ी में है। हिंदी अनुवाद जल्द आएगा; तब तक अंग्रेज़ी पाठ ही मान्य है।',
 }

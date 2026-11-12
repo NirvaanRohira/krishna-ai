@@ -132,7 +132,13 @@ export default function ChatPage() {
     }
   }, [])
 
+  // Set when the person interrupts Kanha in voice mode: the rest of that reply stays silent.
+  const silencedRef = useRef(false)
+  const say = (text: string) => { if (!silencedRef.current) enqueue(text) }
+  const interrupt = () => { silencedRef.current = true; stop() }
+
   async function handleSend(message: string) {
+    silencedRef.current = false
     unlockAudio()
     // Capture history before any state mutations
     const priorMessages = [...messagesRef.current]
@@ -159,7 +165,7 @@ export default function ChatPage() {
     const showThinkingPhrase = () => {
       if (firstChunkReceived) return
       const phrase = thinkingPhrases[thinkingIndex++ % thinkingPhrases.length]
-      if (ttsEnabled) enqueue(phrase)
+      if (ttsEnabled) say(phrase)
       flushSync(() => setMessages([...withUser, { role: 'assistant', content: phrase }]))
     }
 
@@ -212,7 +218,7 @@ export default function ChatPage() {
           const pending = speech.slice(spokenUpTo)
           const lastEnd = Math.max(...['. ', '! ', '? ', '। ', '॥ '].map((p) => pending.lastIndexOf(p)))
           if (lastEnd >= 0) {
-            enqueue(pending.slice(0, lastEnd + 1).trim())
+            say(pending.slice(0, lastEnd + 1).trim())
             spokenUpTo += lastEnd + 2
           }
           flushSync(() => {
@@ -249,7 +255,7 @@ export default function ChatPage() {
         }
         // Flush any remaining partial sentence for TTS
         const rest = toSpeech(assembled).slice(spokenUpTo).trim()
-        if (rest) enqueue(rest)
+        if (rest) say(rest)
       }
     } catch {
       setMessages([...withUser, { role: 'assistant', content: `${t('common.something_wrong')} (code: network)` }])
@@ -342,6 +348,7 @@ export default function ChatPage() {
           loading={loading}
           caption={lastAssistant}
           getAnalyser={getAnalyser}
+          onInterrupt={interrupt}
         />
       ) : (
         <ChatWindow messages={messages} onSend={handleSend} loading={loading} />
