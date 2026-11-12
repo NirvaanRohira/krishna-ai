@@ -1,6 +1,6 @@
 'use client'
 // A soft paper rustle for each page that turns, synthesised (filtered noise), no files.
-// Plays only if the person has sound on (ambient tanpura enabled on this device).
+// Plays only if the person has sound on (background music enabled on this device).
 
 let ctx: AudioContext | null = null
 
