@@ -3,15 +3,20 @@ import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { unpackAvatar, validateAvatarFiles } from 'mesh-avatar'
 import {
-  OUTFITS, loadSavedOutfit, saveOutfit, outfitsPresentInModel, DEFAULT_OUTFIT_ID, avatarModelUrl, outfitsWithModels,
+  OUTFITS, loadSavedOutfit, saveOutfit, outfitsPresentInModel, DEFAULT_OUTFIT_ID, BASE_MODEL_OUTFIT_ID, avatarModelUrl, outfitsWithModels,
   loadSavedStyle, saveStyle, paintedAvatarUrl, rendererFor, DEFAULT_AVATAR_STYLE,
 } from '@/lib/avatar/config'
 
 describe('avatar config', () => {
   beforeEach(() => window.localStorage.clear())
 
-  it('ships the alpha outfits (Fusion is out of the alpha)', () => {
-    expect(OUTFITS.map((o) => o.id)).toEqual(['divine', 'royal', 'pastoral'])
+  it('ships the alpha outfits, Royal first (Fusion is out of the alpha)', () => {
+    expect(OUTFITS.map((o) => o.id)).toEqual(['royal', 'divine', 'pastoral'])
+  })
+
+  it('avatar mode opens on Royal; Divine stays the base model look', () => {
+    expect(DEFAULT_OUTFIT_ID).toBe('royal')
+    expect(BASE_MODEL_OUTFIT_ID).toBe('divine')
   })
 
   it('remembers the chosen outfit and ignores unknown ids', () => {
@@ -23,11 +28,11 @@ describe('avatar config', () => {
   })
 
   it('detects which outfits a GLB actually contains from its node names', () => {
-    expect(outfitsPresentInModel(['Armature', 'outfit_divine', 'outfit_royal', 'Body'])).toEqual(['divine', 'royal'])
+    expect(outfitsPresentInModel(['Armature', 'outfit_divine', 'outfit_royal', 'Body'])).toEqual(['royal', 'divine'])
   })
 
-  it('a model with no outfit nodes is one look: the default (Divine)', () => {
-    expect(outfitsPresentInModel(['Krishna_Rig', 'Krishna', 'root', 'chest', 'head'])).toEqual([DEFAULT_OUTFIT_ID])
+  it('a model with no outfit nodes is one look: Divine', () => {
+    expect(outfitsPresentInModel(['Krishna_Rig', 'Krishna', 'root', 'chest', 'head'])).toEqual(['divine'])
   })
 
   it('each outfit has its own model file, used on both themes', () => {
@@ -35,7 +40,7 @@ describe('avatar config', () => {
     expect(avatarModelUrl('royal')).toBe('/avatar/krishna-royal.glb')
     expect(avatarModelUrl('pastoral')).toBe('/avatar/krishna-pastoral.glb')
     expect(avatarModelUrl('fusion')).toBe('/avatar/krishna-divine.glb') // unknown → the default look
-    expect(outfitsWithModels()).toEqual(['divine', 'royal', 'pastoral'])
+    expect(outfitsWithModels()).toEqual(['royal', 'divine', 'pastoral'])
   })
 
   it('painted is the default style, remembered, and unknown values are ignored', () => {
@@ -52,12 +57,15 @@ describe('avatar config', () => {
     expect(rendererFor('royal', '3d')).toBe('3d')
     expect(paintedAvatarUrl('pastoral')).toBe('/avatar/painted/pastoral.mavatar')
     expect(paintedAvatarUrl('fusion')).toBeNull()
+    // Divine is the Blender model only, whatever style is chosen.
+    expect(paintedAvatarUrl('divine')).toBeNull()
+    expect(rendererFor('divine', 'painted')).toBe('3d')
     expect(rendererFor('fusion', 'painted')).toBe('3d')
   })
 
-  it('every outfit has a thumbnail, a painted file and a model on disk', () => {
+  it('every outfit has a picture for the picker and a model on disk, and its painted file if any', () => {
     for (const o of OUTFITS) {
-      for (const f of [o.thumbnail, o.painted, o.model]) {
+      for (const f of [o.thumbnail ?? o.poster, o.model, ...(o.painted ? [o.painted] : [])]) {
         expect(f, `${o.id}`).toBeTruthy()
         expect(existsSync(join(process.cwd(), 'public', f!)), f).toBe(true)
       }
@@ -65,7 +73,7 @@ describe('avatar config', () => {
   })
 
   it('the painted files are valid playback archives without the source illustration', () => {
-    for (const o of OUTFITS) {
+    for (const o of OUTFITS.filter((x) => x.painted)) {
       const bytes = new Uint8Array(readFileSync(join(process.cwd(), 'public', o.painted!)))
       const files = unpackAvatar(bytes)
       expect(validateAvatarFiles(files), o.id).toEqual([])

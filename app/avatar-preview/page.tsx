@@ -9,12 +9,12 @@ import { notFound } from 'next/navigation'
 import KrishnaAvatar from '@/components/KrishnaAvatar'
 import PaintedAvatar from '@/components/PaintedAvatar'
 import AvatarPanel from '@/components/AvatarPanel'
-import { OUTFITS, paintedAvatarUrl, rendererFor, type AvatarStyle } from '@/lib/avatar/config'
+import { DEFAULT_OUTFIT_ID, OUTFITS, paintedAvatarUrl, rendererFor, type AvatarStyle } from '@/lib/avatar/config'
 
 export default function AvatarPreview() {
   if (process.env.NODE_ENV === 'production') notFound()
 
-  const [outfitId, setOutfitId] = useState('divine')
+  const [outfitId, setOutfitId] = useState(DEFAULT_OUTFIT_ID)
   const [info, setInfo] = useState('loading…')
   const [style, setStyle] = useState<AvatarStyle>('painted')
   // "Panel" shows the real avatar mode (topbar, outfit sheet, caption, input bar) as it ships.

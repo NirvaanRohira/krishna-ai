@@ -8,7 +8,7 @@ import { useState } from 'react'
 import { InputBar } from '@/components/InputBar'
 import { useLang } from '@/components/LangProvider'
 import {
-  AVATAR_STYLES, OUTFITS, loadSavedOutfit, loadSavedStyle, paintedAvatarUrl, rendererFor, saveOutfit, saveStyle,
+  AVATAR_STYLES, DEFAULT_OUTFIT_ID, OUTFITS, loadSavedOutfit, loadSavedStyle, paintedAvatarUrl, rendererFor, saveOutfit, saveStyle,
   type AvatarStyle,
 } from '@/lib/avatar/config'
 
@@ -30,7 +30,7 @@ export default function AvatarPanel({ onClose, onSend, loading, caption, getAnal
   const { lang, t } = useLang()
   // Avatar mode only ever renders on the client (opened by a tap), so reading the saved
   // outfit in the initial state is safe and avoids a second render.
-  const [outfitId, setOutfitId] = useState(() => (typeof window === 'undefined' ? 'divine' : loadSavedOutfit()))
+  const [outfitId, setOutfitId] = useState(() => (typeof window === 'undefined' ? DEFAULT_OUTFIT_ID : loadSavedOutfit()))
   const [pickerOpen, setPickerOpen] = useState(false)
   const [available, setAvailable] = useState<string[] | null>(null)
   const [style, setStyle] = useState<AvatarStyle>(() => (typeof window === 'undefined' ? 'painted' : loadSavedStyle()))
@@ -51,8 +51,10 @@ export default function AvatarPanel({ onClose, onSend, loading, caption, getAnal
   const paintedUrl = paintedAvatarUrl(outfitId)
 
   // In 2D poster mode only outfits with a poster image can actually be shown.
+  // Every outfit can be shown: one without a painted version is drawn in 3D.
   const selectable = (id: string) => {
-    if (renderer === 'painted') return Boolean(paintedAvatarUrl(id))
+    if (renderer === 'painted') return true
+    if (!paintedFailed && style === 'painted' && paintedAvatarUrl(id)) return true
     if (available === null) return true
     if (available.length) return available.includes(id)
     return Boolean(OUTFITS.find((o) => o.id === id)?.poster)

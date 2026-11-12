@@ -73,6 +73,11 @@ Avatar mode has two styles, switched in the outfit sheet (**Painted** / **3D**),
 device. Painted is the default. If the painted player can't start (no WebGL, a bad file), the
 panel switches to 3D for that session.
 
+Avatar mode **opens on Royal**; the outfit sheet offers Divine and Pastoral (which also shows
+people there's a choice). **Divine is the Blender model only**: its painted version (the flute
+art, glowing red-orange eyes) read as unsettling rather than divine and was removed. Divine is
+still the face of the landing page.
+
 ### Painted (`mesh-avatar`, default)
 
 One illustration per outfit that breathes, blinks, sways its hair and moves its mouth, drawn
@@ -83,7 +88,6 @@ picker thumbnails in `public/avatar/outfits/`.
 
 | Outfit | Source export | Canvas | Shipped size |
 | --- | --- | --- | --- |
-| Divine | `krishna-flute.mavatar` | 720 × 1440 | 96 KB |
 | Royal | `krishna-royal.mavatar` | 1116 × 2000 | 361 KB |
 | Pastoral | `krishna-gopala.mavatar` | 1116 × 2000 | 206 KB |
 
