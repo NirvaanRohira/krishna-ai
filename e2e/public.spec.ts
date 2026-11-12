@@ -16,11 +16,15 @@ test('landing: promise, AI disclosure, path to sign-in, accessible, fits a phone
   await page.goto('/')
   await expect(page.getByRole('heading', { level: 1, name: /Kanha/ })).toBeVisible()
   await expect(page.getByText(/not God, not Krishna/)).toBeVisible()
+  // The button goes to /chat, so signed-in people land straight in a conversation; the proxy
+  // sends everyone else to sign in.
   const cta = page.getByRole('link', { name: /Begin a conversation/ })
-  await expect(cta).toHaveAttribute('href', '/login')
+  await expect(cta).toHaveAttribute('href', '/chat')
   await expect(page.getByRole('img', { name: /depiction of Krishna/ })).toBeVisible()
   await noHorizontalScroll(page)
   await a11y(page)
+  await cta.click()
+  await expect(page).toHaveURL(/\/login/)
 })
 
 for (const path of ['/login', '/privacy', '/terms', '/onboarding']) {
