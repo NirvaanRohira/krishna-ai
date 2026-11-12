@@ -10,7 +10,7 @@ import { CANONICAL_VERSE_COUNT } from './lib/canonical-counts'
 import { parseGretilInline } from './lib/vedic-text-parser'
 import { makeClients, ingestSource } from './lib/ingest-helpers'
 
-const URL = 'http://gretil.sub.uni-goettingen.de/gretil/corpustei/transformations/plaintext/sa_pataJjali-yogasUtra.txt'
+const URL = 'https://gretil.sub.uni-goettingen.de/gretil/corpustei/transformations/plaintext/sa_pataJjali-yogasUtra.txt'
 
 async function main() {
   const { embeddingModel, supabase } = makeClients()

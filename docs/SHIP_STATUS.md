@@ -48,6 +48,7 @@ Status key: ✅ done in repo · 🟡 partial · ❌ not done. Statuses are as of
 | XSS | Render model output as text (React escapes it). **Never** use `dangerouslySetInnerHTML` with model or user content. If markdown rendering is added, sanitise it (rehype-sanitize). | ✅ |
 | CSRF | Auth cookies are SameSite=Lax, and `proxy.ts` rejects mutating `/api/*` calls with a foreign `Origin`. Destructive actions need a typed confirmation. | ✅ |
 | SSRF | Never fetch a URL supplied by a user. Outbound calls go only to fixed provider hosts. | ✅ |
+| Static analysis | Semgrep runs in CI (`ci.yml` → `semgrep`, fails on any finding): the repo's own rules in `.semgrep/kanha.yml` (service-role key only in the allowed routes, no internal error text in responses, no string-built PostgREST filters, no server env in client components, no `dangerouslySetInnerHTML` except reviewed constants, no `eval`) plus the public TypeScript/React/Next.js/secrets/OWASP/GitHub Actions packs. Workflow actions are pinned to commit SHAs. | ✅ |
 | Security headers | HSTS, nosniff, frame DENY, Referrer-Policy, Permissions-Policy (mic only), COOP, CSP. | ✅ · 🟡 CSP is Report-Only: enforce after checking staging |
 | File upload | Only audio for STT today. **MUST** cap size (10 MB), allow-list MIME types, never store it, and never pass the filename to a shell or path. | ✅ |
 | Signed URLs | Any private file (e.g. paid outfit GLBs) is served via short-lived signed URLs from Supabase Storage. Never use guessable public paths for paid content. | ❌ when paid outfits ship |

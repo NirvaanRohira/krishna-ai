@@ -59,6 +59,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     // so there is no flash. suppressHydrationWarning: the script may change data-theme.
     <html lang={lang} data-theme="light" className={`${display.variable} ${body.variable} ${book.variable} ${bookCaps.variable}`} suppressHydrationWarning>
       <head>
+        {/* A reviewed constant (sets data-theme before first paint), never user or model text. */}
+        {/* nosemgrep: kanha-dangerous-html */}
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body>

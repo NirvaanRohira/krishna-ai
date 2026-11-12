@@ -1,0 +1,8 @@
+# Paths Semgrep skips (CI and local). Also honours .gitignore.
+:include .gitignore
+node_modules/
+.next/
+public/
+.claude/
+# Downloaded source texts (GRETIL HTML), not code.
+scripts/data/

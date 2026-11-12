@@ -13,7 +13,7 @@
 import { parseBhagavatam } from './lib/vedic-text-parser'
 import { makeClients, ingestSource } from './lib/ingest-helpers'
 
-const URL = 'http://gretil.sub.uni-goettingen.de/gretil/corpustei/transformations/plaintext/sa_bhAgavatapurANa.txt'
+const URL = 'https://gretil.sub.uni-goettingen.de/gretil/corpustei/transformations/plaintext/sa_bhAgavatapurANa.txt'
 
 async function main() {
   const { embeddingModel, supabase } = makeClients()

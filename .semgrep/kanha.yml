@@ -1,0 +1,88 @@
+# Project rules for Semgrep: the "Always" list in CLAUDE.md, enforced in CI.
+# Run locally: semgrep scan --metrics=off --config .semgrep/ (see docs/RUNBOOK.md).
+rules:
+  - id: kanha-service-role-outside-allowlist
+    message: >-
+      The service-role key bypasses RLS. Only app/api/account/delete, app/api/cron and
+      app/api/payments/* may use it (lib/supabase-admin.ts). Use the user-scoped client instead.
+    severity: ERROR
+    languages: [typescript, javascript]
+    paths:
+      include: [/app/, /lib/, /components/, /hooks/, /proxy.ts]
+      exclude: [/app/api/account/delete/, /app/api/cron/, /app/api/payments/, /lib/supabase-admin.ts]
+    pattern-either:
+      - pattern: import $X from '@/lib/supabase-admin'
+      - pattern: |
+          import { ... } from '@/lib/supabase-admin'
+      - pattern: process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  - id: kanha-internal-error-in-response
+    message: >-
+      Never return internal error text to the client. Log it server-side and return a fixed message.
+    severity: ERROR
+    languages: [typescript, javascript]
+    paths:
+      include: [/app/api/, /proxy.ts]
+    pattern-either:
+      - pattern: |
+          NextResponse.json({..., $K: $E.message, ...}, ...)
+      - pattern: |
+          NextResponse.json({..., $K: String($E), ...}, ...)
+      - pattern: |
+          NextResponse.json({..., $K: `...${$E.message}...`, ...}, ...)
+      - pattern: |
+          Response.json({..., $K: $E.message, ...}, ...)
+      - pattern: new Response($E.message, ...)
+      - pattern: new NextResponse($E.message, ...)
+      - pattern: new Response(String($E), ...)
+      - pattern: |
+          $C.enqueue($ENC.encode(<... $E.message ...>))
+
+  - id: kanha-postgrest-filter-interpolation
+    message: >-
+      Building a PostgREST filter string from a variable lets a caller inject extra conditions
+      (commas, dots, parentheses). Use .eq()/.in()/.ilike() with the value as an argument.
+    severity: ERROR
+    languages: [typescript, javascript]
+    pattern-either:
+      - pattern: |
+          $Q.or(`...${$X}...`, ...)
+      - pattern: |
+          $Q.filter($COL, $OP, `...${$X}...`)
+      - pattern: $Q.or($A + $B, ...)
+
+  - id: kanha-client-reads-server-env
+    message: >-
+      A client component can only see NEXT_PUBLIC_* variables; anything else is either undefined
+      in the browser or a secret that must not be referenced there.
+    severity: ERROR
+    languages: [typescript]
+    paths:
+      include: [/components/, /hooks/, /app/]
+    patterns:
+      - pattern-inside: |
+          'use client'
+          ...
+      - pattern: process.env.$NAME
+      - metavariable-regex:
+          metavariable: $NAME
+          regex: ^(?!NEXT_PUBLIC_|NODE_ENV$)
+
+  - id: kanha-dangerous-html
+    message: >-
+      dangerouslySetInnerHTML renders raw HTML. Only constant, reviewed strings are allowed; never
+      model output or user text. Mark a reviewed constant with `// nosemgrep: kanha-dangerous-html`.
+    severity: WARNING
+    languages: [typescript]
+    pattern: |
+      <$EL dangerouslySetInnerHTML={...} />
+
+  - id: kanha-dynamic-code
+    message: eval / new Function run strings as code. Not allowed.
+    severity: ERROR
+    languages: [typescript, javascript]
+    paths:
+      exclude: [/__tests__/, /e2e/, /scripts/]
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)

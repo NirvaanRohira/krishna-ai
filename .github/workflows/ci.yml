@@ -19,8 +19,8 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
       NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
           cache: npm
@@ -39,3 +39,18 @@ jobs:
         run: |
           npx playwright install --with-deps chromium
           npm run test:e2e
+
+  semgrep:
+    # Static analysis: this repo's own rules (.semgrep/, the CLAUDE.md "Always" list) plus the
+    # public TypeScript / React / Next.js / secrets / OWASP rule packs. Runs locally on the
+    # runner; metrics off, so no code or results leave it.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Semgrep
+        run: >-
+          pipx run semgrep==1.185.0 scan --metrics=off --error
+          --config .semgrep/
+          --config p/typescript --config p/javascript --config p/react --config p/nextjs
+          --config p/secrets --config p/owasp-top-ten --config p/github-actions

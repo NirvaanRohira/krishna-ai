@@ -172,6 +172,23 @@ Keep secrets in the hosting platform's secret store (Vercel env or GCP Secret Ma
 
 ---
 
+## 7b. Static analysis (Semgrep)
+
+CI runs Semgrep on every push and before every deploy, and fails on any finding. To run it locally
+(Python 3; nothing is uploaded with `--metrics=off`):
+
+```bash
+pipx run semgrep==1.185.0 scan --metrics=off --config .semgrep/ --config p/typescript --config p/javascript --config p/react --config p/nextjs --config p/secrets --config p/owasp-top-ten --config p/github-actions
+```
+
+- Project rules live in `.semgrep/kanha.yml`; they encode the "Always" list in `CLAUDE.md`. When you add
+  a rule, check it fires on a deliberately bad example before trusting a clean run.
+- A finding that is reviewed and intended gets `// nosemgrep: <rule-id>` on the line above, with a
+  comment saying why (see the theme script in `app/layout.tsx`).
+- Skipped paths are in `.semgrepignore`.
+- Licences: the Semgrep CLI is LGPL-2.1 and the registry rule packs are under the Semgrep Rules
+  License; both allow running them on our own code in CI. We don't ship either.
+
 ## 8. Drill log
 
 | Date | Drill | Result | Time taken |
