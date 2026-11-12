@@ -64,27 +64,28 @@ Starting prompt to paste into that session (the full version, with the four outf
 
 Check the result at `/avatar-preview` (`npm run dev`), then commit `public/avatar/krishna.glb`.
 
-## What's live now (alpha): the 2.5D cut-out
+## What's live now (alpha): the 2.5D cut-outs
 
-The alpha ships a layered **2.5D cut-out** of the Divine look, made from the reference painting
-in Blender: flat unlit layers (body, head, arms, flute tassel, lips, blink) on a small rig
-(`root`, `chest`, `head`, `forearm.L/R`, `drape.L/R`, `tassel`, `blink`), one `mouthOpen` shape
-key, and two actions, `Idle` and `Speak` (8 s loops).
+The alpha ships three layered **2.5D cut-outs** made in Blender, one file per outfit, each used on
+both themes (no painted glow; the app's stage provides the glow):
+`public/avatar/krishna-divine.glb`, `krishna-royal.glb`, `krishna-pastoral.glb`.
 
-- Two files, one per theme, because the glow is painted into the artwork:
-  `public/avatar/krishna-light.glb` (dawn theme) and `public/avatar/krishna-dark.glb` (night).
+- Flat unlit layers on a small rig (`root`, `chest`, `head`, `blink`; Divine also has
+  `forearm.L/R`, `drape.L/R`, `tassel`), a `mouthOpen` shape key on the lips (`M_lip`, `M_ulip`),
+  and two actions, `Idle` and `Speak` (8 s loops).
 - The viewer shows them unlit and untone-mapped (true painted colour), draws the layers back to
   front, fades from `Idle` into `Speak` while the voice plays, and drives `mouthOpen` from the audio.
-  It skips its procedural sway for flat models (it would skew the layers).
-- A model with no `outfit_*` nodes counts as the default outfit (Divine). Fusion is out of the
-  alpha; Royal and Pastoral show as "Soon" until their nodes exist.
-- Compressed with the command under "Compress" (3 MB → about 340 KB each).
+  It skips its procedural sway for flat models (it would skew the layers). Switching outfit loads
+  that outfit's file (cached after the first time).
+- Fusion is out of the alpha.
+- Compressed with the command under "Compress" (2.9-4.6 MB → 220-360 KB each).
+- Check a new export at `/avatar-preview` (Test voice, each outfit, both themes) before shipping.
 
 The full 3D sculpted model described below is still the target for later.
 
 ## Export contract (what the code expects)
 
-**File:** `public/avatar/krishna-light.glb` and `public/avatar/krishna-dark.glb` (one per theme), or one CDN URL for both in `NEXT_PUBLIC_AVATAR_MODEL_URL`. Blender's glTF exporter with default axes (Y-up, faces +Z), in metres. Krishna as a youth is about 1.3–1.5 m tall. The camera frames the full body automatically.
+**File:** one per outfit (`public/avatar/krishna-<outfit>.glb`, set in `lib/avatar/config.ts`), or a single file with `outfit_*` nodes at a CDN URL in `NEXT_PUBLIC_AVATAR_MODEL_URL`. Blender's glTF exporter with default axes (Y-up, faces +Z), in metres. Krishna as a youth is about 1.3–1.5 m tall. The camera frames the full body automatically.
 
 **Skeleton:** one armature. Standard bone names (Mixamo, Rigify or Auto-Rig Pro) are fine. The code looks for bones matching `Spine/Chest` and `Head` to add breathing and head motion.
 

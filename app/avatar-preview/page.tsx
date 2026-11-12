@@ -1,6 +1,6 @@
 'use client'
 // Dev-only harness for checking an exported GLB: outfits, framing, blinks and lip-sync,
-// without logging in or spending LLM/TTS calls. Drop the models at public/avatar/krishna-light.glb and krishna-dark.glb
+// without logging in or spending LLM/TTS calls. Drop the models at public/avatar/krishna-<outfit>.glb (see lib/avatar/config.ts)
 // and open /avatar-preview. "Test voice" plays a synthetic vowel sweep through the same
 // analyser path the real TTS uses. Returns 404 in production builds.
 

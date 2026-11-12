@@ -17,24 +17,32 @@ export type Outfit = {
   thumbnail?: string
   /** Optional per-outfit poster used in 2D fallback mode. */
   poster?: string
+  /** The outfit's own model file. Each look is a separate GLB, used on both themes. */
+  model?: string
 }
 
-// One model per theme: the artwork's glow is painted for its background (a soft white glow on
-// the dawn theme, a dark glow at night). NEXT_PUBLIC_AVATAR_MODEL_URL overrides both.
-export const AVATAR_MODEL_URLS = {
-  light: '/avatar/krishna-light.glb',
-  dark: '/avatar/krishna-dark.glb',
-} as const
-export function avatarModelUrl(theme: 'light' | 'dark'): string {
-  return process.env.NEXT_PUBLIC_AVATAR_MODEL_URL || AVATAR_MODEL_URLS[theme]
+/**
+ * The model file for an outfit. Each look is its own GLB (no painted glow, so one file serves
+ * both themes). NEXT_PUBLIC_AVATAR_MODEL_URL overrides everything with a single file whose
+ * outfits are `outfit_*` nodes.
+ */
+export function avatarModelUrl(outfitId: string): string {
+  if (process.env.NEXT_PUBLIC_AVATAR_MODEL_URL) return process.env.NEXT_PUBLIC_AVATAR_MODEL_URL
+  const o = OUTFITS.find((x) => x.id === outfitId) ?? OUTFITS.find((x) => x.id === DEFAULT_OUTFIT_ID)
+  return o?.model ?? '/avatar/krishna-divine.glb'
+}
+
+/** Outfits that have their own model file (the picker enables these). */
+export function outfitsWithModels(): string[] {
+  return OUTFITS.filter((o) => o.model).map((o) => o.id)
 }
 export const AVATAR_POSTER_URL = '/avatar/poster-divine-v2.webp'
 export const OUTFIT_NODE_PREFIX = 'outfit_'
 
 export const OUTFITS: Outfit[] = [
-  { id: 'divine', label: 'Divine', swatch: 'linear-gradient(135deg,#f6c9ff,#9fd8ff 55%,#f4c26b)', poster: AVATAR_POSTER_URL },
-  { id: 'royal', label: 'Royal', swatch: 'linear-gradient(135deg,#1d2a6b,#c9a24a)' },
-  { id: 'pastoral', label: 'Pastoral', swatch: 'linear-gradient(135deg,#c9b98a,#e2a35b)' },
+  { id: 'divine', label: 'Divine', swatch: 'linear-gradient(135deg,#f6c9ff,#9fd8ff 55%,#f4c26b)', poster: AVATAR_POSTER_URL, model: '/avatar/krishna-divine.glb' },
+  { id: 'royal', label: 'Royal', swatch: 'linear-gradient(135deg,#1d2a6b,#c9a24a)', model: '/avatar/krishna-royal.glb' },
+  { id: 'pastoral', label: 'Pastoral', swatch: 'linear-gradient(135deg,#c9b98a,#e2a35b)', model: '/avatar/krishna-pastoral.glb' },
   // Fusion (contemporary kurta) is out of the alpha: it didn't land with testers.
 ]
 

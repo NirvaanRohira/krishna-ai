@@ -7,8 +7,8 @@
 //
 // If the GLB isn't present yet, falls back to the 2D poster with a voice-reactive aura.
 
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { avatarModelUrl, AVATAR_POSTER_URL, OUTFITS, OUTFIT_NODE_PREFIX, outfitsPresentInModel } from '@/lib/avatar/config'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { avatarModelUrl, AVATAR_POSTER_URL, OUTFITS, OUTFIT_NODE_PREFIX, outfitsPresentInModel, outfitsWithModels } from '@/lib/avatar/config'
 import {
   analyseSpectrum, bandsToVisemes, smoothVisemes, resolveMorphIndices,
   ZERO_VISEMES, type VisemeWeights,
@@ -23,19 +23,12 @@ type Props = {
 
 type Mode = 'loading' | 'model' | 'poster'
 
-function subscribeTheme(onChange: () => void) {
-  const mo = new MutationObserver(onChange)
-  mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
-  return () => mo.disconnect()
-}
-const readTheme = (): 'light' | 'dark' => (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light')
-
 export default function KrishnaAvatar({ getAnalyser, outfitId, onModelInfo }: Props) {
   const mountRef = useRef<HTMLDivElement>(null)
   const auraRef = useRef<HTMLDivElement>(null)
   const [mode, setMode] = useState<Mode>('loading')
-  // The model's painted glow suits one background: reload the matching one when the theme flips.
-  const theme = useSyncExternalStore(subscribeTheme, readTheme, () => 'light' as const)
+  // Each outfit is its own model file: switching outfit loads that file (cached after the first time).
+  const modelUrl = avatarModelUrl(outfitId)
   // Latest props for the long-lived render loop, synced after each render.
   const getAnalyserRef = useRef(getAnalyser)
   const onModelInfoRef = useRef(onModelInfo)
@@ -65,7 +58,7 @@ export default function KrishnaAvatar({ getAnalyser, outfitId, onModelInfo }: Pr
 
         const loader = new GLTFLoader()
         loader.setMeshoptDecoder(MeshoptDecoder)
-        const gltf = await loader.loadAsync(avatarModelUrl(theme))
+        const gltf = await loader.loadAsync(modelUrl)
         if (disposed) return
 
         // ── Renderer (tuned for mid-range Android phones) ───────────────
@@ -135,7 +128,8 @@ export default function KrishnaAvatar({ getAnalyser, outfitId, onModelInfo }: Pr
         root.traverse((o) => {
           if (o.name.startsWith(OUTFIT_NODE_PREFIX)) outfitNodes.set(o.name, o)
         })
-        const present = outfitsPresentInModel(Array.from(outfitNodes.keys()))
+        // Outfits as nodes inside one file, or (no nodes) one file per outfit.
+        const present = outfitNodes.size ? outfitsPresentInModel(Array.from(outfitNodes.keys())) : outfitsWithModels()
         applyOutfitRef.current = (id: string) => {
           if (!outfitNodes.size) return
           const target = OUTFIT_NODE_PREFIX + (present.includes(id) ? id : present[0] ?? id)
@@ -318,7 +312,7 @@ export default function KrishnaAvatar({ getAnalyser, outfitId, onModelInfo }: Pr
     })()
 
     return () => { disposed = true; cleanup?.() }
-  }, [theme])
+  }, [modelUrl])
 
   // ── Poster fallback: voice-reactive aura + breathing ──────────────
   useEffect(() => {

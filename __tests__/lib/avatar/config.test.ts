@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { OUTFITS, loadSavedOutfit, saveOutfit, outfitsPresentInModel, DEFAULT_OUTFIT_ID, avatarModelUrl } from '@/lib/avatar/config'
+import { OUTFITS, loadSavedOutfit, saveOutfit, outfitsPresentInModel, DEFAULT_OUTFIT_ID, avatarModelUrl, outfitsWithModels } from '@/lib/avatar/config'
 
 describe('avatar config', () => {
   beforeEach(() => window.localStorage.clear())
@@ -24,8 +24,11 @@ describe('avatar config', () => {
     expect(outfitsPresentInModel(['Krishna_Rig', 'Krishna', 'root', 'chest', 'head'])).toEqual([DEFAULT_OUTFIT_ID])
   })
 
-  it('loads the model painted for the current theme', () => {
-    expect(avatarModelUrl('light')).toBe('/avatar/krishna-light.glb')
-    expect(avatarModelUrl('dark')).toBe('/avatar/krishna-dark.glb')
+  it('each outfit has its own model file, used on both themes', () => {
+    expect(avatarModelUrl('divine')).toBe('/avatar/krishna-divine.glb')
+    expect(avatarModelUrl('royal')).toBe('/avatar/krishna-royal.glb')
+    expect(avatarModelUrl('pastoral')).toBe('/avatar/krishna-pastoral.glb')
+    expect(avatarModelUrl('fusion')).toBe('/avatar/krishna-divine.glb') // unknown → the default look
+    expect(outfitsWithModels()).toEqual(['divine', 'royal', 'pastoral'])
   })
 })
