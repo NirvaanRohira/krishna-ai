@@ -7,13 +7,20 @@
 import { useCallback, useRef, useState } from 'react'
 import { notFound } from 'next/navigation'
 import KrishnaAvatar from '@/components/KrishnaAvatar'
-import { OUTFITS } from '@/lib/avatar/config'
+import PaintedAvatar from '@/components/PaintedAvatar'
+import AvatarPanel from '@/components/AvatarPanel'
+import { OUTFITS, paintedAvatarUrl, rendererFor, type AvatarStyle } from '@/lib/avatar/config'
 
 export default function AvatarPreview() {
   if (process.env.NODE_ENV === 'production') notFound()
 
   const [outfitId, setOutfitId] = useState('divine')
   const [info, setInfo] = useState('loading…')
+  const [style, setStyle] = useState<AvatarStyle>('painted')
+  // "Panel" shows the real avatar mode (topbar, outfit sheet, caption, input bar) as it ships.
+  const [panel, setPanel] = useState(false)
+  const renderer = rendererFor(outfitId, style)
+  const painted = paintedAvatarUrl(outfitId)
   const ctxRef = useRef<AudioContext | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
 
@@ -52,15 +59,35 @@ export default function AvatarPreview() {
     src.stop(t0 + 12 * 0.28 + 0.1)
   }
 
+  if (panel) {
+    return (
+      <main style={{ position: 'fixed', inset: 0 }}>
+        <AvatarPanel
+          onClose={() => setPanel(false)}
+          onSend={testVoice}
+          loading={false}
+          caption="When the mind is restless, come back to one small thing you can do with care today."
+          getAnalyser={getAnalyser}
+        />
+      </main>
+    )
+  }
+
   return (
     <main style={{ position: 'fixed', inset: 0, background: 'radial-gradient(60% 45% at 50% 38%, var(--stage-glow), transparent 70%), linear-gradient(var(--night-1), var(--night-0))' }}>
-      <KrishnaAvatar
-        getAnalyser={getAnalyser}
-        outfitId={outfitId}
-        onModelInfo={(i) => setInfo(`${i.mode}${i.outfits.length ? ` · outfits in GLB: ${i.outfits.join(', ')}` : ''}`)}
-      />
+      {renderer === 'painted' && painted ? (
+        <PaintedAvatar key={painted} url={painted} getAnalyser={getAnalyser} onReady={() => setInfo('painted')} onFail={() => setInfo('painted failed')} />
+      ) : (
+        <KrishnaAvatar
+          getAnalyser={getAnalyser}
+          outfitId={outfitId}
+          onModelInfo={(i) => setInfo(`${i.mode}${i.outfits.length ? ` · outfits in GLB: ${i.outfits.join(', ')}` : ''}`)}
+        />
+      )}
       <div style={{ position: 'absolute', top: 12, left: 12, right: 12, display: 'flex', gap: 8, flexWrap: 'wrap', fontFamily: 'system-ui', fontSize: 13, color: 'var(--ink-2)' }}>
         <button type="button" onClick={testVoice}>Test voice</button>
+        <button type="button" onClick={() => setStyle(style === 'painted' ? '3d' : 'painted')}>Style: {style}</button>
+        <button type="button" onClick={() => setPanel(true)}>Panel</button>
         {OUTFITS.map((o) => (
           <button type="button" key={o.id} onClick={() => setOutfitId(o.id)} aria-pressed={o.id === outfitId}>
             {o.label}

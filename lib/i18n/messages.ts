@@ -244,6 +244,9 @@ export const en = {
   'avatar.choose_title': 'Choose Outfit',
   'avatar.soon': 'Soon',
   'avatar.done': 'Done',
+  'avatar.style': 'Style',
+  'avatar.style_painted': 'Painted',
+  'avatar.style_3d': '3D',
 
   // ── Legal pages ─────────────────────────────────────────────────────────
   'legal.english_only': '',
@@ -477,6 +480,9 @@ export const hi: Record<MessageKey, string> = {
   'avatar.choose_title': 'वेशभूषा चुनें',
   'avatar.soon': 'जल्द',
   'avatar.done': 'हो गया',
+  'avatar.style': 'शैली',
+  'avatar.style_painted': 'चित्र',
+  'avatar.style_3d': '3D',
 
   'legal.english_only': 'यह पृष्ठ अभी केवल अंग्रेज़ी में है। हिंदी अनुवाद जल्द आएगा; तब तक अंग्रेज़ी पाठ ही मान्य है।',
 }

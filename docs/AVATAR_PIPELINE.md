@@ -2,7 +2,10 @@
 
 The app loads **one GLB file** and handles everything else: lighting, framing, idle motion, blinking, lip-sync and outfit switching (`components/KrishnaAvatar.tsx`). This page is the brief for whoever builds that file. Hand it to the 3D artist as-is.
 
-Reference art: `public/avatar/poster-divine-v2.webp` (the "Divine" look). Outfits planned for launch: **Divine, Royal, Pastoral, Fusion**.
+Reference art: `public/avatar/poster-divine-v2.webp` (the "Divine" look). Outfits in the alpha: **Divine, Royal, Pastoral** (Fusion is out).
+
+> The default avatar in the app is now the **painted** one (see "What's live now" below); the GLBs
+> are the **3D** style and the fallback.
 
 ## Ways to get the model
 
@@ -64,7 +67,49 @@ Starting prompt to paste into that session (the full version, with the four outf
 
 Check the result at `/avatar-preview` (`npm run dev`), then commit `public/avatar/krishna.glb`.
 
-## What's live now (alpha): the 2.5D cut-outs
+## What's live now (alpha): the painted avatar (default) and the 2.5D cut-outs
+
+Avatar mode has two styles, switched in the outfit sheet (**Painted** / **3D**), remembered per
+device. Painted is the default. If the painted player can't start (no WebGL, a bad file), the
+panel switches to 3D for that session.
+
+### Painted (`mesh-avatar`, default)
+
+One illustration per outfit that breathes, blinks, sways its hair and moves its mouth, drawn
+with WebGL by [`mesh-avatar`](https://github.com/shinshin86/mesh-avatar-studio/tree/main/packages/runtime)
+(npm `mesh-avatar`, MIT, © Yuki Shindo; one dependency, `fflate`, MIT). Component:
+`components/PaintedAvatar.tsx`. Files: `public/avatar/painted/{divine,royal,pastoral}.mavatar`,
+picker thumbnails in `public/avatar/outfits/`.
+
+| Outfit | Source export | Canvas | Shipped size |
+| --- | --- | --- | --- |
+| Divine | `krishna-flute.mavatar` | 720 × 1440 | 96 KB |
+| Royal | `krishna-royal.mavatar` | 1116 × 2000 | 361 KB |
+| Pastoral | `krishna-gopala.mavatar` | 1116 × 2000 | 206 KB |
+
+- **Making one:** paint or generate the full-body illustration on a transparent background, open
+  it in Mesh Avatar Studio (https://shinshin86.github.io/mesh-avatar-studio/), let it build the
+  rig, check the motion, export `.mavatar`.
+- **Shipping one:** `node scripts/pack-painted-avatar.mjs <export.mavatar> public/avatar/painted/<outfit>.mavatar`.
+  It re-encodes the base picture as WebP and drops the editing-only files (`source.png`,
+  thumbnail), cutting each file by ~90%, then validates the result. The test
+  `__tests__/lib/avatar/config.test.ts` checks every shipped file is valid, small and has no
+  `source.png`.
+- **Lip-sync:** the TTS loudness drives `setVoiceLevel`, and `setSpeaking` holds through short
+  pauses. Without drawn mouth shapes the player opens the painted mouth by warping it, which
+  reads a little "cartoon" up close. **Drawn variants** (mouth `a`, `a_half`, `i`, `o`; eyes
+  `closed`, `half`, `smile`) fix that: make them with the variant kit (mask + prompt per variant,
+  in an inpainting editor that keeps the exact canvas size), import them in Studio, re-export,
+  and re-run the pack script. No code change is needed; the player picks them up from the file.
+- **Licence:** the runtime is MIT. Mesh Avatar Studio's face tracking (MediaPipe, Apache-2.0) is
+  not used by the app. The illustrations are ours; the Studio's sample character (Miko) is not
+  in this repo.
+- **Framing:** the figure fills the stage from the crown to about the knees and fades out above
+  the input bar (`SHOW` in `PaintedAvatar.tsx`, `.avatar-painted` in `globals.css`).
+- **Check it:** `/avatar-preview` → Style, each outfit, Test voice; **Panel** shows the real avatar
+  mode with the outfit sheet.
+
+### 3D: the 2.5D cut-outs
 
 The alpha ships three layered **2.5D cut-outs** made in Blender, one file per outfit, each used on
 both themes (no painted glow; the app's stage provides the glow):

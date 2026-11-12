@@ -7,10 +7,15 @@ import dynamic from 'next/dynamic'
 import { useState } from 'react'
 import { InputBar } from '@/components/InputBar'
 import { useLang } from '@/components/LangProvider'
-import { OUTFITS, loadSavedOutfit, saveOutfit } from '@/lib/avatar/config'
+import {
+  AVATAR_STYLES, OUTFITS, loadSavedOutfit, loadSavedStyle, paintedAvatarUrl, rendererFor, saveOutfit, saveStyle,
+  type AvatarStyle,
+} from '@/lib/avatar/config'
 
-// three.js (~150 KB gz) only downloads when someone opens avatar mode.
+// three.js (~150 KB gz) and the painted player (~25 KB gz) only download when someone opens
+// avatar mode, and only the one in use.
 const KrishnaAvatar = dynamic(() => import('@/components/KrishnaAvatar'), { ssr: false })
+const PaintedAvatar = dynamic(() => import('@/components/PaintedAvatar'), { ssr: false })
 
 type Props = {
   onClose: () => void
@@ -28,14 +33,26 @@ export default function AvatarPanel({ onClose, onSend, loading, caption, getAnal
   const [outfitId, setOutfitId] = useState(() => (typeof window === 'undefined' ? 'divine' : loadSavedOutfit()))
   const [pickerOpen, setPickerOpen] = useState(false)
   const [available, setAvailable] = useState<string[] | null>(null)
+  const [style, setStyle] = useState<AvatarStyle>(() => (typeof window === 'undefined' ? 'painted' : loadSavedStyle()))
+  // Set when the painted player can't start on this device; 3D takes over for the session.
+  const [paintedFailed, setPaintedFailed] = useState(false)
 
   function choose(id: string) {
     setOutfitId(id)
     saveOutfit(id)
   }
 
+  function chooseStyle(next: AvatarStyle) {
+    setStyle(next)
+    saveStyle(next)
+  }
+
+  const renderer = paintedFailed ? '3d' : rendererFor(outfitId, style)
+  const paintedUrl = paintedAvatarUrl(outfitId)
+
   // In 2D poster mode only outfits with a poster image can actually be shown.
   const selectable = (id: string) => {
+    if (renderer === 'painted') return Boolean(paintedAvatarUrl(id))
     if (available === null) return true
     if (available.length) return available.includes(id)
     return Boolean(OUTFITS.find((o) => o.id === id)?.poster)
@@ -43,11 +60,15 @@ export default function AvatarPanel({ onClose, onSend, loading, caption, getAnal
 
   return (
     <div className="avatar-panel theme-night" data-testid="avatar-panel">
-      <KrishnaAvatar
-        getAnalyser={getAnalyser}
-        outfitId={outfitId}
-        onModelInfo={({ outfits }) => setAvailable(outfits)}
-      />
+      {renderer === 'painted' && paintedUrl ? (
+        <PaintedAvatar key={paintedUrl} url={paintedUrl} getAnalyser={getAnalyser} onFail={() => setPaintedFailed(true)} />
+      ) : (
+        <KrishnaAvatar
+          getAnalyser={getAnalyser}
+          outfitId={outfitId}
+          onModelInfo={({ outfits }) => setAvailable(outfits)}
+        />
+      )}
 
       <div className="avatar-topbar">
         <button className="avatar-icon-btn" onClick={onClose} type="button" aria-label={t('avatar.close')}>
@@ -75,6 +96,21 @@ export default function AvatarPanel({ onClose, onSend, loading, caption, getAnal
       {pickerOpen ? (
         <div className="avatar-sheet" role="dialog" aria-label={t('avatar.choose')}>
           <h2 className="avatar-sheet-title">{t('avatar.choose_title')}</h2>
+          {!paintedFailed && (
+            <div className="avatar-style" role="group" aria-label={t('avatar.style')}>
+              {AVATAR_STYLES.map((st) => (
+                <button
+                  key={st}
+                  type="button"
+                  className={`avatar-style-btn${style === st ? ' avatar-style-btn--active' : ''}`}
+                  aria-pressed={style === st}
+                  onClick={() => chooseStyle(st)}
+                >
+                  {t(st === 'painted' ? 'avatar.style_painted' : 'avatar.style_3d')}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="avatar-outfits">
             {OUTFITS.map((o) => {
               const enabled = selectable(o.id)

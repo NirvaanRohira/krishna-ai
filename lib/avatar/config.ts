@@ -1,5 +1,8 @@
 // Avatar asset configuration.
 //
+// Two renderers: the painted avatar (/public/avatar/painted/*.mavatar, mesh-avatar runtime,
+// the default) and the 3D GLB below. See docs/AVATAR_PIPELINE.md.
+//
 // The 3D model is a single GLB in /public/avatar (or a CDN URL via
 // NEXT_PUBLIC_AVATAR_MODEL_URL). Each outfit is a top-level node in that GLB named
 // `outfit_<id>` (e.g. `outfit_royal`), all skinned to the same skeleton; the viewer
@@ -19,6 +22,46 @@ export type Outfit = {
   poster?: string
   /** The outfit's own model file. Each look is a separate GLB, used on both themes. */
   model?: string
+  /** The painted 2D-mesh version of this look (a .mavatar archive, played by `mesh-avatar`). */
+  painted?: string
+}
+
+/**
+ * How the avatar is drawn. "painted" is a single illustration that breathes, blinks and talks
+ * (mesh-avatar); "3d" is the Blender GLB. Painted is the default; 3D stays as the alternative
+ * and as the fallback when the painted player can't start.
+ */
+export type AvatarStyle = 'painted' | '3d'
+export const AVATAR_STYLES: AvatarStyle[] = ['painted', '3d']
+export const DEFAULT_AVATAR_STYLE: AvatarStyle = 'painted'
+const STYLE_KEY = 'krishna.avatarStyle'
+
+export function loadSavedStyle(): AvatarStyle {
+  try {
+    const v = window.localStorage.getItem(STYLE_KEY)
+    if (v === 'painted' || v === '3d') return v
+  } catch { /* storage blocked */ }
+  return DEFAULT_AVATAR_STYLE
+}
+
+export function saveStyle(style: AvatarStyle): void {
+  try { window.localStorage.setItem(STYLE_KEY, style) } catch { /* storage blocked */ }
+}
+
+/** The painted file for an outfit, or null when that look has no painted version. */
+export function paintedAvatarUrl(outfitId: string): string | null {
+  return OUTFITS.find((o) => o.id === outfitId)?.painted ?? null
+}
+
+/**
+ * Which renderer actually draws this outfit: the chosen style when the outfit has it,
+ * otherwise whichever the outfit does have.
+ */
+export function rendererFor(outfitId: string, style: AvatarStyle): AvatarStyle {
+  const o = OUTFITS.find((x) => x.id === outfitId)
+  if (style === 'painted' && o?.painted) return 'painted'
+  if (style === '3d' && (o?.model || process.env.NEXT_PUBLIC_AVATAR_MODEL_URL)) return '3d'
+  return o?.painted ? 'painted' : '3d'
 }
 
 /**
@@ -40,9 +83,9 @@ export const AVATAR_POSTER_URL = '/avatar/poster-divine-v2.webp'
 export const OUTFIT_NODE_PREFIX = 'outfit_'
 
 export const OUTFITS: Outfit[] = [
-  { id: 'divine', label: 'Divine', swatch: 'linear-gradient(135deg,#f6c9ff,#9fd8ff 55%,#f4c26b)', poster: AVATAR_POSTER_URL, model: '/avatar/krishna-divine.glb' },
-  { id: 'royal', label: 'Royal', swatch: 'linear-gradient(135deg,#1d2a6b,#c9a24a)', model: '/avatar/krishna-royal.glb' },
-  { id: 'pastoral', label: 'Pastoral', swatch: 'linear-gradient(135deg,#c9b98a,#e2a35b)', model: '/avatar/krishna-pastoral.glb' },
+  { id: 'divine', label: 'Divine', swatch: 'linear-gradient(135deg,#f6c9ff,#9fd8ff 55%,#f4c26b)', poster: AVATAR_POSTER_URL, thumbnail: '/avatar/outfits/divine.webp', model: '/avatar/krishna-divine.glb', painted: '/avatar/painted/divine.mavatar' },
+  { id: 'royal', label: 'Royal', swatch: 'linear-gradient(135deg,#1d2a6b,#c9a24a)', thumbnail: '/avatar/outfits/royal.webp', model: '/avatar/krishna-royal.glb', painted: '/avatar/painted/royal.mavatar' },
+  { id: 'pastoral', label: 'Pastoral', swatch: 'linear-gradient(135deg,#c9b98a,#e2a35b)', thumbnail: '/avatar/outfits/pastoral.webp', model: '/avatar/krishna-pastoral.glb', painted: '/avatar/painted/pastoral.mavatar' },
   // Fusion (contemporary kurta) is out of the alpha: it didn't land with testers.
 ]
 

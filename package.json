@@ -21,6 +21,7 @@
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.3",
     "@vercel/speed-insights": "^2.0.0",
+    "mesh-avatar": "0.8.0",
     "next": "16.4.3",
     "openai": "^6.34.0",
     "react": "19.3.1",

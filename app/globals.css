@@ -724,6 +724,26 @@ p { text-wrap: pretty; }
 .avatar-stage, .avatar-canvas { position: absolute; inset: 0; }
 .avatar-canvas canvas { display: block; }
 
+/* Painted avatar: the figure is framed from the crown to about the knees and fades out
+   above the input bar. */
+.avatar-painted {
+  position: absolute;
+  left: 0; right: 0;
+  top: max(3.25rem, env(safe-area-inset-top));
+  bottom: 7.5rem;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 82%, transparent);
+  mask-image: linear-gradient(to bottom, #000 82%, transparent);
+  opacity: 0;
+  transition: opacity 600ms var(--ease-out);
+}
+.avatar-painted[data-ready='true'] { opacity: 1; }
+.avatar-painted canvas { display: block; flex: 0 0 auto; }
+@media (prefers-reduced-motion: reduce) { .avatar-painted { transition: none; } }
+
 .avatar-poster {
   --voice: 0;
   position: absolute;
@@ -836,6 +856,29 @@ p { text-wrap: pretty; }
 }
 @keyframes sheetIn { from { transform: translateY(24px); opacity: 0; } }
 .avatar-sheet-title { margin: 0 0 1rem; text-align: center; font-size: 1.35rem; }
+.avatar-style {
+  display: flex;
+  gap: 0.25rem;
+  width: fit-content;
+  margin: 0 auto 1rem;
+  padding: 0.25rem;
+  border-radius: var(--radius-pill);
+  background: var(--tint-strong);
+}
+.avatar-style-btn {
+  min-width: 5.5rem;
+  min-height: 2.25rem;
+  padding: 0 1rem;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 180ms, color 180ms;
+}
+.avatar-style-btn--active { background: var(--gold); color: var(--gold-ink); }
 .avatar-outfits { display: flex; gap: 0.75rem; overflow-x: auto; padding-bottom: 0.5rem; scroll-snap-type: x mandatory; }
 .avatar-outfit {
   flex: 0 0 auto;
