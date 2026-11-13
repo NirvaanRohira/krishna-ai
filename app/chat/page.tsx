@@ -12,6 +12,7 @@ import Link from 'next/link'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { toSpeech, toPlain } from '@/lib/scripture-page'
 import { useAmbient } from '@/hooks/useAmbient'
+import { prefetchAvatar } from '@/lib/avatar/prefetch'
 import { usePlan } from '@/hooks/usePlan'
 import { useLang } from '@/components/LangProvider'
 import { LanguageToggle } from '@/components/LanguageToggle'
@@ -90,6 +91,17 @@ export default function ChatPage() {
     setAnalyse?.(videoMode)
     if (videoMode) setTTSEnabled?.(true)
   }, [videoMode, setAnalyse, setTTSEnabled])
+
+  // Download the avatar quietly once the page is idle, so tapping it opens almost at once.
+  useEffect(() => {
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void }
+    if (w.requestIdleCallback) {
+      const id = w.requestIdleCallback(prefetchAvatar, { timeout: 5000 })
+      return () => w.cancelIdleCallback?.(id)
+    }
+    const t = setTimeout(prefetchAvatar, 3000)
+    return () => clearTimeout(t)
+  }, [])
 
   useEffect(() => {
     const supabase = createBrowserSupabaseClient()

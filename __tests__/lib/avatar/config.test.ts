@@ -81,4 +81,12 @@ describe('avatar config', () => {
       expect(bytes.byteLength, `${o.id} stays small`).toBeLessThan(600_000)
     }
   })
+
+  it('every outfit has its own full-figure poster on disk (the fallback never shows another outfit)', () => {
+    for (const o of OUTFITS) {
+      expect(o.poster, o.id).toBeTruthy()
+      expect(existsSync(join(process.cwd(), 'public', o.poster!)), o.poster).toBe(true)
+    }
+    expect(new Set(OUTFITS.map((o) => o.poster)).size).toBe(OUTFITS.length)
+  })
 })

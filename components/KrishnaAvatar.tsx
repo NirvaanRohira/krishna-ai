@@ -49,6 +49,8 @@ export default function KrishnaAvatar({ getAnalyser, outfitId, onModelInfo }: Pr
     if (!mount) return
 
     ;(async () => {
+      // A new outfit: show the glow again while its model loads, then fade it in.
+      setMode('loading')
       try {
         const THREE = await import('three')
         const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js')
@@ -336,12 +338,16 @@ export default function KrishnaAvatar({ getAnalyser, outfitId, onModelInfo }: Pr
     return () => cancelAnimationFrame(raf)
   }, [mode])
 
+  // The still picture is only the fallback when the 3D model can't run. While the model loads,
+  // the stage shows just its soft glow (showing a poster then would flash a different picture,
+  // and a different outfit if that outfit had no poster), and the model fades in.
   const poster = OUTFITS.find((o) => o.id === outfitId)?.poster ?? AVATAR_POSTER_URL
 
   return (
     <div className="avatar-stage" data-mode={mode}>
       <div ref={mountRef} className="avatar-canvas" aria-hidden={mode !== 'model'} />
-      {mode !== 'model' && (
+      {mode === 'loading' && <div className="avatar-loading" aria-hidden="true" />}
+      {mode === 'poster' && (
         <div ref={auraRef} className="avatar-poster">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={poster} alt="Krishna" draggable={false} />

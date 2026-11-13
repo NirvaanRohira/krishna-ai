@@ -85,11 +85,11 @@ export const OUTFIT_NODE_PREFIX = 'outfit_'
 
 export const OUTFITS: Outfit[] = [
   // Royal opens avatar mode (painted); the sheet offers the others, which shows people there's a choice.
-  { id: 'royal', label: 'Royal', swatch: 'linear-gradient(135deg,#1d2a6b,#c9a24a)', thumbnail: '/avatar/outfits/royal.webp', model: '/avatar/krishna-royal.glb', painted: '/avatar/painted/royal.mavatar' },
+  { id: 'royal', label: 'Royal', swatch: 'linear-gradient(135deg,#1d2a6b,#c9a24a)', poster: '/avatar/poster-royal.webp', thumbnail: '/avatar/outfits/royal.webp', model: '/avatar/krishna-royal.glb', painted: '/avatar/painted/royal.mavatar' },
   // Divine stays the Blender model only: its painted version didn't read as divine. It's still
   // the face of the app (landing page, poster).
   { id: 'divine', label: 'Divine', swatch: 'linear-gradient(135deg,#f6c9ff,#9fd8ff 55%,#f4c26b)', poster: AVATAR_POSTER_URL, thumbnail: '/avatar/outfits/divine.webp', model: '/avatar/krishna-divine.glb' },
-  { id: 'pastoral', label: 'Pastoral', swatch: 'linear-gradient(135deg,#c9b98a,#e2a35b)', thumbnail: '/avatar/outfits/pastoral.webp', model: '/avatar/krishna-pastoral.glb', painted: '/avatar/painted/pastoral.mavatar' },
+  { id: 'pastoral', label: 'Pastoral', swatch: 'linear-gradient(135deg,#c9b98a,#e2a35b)', poster: '/avatar/poster-pastoral.webp', thumbnail: '/avatar/outfits/pastoral.webp', model: '/avatar/krishna-pastoral.glb', painted: '/avatar/painted/pastoral.mavatar' },
   // Fusion (contemporary kurta) is out of the alpha: it didn't land with testers.
 ]
 

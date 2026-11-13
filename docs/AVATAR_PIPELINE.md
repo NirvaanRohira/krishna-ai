@@ -122,6 +122,13 @@ picker thumbnails in `public/avatar/outfits/`.
 
 ### 3D: the 2.5D cut-outs
 
+- **Loading:** while a model downloads the stage shows only its glow, then the model fades in.
+  The chat page pre-downloads the code and the first model when idle (`lib/avatar/prefetch.ts`;
+  skipped on Data Saver and 2G).
+- **Posters** (`public/avatar/poster-<outfit>.webp`, 720 × 1440, transparent) are only the
+  fallback for phones that can't run the 3D model. Royal and Pastoral's are cut from their
+  Blender renders, so the fallback never shows a different outfit. Re-cut them when a model changes.
+
 The alpha ships three layered **2.5D cut-outs** made in Blender, one file per outfit, each used on
 both themes (no painted glow; the app's stage provides the glow):
 `public/avatar/krishna-divine.glb`, `krishna-royal.glb`, `krishna-pastoral.glb`.

@@ -723,6 +723,23 @@ p { text-wrap: pretty; }
 }
 .avatar-stage, .avatar-canvas { position: absolute; inset: 0; }
 .avatar-canvas canvas { display: block; }
+/* The model fades in once it's ready; until then only the stage's glow breathes. */
+.avatar-canvas { transition: opacity 700ms var(--ease-out); }
+.avatar-stage[data-mode='loading'] .avatar-canvas { opacity: 0; }
+.avatar-loading {
+  position: absolute;
+  left: 50%; top: 42%;
+  width: min(80vw, 22rem);
+  aspect-ratio: 1 / 1.6;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, var(--stage-halo), var(--stage-halo-0) 100%);
+  opacity: 0.35;
+  animation: avatarLoading 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes avatarLoading { 50% { opacity: 0.6; transform: translate(-50%, -50%) scale(1.04); } }
+@media (prefers-reduced-motion: reduce) { .avatar-loading { animation: none; } .avatar-canvas { transition: none; } }
 
 /* Painted avatar: the figure is framed from the crown to about the knees and fades out
    above the input bar. */
