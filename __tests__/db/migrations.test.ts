@@ -297,6 +297,44 @@ describe('payments (20261102000000)', () => {
   })
 })
 
+describe('speech-to-text burst limit (20261112000000)', () => {
+  const S = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+  beforeAll(async () => {
+    await db.query('insert into auth.users (id) values ($1)', [S])
+  })
+  const burst = (uid: string | null, kind = 'stt') =>
+    asUser(db, uid, async () => (await db.query<{ r: { allowed: boolean; reason: string; limit: number; retry_after?: number } }>('select consume_burst($1) as r', [kind])).rows[0].r)
+
+  it('allows 20 a minute on the free plan, then says when to retry', async () => {
+    const results = []
+    for (let i = 0; i < 21; i++) results.push(await burst(S))
+    expect(results.slice(0, 20).every((r) => r.allowed)).toBe(true)
+    expect(results[20]).toMatchObject({ allowed: false, reason: 'rate', limit: 20 })
+    expect(results[20].retry_after).toBeGreaterThanOrEqual(1)
+    expect(results[20].retry_after).toBeLessThanOrEqual(60)
+  })
+
+  it('a new minute starts a new window; its counter is separate from messages', async () => {
+    await db.query(`update rate_windows set window_start = now() - interval '5 minutes' where user_id = $1 and kind = 'stt'`, [S])
+    expect((await burst(S)).allowed).toBe(true)
+    const kinds = await db.query<{ kind: string }>('select kind from rate_windows where user_id = $1', [S])
+    expect(kinds.rows.map((r) => r.kind)).toEqual(['stt'])
+  })
+
+  it('anonymous callers are refused, unknown kinds are rejected, and users cannot touch the counter', async () => {
+    await expect(asUser(db, null, () => db.query(`select consume_burst('stt')`))).rejects.toThrow()
+    await expect(burst(S, 'message')).rejects.toThrow()
+    await asUser(db, S, () => db.query(`delete from rate_windows where user_id = $1`, [S]))
+    expect((await db.query('select * from rate_windows where user_id = $1', [S])).rows).toHaveLength(1)
+  })
+
+  it('the limit is a plan setting (stt_requests_per_min), raised by a paid plan', async () => {
+    await db.query(`update plan_limits set stt_requests_per_min = 40 where plan = 'plus'`)
+    await db.query(`insert into entitlements (user_id, plan) values ($1, 'plus')`, [S])
+    expect(await burst(S)).toMatchObject({ allowed: true, limit: 40 })
+  })
+})
+
 describe('answer reviews (20261106010000)', () => {
   const R = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
   beforeAll(async () => { await db.query('insert into auth.users (id) values ($1)', [R]) })

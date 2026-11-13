@@ -11,7 +11,7 @@ Always:
 - Stack: Next 16 (App Router, Turbopack, `proxy.ts` not middleware), React 19, ESLint 9 flat config, Node 22.
 - Run before pushing: `npx vitest run && npx tsc --noEmit -p . && npm run lint && npm audit --omit=dev`
 
-Key docs: `docs/GO_LIVE.md` (deploy steps, in order), `docs/COST_AND_AVATAR_PLAN.md` (costs, limits, models, pricing), `docs/RUNBOOK.md` (migrations, staging, backups, cron, incidents, env vars), `docs/CORPUS_LICENSES.md`, `docs/AVATAR_PIPELINE.md` (3D model), `docs/DESIGN.md` (UI).
+Key docs: `docs/COST_AND_LAUNCH_PLAN.md` (two pages: costs, and what to do before selling), `docs/GO_LIVE.md` (deploy steps, in order), `docs/COST_AND_AVATAR_PLAN.md` (costs, limits, models, pricing), `docs/RUNBOOK.md` (migrations, staging, backups, cron, incidents, env vars), `docs/CORPUS_LICENSES.md`, `docs/AVATAR_PIPELINE.md` (3D model), `docs/DESIGN.md` (UI).
 
 Other skills here: `hairline-create` / `hairline-adopt` (MIT, Lucas Marques) for small pointer-reactive line figures. Blender skills (MIT, arjun988/blender-skills: `blender-director`, `character-artist`, `rigging` and others) for building the 3D avatar with Blender MCP on a local machine; see `docs/AVATAR_PIPELINE.md`. Diyas is `lib/hairline/diyas.js`; rebuild with `node scripts/build-hairline.mjs diyas`.
 

@@ -3,8 +3,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 vi.mock('@/lib/supabase-server', () => ({ createServerSupabaseClient: vi.fn() }))
 vi.mock('@/lib/transcribe', () => ({ transcribeAudio: vi.fn() }))
 
-function makeMockSupabase(user: object | null = { id: 'user-123' }) {
-  return { auth: { getUser: vi.fn().mockResolvedValue({ data: { user }, error: null }) } }
+function makeMockSupabase(user: object | null = { id: 'user-123' }, burst: unknown = { allowed: true, reason: 'ok' }, burstError: unknown = null) {
+  return {
+    auth: { getUser: vi.fn().mockResolvedValue({ data: { user }, error: null }) },
+    rpc: vi.fn().mockResolvedValue({ data: burstError ? null : burst, error: burstError }),
+  }
 }
 
 function makeAudioRequest(hasAudio = true) {
@@ -83,5 +86,25 @@ describe('POST /api/voice/transcribe', () => {
     const { POST } = await import('@/app/api/voice/transcribe/route')
     const res = await POST(makeAudioRequest())
     expect(JSON.stringify(await res.json())).not.toContain('key=abc')
+  })
+
+  it('is rate-limited per minute in Postgres (exact across servers), with Retry-After', async () => {
+    const supabaseLib = await import('@/lib/supabase-server')
+    const sb = makeMockSupabase({ id: 'user-123' }, { allowed: false, reason: 'rate', limit: 20, retry_after: 17 })
+    vi.mocked(supabaseLib.createServerSupabaseClient).mockResolvedValue(sb as never)
+    const { POST } = await import('@/app/api/voice/transcribe/route')
+    const res = await POST(makeAudioRequest())
+    expect(res.status).toBe(429)
+    expect(res.headers.get('Retry-After')).toBe('17')
+    expect(sb.rpc).toHaveBeenCalledWith('consume_burst', { p_kind: 'stt' })
+    expect(transcribeAudio).not.toHaveBeenCalled()
+  })
+
+  it('still works (in-memory limit) if the database limit check fails', async () => {
+    const supabaseLib = await import('@/lib/supabase-server')
+    vi.mocked(supabaseLib.createServerSupabaseClient).mockResolvedValue(makeMockSupabase({ id: 'user-123' }, null, { message: 'db down' }) as never)
+    const { POST } = await import('@/app/api/voice/transcribe/route')
+    const res = await POST(makeAudioRequest())
+    expect(res.status).toBe(200)
   })
 })

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { transcribeAudioGroq, transcribeAudio } from '@/lib/transcribe'
 import { checkRateLimit, rateLimitKey } from '@/lib/rateLimit'
+import { consumeBurst } from '@/lib/quota'
 
 // ~2 minutes of compressed speech. Audio is never stored; it is forwarded to STT only.
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024
@@ -12,9 +13,16 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { allowed, retryAfterSec } = checkRateLimit(`stt:${rateLimitKey(req, user.id)}`, { limit: 20, windowMs: 60_000 })
-  if (!allowed) {
-    return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: { 'Retry-After': String(retryAfterSec) } })
+  // Per-minute limit in Postgres (exact across every server). If the database can't answer,
+  // fall back to this instance's in-memory counter rather than leaving STT unlimited.
+  const burst = await consumeBurst(supabase, 'stt')
+  if (burst.reason === 'error') {
+    const { allowed, retryAfterSec } = checkRateLimit(`stt:${rateLimitKey(req, user.id)}`, { limit: 20, windowMs: 60_000 })
+    if (!allowed) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: { 'Retry-After': String(retryAfterSec) } })
+    }
+  } else if (!burst.allowed) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: { 'Retry-After': String(burst.retry_after ?? 60) } })
   }
 
   // Reject oversized bodies before buffering them.

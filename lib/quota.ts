@@ -25,6 +25,24 @@ export async function consumeQuota(supabase: SupabaseClient, kind: QuotaKind, am
   }
 }
 
+export type BurstResult = { allowed: boolean; reason: 'ok' | 'rate' | 'unauthenticated' | 'error'; limit?: number; retry_after?: number }
+
+/**
+ * Per-minute burst limit kept in Postgres (consume_burst RPC, 20261112 migration), so it holds
+ * across every server instance. Returns reason 'error' when the database can't answer; the
+ * caller decides what to do then (the speech-to-text route falls back to its in-memory limiter).
+ */
+export async function consumeBurst(supabase: SupabaseClient, kind: 'stt'): Promise<BurstResult> {
+  try {
+    const { data, error } = await supabase.rpc('consume_burst', { p_kind: kind })
+    if (error || !data) throw error ?? new Error('empty burst response')
+    return data as BurstResult
+  } catch (err) {
+    if (process.env.NODE_ENV !== 'test') console.error('[quota] burst check failed', err)
+    return { allowed: true, reason: 'error' }
+  }
+}
+
 const UPGRADE = { free: 'Plus', plus: 'Premium' } as Record<string, string | undefined>
 
 const PLAN_HI: Record<string, string> = { free: 'फ़्री', plus: 'प्लस', premium: 'प्रीमियम' }
