@@ -43,13 +43,22 @@ describe('avatar config', () => {
     expect(outfitsWithModels()).toEqual(['royal', 'divine', 'pastoral'])
   })
 
-  it('3D is the default style, the choice is remembered, and unknown values are ignored', () => {
-    expect(DEFAULT_AVATAR_STYLE).toBe('3d')
-    expect(loadSavedStyle()).toBe('3d')
-    saveStyle('painted')
+  it('painted is the default style (drawn mouths since 15 Nov), remembered, unknown values ignored', () => {
+    expect(DEFAULT_AVATAR_STYLE).toBe('painted')
     expect(loadSavedStyle()).toBe('painted')
-    window.localStorage.setItem('krishna.avatarStyle', 'video')
+    saveStyle('3d')
     expect(loadSavedStyle()).toBe('3d')
+    window.localStorage.setItem('krishna.avatarStyle', 'video')
+    expect(loadSavedStyle()).toBe('painted')
+  })
+
+  it('the painted Royal and Pastoral carry drawn mouth and eye shapes (natural lip-sync)', () => {
+    for (const o of OUTFITS.filter((x) => x.painted)) {
+      const files = unpackAvatar(new Uint8Array(readFileSync(join(process.cwd(), 'public', o.painted!))))
+      for (const v of ['mouth_a', 'mouth_a_half', 'mouth_i', 'mouth_o', 'eyes_closed_0', 'eyes_half_0', 'eyes_smile_0']) {
+        expect(Object.keys(files), `${o.id} ${v}`).toContain(`built/sprites/${v}.png`)
+      }
+    }
   })
 
   it('draws each outfit with the chosen style, and falls back to what the outfit has', () => {

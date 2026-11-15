@@ -33,9 +33,12 @@ const LANGUAGE_NAMES: Partial<Record<Lang, string>> = {
  * the prompt isn't enough. Everything the seeker reads (including the page's sections and
  * title) follows it; the page's ref attribute stays as the context label.
  */
-export function replyLanguageLine(message: string): string {
+export function replyLanguageLine(message: string, voice = false): string {
   const name = LANGUAGE_NAMES[detectLanguage(message)]
-  return name ? `[Write your entire reply in ${name}: the reflection, the question, and every part of a page except its ref.]` : ''
+  if (!name) return ''
+  return voice
+    ? `[Speak your entire reply in ${name}.]`
+    : `[Write your entire reply in ${name}: the reflection, the question, and every part of a page except its ref.]`
 }
 
 /**
@@ -45,13 +48,21 @@ export function replyLanguageLine(message: string): string {
  * the conversation can breathe for a couple of turns before the next one.
  * Only applies when passages were retrieved (no sources means no page is possible).
  */
-function journeyState(history: Message[], message: string, hasSources: boolean): 'open' | 'hold' | 'free' {
+// A spoken reply has no <page> to look for; it shared scripture when it names a text or its
+// people (English and Hindi).
+const SPOKEN_SCRIPTURE = /\b(Gita|Bhagavatam|Upanishads?|Yoga Sutras?|Arjuna|Uddhava|Patanjali)\b|गीता|भागवत|उपनिषद|अर्जुन|उद्धव|योग ?सूत्र/i
+
+function sharedScripture(content: string, voice: boolean): boolean {
+  return content.includes('<page') || (voice && SPOKEN_SCRIPTURE.test(content))
+}
+
+function journeyState(history: Message[], message: string, hasSources: boolean, voice = false): 'open' | 'hold' | 'free' {
   if (!hasSources) return 'free'
   let since = 0
   let hadPage = false
   for (const m of history) {
     if (m.role !== 'assistant') continue
-    if (m.content.includes('<page')) { hadPage = true; since = 0 } else since++
+    if (sharedScripture(m.content, voice)) { hadPage = true; since = 0 } else since++
   }
   const words = message.trim().split(/\s+/).filter(Boolean).length
   const due = hadPage ? since >= 2 : since >= 1 || words >= 18
@@ -67,12 +78,24 @@ export function pageDue(history: Message[], message: string, hasSources: boolean
   return journeyState(history, message, hasSources) === 'open'
 }
 
-export function journeyLine(history: Message[], message: string, hasSources: boolean): string {
-  const state = journeyState(history, message, hasSources)
+/**
+ * The directive placed right before the reply. In voice mode the same rhythm (find the root,
+ * then share one teaching, then let it breathe) is said as speech: the page directives would
+ * override the voice instructions, because the last instruction wins.
+ */
+export function journeyLine(history: Message[], message: string, hasSources: boolean, voice = false): string {
+  const state = journeyState(history, message, hasSources, voice)
+  if (voice) return state === 'open' ? VOICE_OPEN : state === 'hold' ? VOICE_HOLD : VOICE_FREE
   return state === 'open' ? OPEN_PAGE : state === 'hold' ? HOLD_PAGE : ''
 }
 
 const OPEN_PAGE = '[Now open the page. You know enough. In one or two sentences name what is underneath, close to the seeker\'s own words (do not begin with "You feel", "You\'re feeling" or "You sense"), then write exactly one <page ref="..." title="..."> with <moment>, <teaching>, <life> and <practice>, exactly in the format above, using a REFERENCE from the retrieved context, then one closing question. Do not ask another question before the page. Skip the page only if this message is a greeting, light small talk, or something outside your domain.]'
+
+const VOICE_OPEN = '[Spoken reply. You know enough now. First, in one short sentence and close to their own words, say what seems to be underneath (do not begin with "You feel" or "You\'re feeling"). Then share one moment from the retrieved passages the way you would tell a friend: who was there and what happened, in one or two sentences, and what it might mean for them, in one sentence. End with one simple question. About 60 to 90 words. No <page>, no headings or labels, no chapter or verse numbers.]'
+
+const VOICE_HOLD = '[Spoken reply. You shared a teaching a moment ago; now just stay with what they said, in two or three warm, specific sentences, and end with one simple question. No scripture this time.]'
+
+const VOICE_FREE = '[Spoken reply: two to four short sentences, warm and specific to what they said, ending with one simple question. No <page>, no headings, no lists.]'
 
 const HOLD_PAGE = '[Do not open a page in this reply. A page was opened a moment ago; now stay with what they just said, in two to four sentences of your own, warmly and specifically, and end with one question. No scripture citations in this reply.]'
 
@@ -81,8 +104,10 @@ export function buildPrompt(
   history: Message[],
   message: string,
   systemPrompt?: string,
-  anchors?: LookupResult[]
+  anchors?: LookupResult[],
+  opts: { voice?: boolean } = {},
 ): string {
+  const voice = opts.voice === true
   const anchorBlock = anchors && anchors.length > 0
     ? anchors.map(a => `[Anchor] ${a.label} (${a.text_source} ${a.book_chapter}:${a.verse_start}-${a.verse_end})`).join('\n')
     : ''
@@ -105,8 +130,8 @@ export function buildPrompt(
     '',
     historyBlock,
     `Seeker: ${message}`,
-    journeyLine(history, message, sources.length > 0),
-    replyLanguageLine(message),
+    journeyLine(history, message, sources.length > 0, voice),
+    replyLanguageLine(message, voice),
     'Yogi:',
   ]
     .filter(Boolean)

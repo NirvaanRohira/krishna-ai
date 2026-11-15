@@ -12,6 +12,11 @@ function announceSpeaking(on: boolean) {
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('kanha:speaking', { detail: on }))
 }
 
+/** The sentence being spoken right now, for live captions in avatar mode ('' when he stops). */
+function announceCaption(text: string) {
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('kanha:caption', { detail: text }))
+}
+
 export function useTTS({ defaultEnabled = true }: { defaultEnabled?: boolean } = {}) {
   const [enabled, setEnabled] = useState(defaultEnabled)
   const enabledRef = useRef(defaultEnabled)
@@ -46,6 +51,7 @@ export function useTTS({ defaultEnabled = true }: { defaultEnabled?: boolean } =
 
   const stop = useCallback(() => {
     announceSpeaking(false)
+    announceCaption('')
     generationRef.current++
     queueRef.current = []
     processingRef.current = false
@@ -156,7 +162,7 @@ export function useTTS({ defaultEnabled = true }: { defaultEnabled?: boolean } =
       audio.onended = () => { release(); processNextRef.current() }
       audio.onerror = () => { release(); processNextRef.current() }
       // play() can reject (autoplay policy) — recover the queue instead of stalling (bug 4).
-      audio.play().then(() => announceSpeaking(true)).catch(() => { release(); processNextRef.current() })
+      audio.play().then(() => { announceSpeaking(true); announceCaption(text) }).catch(() => { release(); processNextRef.current() })
     } catch {
       if (gen !== generationRef.current) return
       processNextRef.current()

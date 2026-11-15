@@ -6,7 +6,7 @@
 // TTS audio), so there's no second backend path to maintain.
 
 import dynamic from 'next/dynamic'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { InputBar } from '@/components/InputBar'
 import { useVoiceConversation, type VoiceState } from '@/hooks/useVoiceConversation'
 import { useLang } from '@/components/LangProvider'
@@ -57,6 +57,13 @@ export default function AvatarPanel({ onClose, onSend, loading, caption, getAnal
   // Set when the painted player can't start on this device; 3D takes over for the session.
   const [paintedFailed, setPaintedFailed] = useState(false)
   const voice = useVoiceConversation({ lang, loading, onUtterance: onSend, onInterrupt })
+  // Live captions: the sentence he is saying now (from useTTS), not the whole reply at once.
+  const [spoken, setSpoken] = useState('')
+  useEffect(() => {
+    const onCaption = (e: Event) => setSpoken(String((e as CustomEvent).detail ?? ''))
+    window.addEventListener('kanha:caption', onCaption)
+    return () => window.removeEventListener('kanha:caption', onCaption)
+  }, [])
   const voiceBlocked = voice.state === 'unsupported' || voice.state === 'denied'
   const [typing, setTyping] = useState(false)
   const showKeyboard = typing || voiceBlocked
@@ -134,8 +141,12 @@ export default function AvatarPanel({ onClose, onSend, loading, caption, getAnal
 
       {!pickerOpen && (voice.state === 'listening' && voice.heard ? (
         <p className="avatar-caption avatar-caption--you">{voice.heard}</p>
-      ) : caption ? (
+      ) : showKeyboard && caption ? (
+        // Typing: the whole reply, to read.
         <p className="avatar-caption" aria-live="polite">{caption}</p>
+      ) : spoken ? (
+        // Talking: like subtitles, only what he is saying now.
+        <p key={spoken} className="avatar-caption avatar-caption--live" aria-live="polite">{spoken}</p>
       ) : null)}
 
       {pickerOpen ? (

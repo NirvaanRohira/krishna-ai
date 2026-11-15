@@ -66,10 +66,9 @@ export default function PaintedAvatar({ url, getAnalyser, onFail, onReady }: Pro
         ro.observe(stage)
 
         loaded.setAutoIdle(true)
-        // Gentle, not chatty: a smaller mouth, slower to snap open, and less head movement.
-        // (The default settings open the painted mouth wide enough to show teeth.)
-        loaded.setLipSync({ openness: 0.1, granularity: 0.3, closeSpeed: 0.6 })
-        loaded.setTalkGain(0.45)
+        // The files carry drawn mouth shapes (a, a-half, i, o), so the player's own lip-sync
+        // settings look natural; only the head is kept calm while he speaks.
+        loaded.setTalkGain(0.6)
         setReady(true)
         onReadyRef.current?.()
 
@@ -89,7 +88,7 @@ export default function PaintedAvatar({ url, getAnalyser, onFail, onReady }: Pro
             target = Math.min(1, analyseSpectrum(freq, analyser.context.sampleRate, analyser.fftSize).volume * 3)
           }
           level += (target - level) * (target > level ? 0.5 : 0.18)
-          loaded.setVoiceLevel(level * 0.7)
+          loaded.setVoiceLevel(level)
           if (level > 0.04) {
             quietSince = 0
             if (!speaking) { speaking = true; loaded.setSpeaking(true) }

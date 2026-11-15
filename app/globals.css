@@ -942,6 +942,9 @@ p { text-wrap: pretty; }
   .avatar-orb--listening::before, .avatar-orb--thinking::before { animation: none; }
 }
 .avatar-caption--you { color: var(--ink-2); }
+/* Each spoken sentence fades in as it starts, like a subtitle. */
+.avatar-caption--live { animation: captionIn 240ms var(--ease-out) both; }
+@keyframes captionIn { from { opacity: 0; transform: translateY(4px); } }
 .avatar-type-row { display: flex; align-items: center; gap: 0.5rem; padding-right: 0.75rem; }
 .avatar-type-row > :first-child { flex: 1; min-width: 0; }
 .avatar-voice-note { margin: 0 1.25rem 0.5rem; text-align: center; font-size: 0.86rem; color: var(--ink-2); }

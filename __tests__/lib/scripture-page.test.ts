@@ -81,4 +81,49 @@ describe('reply language', () => {
     const p = buildPrompt([{ text_source: 'bhagavad_gita', book_chapter: 2, verse: 47, text: 't' } as never], [u, q], 'everything')
     expect(p.lastIndexOf('Now open the page')).toBeGreaterThan(p.indexOf('Seeker: everything'))
   })
+
+  it('voice mode: speaks a teaching instead of writing a page, and the page directive never wins', async () => {
+    const { journeyLine, buildPrompt } = await import('@/lib/prompts/chat')
+    const { withVoiceMode } = await import('@/lib/prompts/voice')
+    const u = { role: 'user' as const, content: 'I am tired of everything' }
+    const q = { role: 'assistant' as const, content: 'That sounds heavy. What wears on you most?' }
+    const src = [{ text_source: 'bhagavad_gita', book_chapter: 2, verse: 47, text: 't' } as never]
+
+    // When the book would be due, voice gets a spoken teaching, not the page.
+    const open = journeyLine([u, q], 'my family', true, true)
+    expect(open).toMatch(/Spoken reply/)
+    expect(open).toMatch(/tell a friend/)
+    expect(open).not.toMatch(/open the page/)
+
+    const p = buildPrompt(src, [u, q], 'my family', withVoiceMode('SYSTEM', true), [], { voice: true })
+    expect(p).not.toMatch(/Now open the page/)
+    expect(p).toMatch(/Voice conversation mode/)
+    // The spoken directive is the last instruction before the reply.
+    expect(p.lastIndexOf('Spoken reply')).toBeGreaterThan(p.indexOf('Seeker: my family'))
+    expect(p.trimEnd().endsWith('Yogi:')).toBe(true)
+  })
+
+  it('voice mode: after a spoken teaching it lets the conversation breathe, as the page does in text', async () => {
+    const { journeyLine } = await import('@/lib/prompts/chat')
+    const u = { role: 'user' as const, content: 'ok' }
+    const told = { role: 'assistant' as const, content: 'In the Gita, Krishna tells Arjuna to act without clinging to the result. What would that look like tomorrow?' }
+    const plain = { role: 'assistant' as const, content: 'That makes sense. Who do you talk to about it?' }
+    expect(journeyLine([u, told], 'ok', true, true)).toMatch(/stay with what they said/)
+    expect(journeyLine([u, told, u, plain], 'ok', true, true)).toMatch(/stay with what they said/)
+    expect(journeyLine([u, told, u, plain, u, plain], 'ok', true, true)).toMatch(/tell a friend/)
+    // Hindi names count too.
+    const toldHi = { role: 'assistant' as const, content: 'गीता में कृष्ण अर्जुन से कहते हैं…' }
+    expect(journeyLine([u, toldHi], 'ठीक है', true, true)).toMatch(/stay with what they said/)
+    // Text mode is unchanged: a spoken-style mention isn't a page.
+    expect(journeyLine([u, told], 'ok', true, false)).toMatch(/open the page/)
+  })
+
+  it('voice mode: speaks in the seeker\'s language without page wording, and forbids invented people', async () => {
+    const { replyLanguageLine } = await import('@/lib/prompts/chat')
+    const { VOICE_MODE_ADDENDUM } = await import('@/lib/prompts/voice')
+    expect(replyLanguageLine('मन शांत कैसे रहे जब सब कुछ बिखर रहा हो?', true)).toBe('[Speak your entire reply in Hindi, in Devanagari script.]')
+    expect(VOICE_MODE_ADDENDUM).toMatch(/Never invent a name or a story/)
+    expect(VOICE_MODE_ADDENDUM).toMatch(/not Krishna and not God/)
+    expect(VOICE_MODE_ADDENDUM).toMatch(/Never use the <page> format/)
+  })
 })

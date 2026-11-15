@@ -134,7 +134,7 @@ export async function POST(req: Request) {
       // ── Greeting fast path: skip all LLM pre-processing ──────────
       if (isGreetingMessage(message)) {
         const systemPrompt = withVoiceMode(await loadAndInjectProfile(user.id, supabase), voice)
-        const prompt = buildPrompt([], recentHistory, message, systemPrompt, [])
+        const prompt = buildPrompt([], recentHistory, message, systemPrompt, [], { voice })
         usagePromptChars = prompt.length
         await writer.write(sseChunk({ t: 's', id: sessionId, src: [] }))
         let fullResponse = ''
@@ -196,7 +196,7 @@ export async function POST(req: Request) {
         const sources = retrievedSources
         await writer.write(sseChunk({ t: 's', id: sessionId, src: publicSources(sources) }))
 
-        const prompt = buildPrompt(sources, recentHistory, message, systemPrompt, anchors)
+        const prompt = buildPrompt(sources, recentHistory, message, systemPrompt, anchors, { voice })
         usagePromptChars = prompt.length
         let fullResponse = ''
         let firstChunk = true
@@ -208,7 +208,7 @@ export async function POST(req: Request) {
 
         usageResponse = fullResponse
         await saveExchange(supabase, sessionId, message, fullResponse, sources)
-        notePageMissing(recentHistory, message, sources.length > 0, fullResponse)
+        if (!voice) notePageMissing(recentHistory, message, sources.length > 0, fullResponse)
 
       } else {
         // Emit session ID before CRAG starts so the client can track the session even when
@@ -226,6 +226,7 @@ export async function POST(req: Request) {
             anchors,
             prefetchedSources: retrievedSources,
             originalMessage: message,
+            voice,
             onChunk: async (chunk) => {
               if (!chunksEmitted) console.log(`[timing] CRAG first token: ${Date.now()-t0}ms`)
               chunksEmitted = true
@@ -245,10 +246,10 @@ export async function POST(req: Request) {
         // CRAG picks its sources while it runs, so they're sent once it's done (the client
         // shows "Drawn from" when the reply completes).
         await writer.write(sseChunk({ t: 's', id: sessionId, src: publicSources(sources) }))
-        usagePromptChars = buildPrompt(sources, recentHistory, message, systemPrompt, anchors).length
+        usagePromptChars = buildPrompt(sources, recentHistory, message, systemPrompt, anchors, { voice }).length
         usageResponse = response
         await saveExchange(supabase, sessionId, message, response, sources)
-        notePageMissing(recentHistory, message, sources.length > 0, response)
+        if (!voice) notePageMissing(recentHistory, message, sources.length > 0, response)
       }
 
       await writer.write(sseChunk('[DONE]'))

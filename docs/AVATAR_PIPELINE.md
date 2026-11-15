@@ -4,8 +4,9 @@ The app loads **one GLB file** and handles everything else: lighting, framing, i
 
 Reference art: `public/avatar/poster-divine-v2.webp` (the "Divine" look). Outfits in the alpha: **Divine, Royal, Pastoral** (Fusion is out).
 
-> The default avatar in the app is the **3D** (Blender GLB) one; the **painted** style is an
-> option in the outfit sheet (see "What's live now" below).
+> The default avatar is the **painted** one for Royal and Pastoral (with drawn mouth and eye
+> shapes since 15 Nov); Divine is always the **3D** Blender model, and 3D is an option in the
+> outfit sheet (see "What's live now" below).
 
 ## Ways to get the model
 
@@ -67,12 +68,21 @@ Starting prompt to paste into that session (the full version, with the four outf
 
 Check the result at `/avatar-preview` (`npm run dev`), then commit `public/avatar/krishna.glb`.
 
-## What's live now (alpha): the 2.5D cut-outs (default) and the painted avatar
+## What's live now (alpha): the painted avatar (default) and the 2.5D cut-outs
 
 Avatar mode has two styles, switched in the outfit sheet (**Painted** / **3D**), remembered per
-device. **3D is the default**: testers found the painted mouth (warped open, without drawn
-mouth shapes) unnatural; Painted stays as an option with a smaller mouth and less head
-movement. If the painted player can't start (no WebGL, a bad file), the panel uses 3D.
+device. **Painted is the default again since 15 Nov**: the first painted files had no drawn
+mouth shapes, so the player warped the lips open (teeth showing), which testers found
+unnatural, and 3D was the default for a few days. The current Royal and Pastoral files carry
+all seven drawn variants (mouth a, a-half, i, o; eyes closed, half, smile), and the player's own
+lip-sync settings look natural with them. If the painted player can't start (no WebGL, a bad
+file), the panel uses 3D.
+
+Spoken replies are **conversation, not pages** (`lib/prompts/voice.ts`, and voice versions of
+the journey directives in `lib/prompts/chat.ts`): short turns that react first, a teaching told
+as a story in a sentence or two, one question, no headings or citations read aloud, and no
+invented names. Captions show **the sentence being spoken** (`kanha:caption` from `useTTS`), not
+the whole reply.
 
 Avatar mode is a **hands-free voice conversation** (`hooks/useVoiceConversation.ts`): it
 listens on open, sends after a 1.6 s pause, keeps the mic closed while Kanha speaks, and
@@ -85,7 +95,7 @@ people there's a choice). **Divine is the Blender model only**: its painted vers
 art, glowing red-orange eyes) read as unsettling rather than divine and was removed. Divine is
 still the face of the landing page.
 
-### Painted (`mesh-avatar`, option)
+### Painted (`mesh-avatar`, default)
 
 One illustration per outfit that breathes, blinks, sways its hair and moves its mouth, drawn
 with WebGL by [`mesh-avatar`](https://github.com/shinshin86/mesh-avatar-studio/tree/main/packages/runtime)
@@ -95,8 +105,8 @@ picker thumbnails in `public/avatar/outfits/`.
 
 | Outfit | Source export | Canvas | Shipped size |
 | --- | --- | --- | --- |
-| Royal | `krishna-royal.mavatar` | 1116 × 2000 | 361 KB |
-| Pastoral | `krishna-gopala.mavatar` | 1116 × 2000 | 206 KB |
+| Royal | `krishna-royal.mavatar` (15 Nov, with drawn variants) | 1004 × 2000 | 408 KB |
+| Pastoral | `krishna-gopala.mavatar` (15 Nov, with drawn variants) | 1116 × 2000 | 313 KB |
 
 - **Making one:** paint or generate the full-body illustration on a transparent background, open
   it in Mesh Avatar Studio (https://shinshin86.github.io/mesh-avatar-studio/), let it build the
