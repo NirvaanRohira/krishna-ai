@@ -68,20 +68,19 @@ describe('rateLimitKey', () => {
     expect(rateLimitKey(req, 'user-123')).toBe('user-123')
   })
 
-  it('falls back to the first x-forwarded-for hop when no userId', () => {
+  it('uses the IP the platform sets (x-real-ip), never a client-written x-forwarded-for', () => {
     const req = new Request('http://localhost/api/tts', {
-      headers: { 'x-forwarded-for': '9.9.9.9, 10.0.0.1' },
+      headers: { 'x-forwarded-for': '6.6.6.6, 10.0.0.1', 'x-real-ip': '5.5.5.5' },
     })
-    // IP-derived keys are namespaced so a spoofed IP header can't collide
-    // with a real user's id-derived bucket.
-    expect(rateLimitKey(req)).toBe('ip:9.9.9.9')
+    // IP-derived keys are namespaced so they can't collide with a user's id-derived bucket.
+    expect(rateLimitKey(req)).toBe('ip:5.5.5.5')
   })
 
-  it('falls back to x-real-ip when x-forwarded-for is absent', () => {
-    const req = new Request('http://localhost/api/tts', {
-      headers: { 'x-real-ip': '5.5.5.5' },
-    })
-    expect(rateLimitKey(req)).toBe('ip:5.5.5.5')
+  it('ignores x-forwarded-for entirely (spoofable), falling back to Vercel\'s own header', () => {
+    const spoofed = new Request('http://localhost/api/tts', { headers: { 'x-forwarded-for': '9.9.9.9' } })
+    expect(rateLimitKey(spoofed)).toBe('ip:unknown')
+    const vercel = new Request('http://localhost/api/tts', { headers: { 'x-forwarded-for': '9.9.9.9', 'x-vercel-forwarded-for': '7.7.7.7' } })
+    expect(rateLimitKey(vercel)).toBe('ip:7.7.7.7')
   })
 
   it('returns a stable unknown key when no IP headers exist', () => {

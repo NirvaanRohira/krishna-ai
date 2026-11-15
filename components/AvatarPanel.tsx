@@ -113,7 +113,9 @@ export default function AvatarPanel({ onClose, onSend, loading, caption, getAnal
 
       <div className="avatar-topbar">
         <button className="avatar-icon-btn" onClick={onClose} type="button" aria-label={t('avatar.close')}>
-          ✕
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
         </button>
         <button
           className="avatar-icon-btn"

@@ -25,6 +25,8 @@ The model writes the page as `<page ref="…" title="…"><moment/><teaching/><l
 - **Type:** Tiro Devanagari Hindi (`--font-display`) for the wordmark, headings and verse citations. Mukta (`--font-body`) for everything else. Both cover Devanagari. Display text stays at or below 6rem with tracking no tighter than -0.03em.
 - **Contrast:** `--ink` 16.6:1, `--ink-2` 10.5:1, `--ink-3` 6.7:1 on `--night-1`. Small text never goes below `--ink-3`.
 - **Motion:** one authored moment: content *rises* (opacity + 12px + blur → sharp, `--ease-out`). Streaming shows a single breathing pearl. Everything respects `prefers-reduced-motion`.
+- **Spacing on a 4px grid:** every margin, padding and gap is a multiple of 4px (2px only for nudges inside small controls). The book's pages are the exception: their spacing is typeset to fit the text.
+- **No coloured glows on the chrome:** buttons and cards take neutral, soft shadows; colour and light belong to the moments (the figure's halo, the book's gilt and candle light). Decorative things don't loop: the halo is still. Only live states move (listening, thinking, loading, recording).
 - **Browser surfaces are themed:** selection, caret, scrollbars, focus rings and checkboxes.
 - **The AI label is part of the design, not fine print:** the disclaimer line sits under the chat header, "AI depiction · not divine" sits on the avatar, and the landing page says it in plain words. Never hide or shrink these below `--ink-3` at 0.72rem.
 - **Icons:** hand-authored SVG at a 1.6 stroke weight. No emoji as icons. The brand mark is a peacock-feather eye (`components/Mark.tsx`).

@@ -89,19 +89,18 @@ export function checkRateLimit(key: string, opts?: RateLimitOptions): RateLimitR
   }
 }
 
-// Derive a rate-limit bucket key: prefer the authenticated user id, else fall
-// back to the client IP (first x-forwarded-for hop, then x-real-ip).
+// Derive a rate-limit bucket key: prefer the authenticated user id, else the client IP as
+// set by the platform's edge. Never the leftmost X-Forwarded-For value: a client can write
+// anything there, so trusting it lets one caller rotate through endless buckets (or frame
+// someone else's). Vercel sets x-real-ip itself; x-vercel-forwarded-for is its own copy.
 export function rateLimitKey(req: Request, userId?: string): string {
   if (userId) return userId
 
-  const fwd = req.headers.get('x-forwarded-for')
-  if (fwd) {
-    const first = fwd.split(',')[0]?.trim()
-    if (first) return `ip:${first}`
-  }
-
   const realIp = req.headers.get('x-real-ip')?.trim()
   if (realIp) return `ip:${realIp}`
+
+  const vercel = req.headers.get('x-vercel-forwarded-for')?.split(',')[0]?.trim()
+  if (vercel) return `ip:${vercel}`
 
   return 'ip:unknown'
 }

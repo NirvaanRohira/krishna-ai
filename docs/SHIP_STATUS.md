@@ -35,7 +35,7 @@ Status key: ✅ done in repo · 🟡 partial · ❌ not done. Statuses are as of
 | RLS | Every table has RLS enabled, with a policy per operation. Use `(select auth.uid())`, not bare `auth.uid()`. Add explicit `WITH CHECK` on insert/update. | ✅ migration `20261031000000` |
 | IDOR | Never act on an ID from the client without proving ownership (RLS or an explicit check). The chat route resumes sessions only via `resumeSession()` (owned + not ended). | ✅ chat · check every new route |
 | Auth bypass | `proxy.ts` (Next 16 replaced middleware with proxy) gates `/chat` and `/account` on login + onboarding. API routes check auth themselves; don't rely on the proxy alone. | ✅ |
-| Least privilege | App uses the anon key + RLS. Service role is only used for account deletion. DB functions are `security invoker` with `search_path` pinned. | ✅ |
+| Least privilege | App uses the anon key + RLS. The service role is used only in `app/api/account/delete`, `app/api/cron` and `app/api/payments/*`, enforced by the Semgrep rule `kanha-service-role-outside-allowlist`. Quota functions are `security definer` on purpose (they take the user from `auth.uid()`, never a parameter); everything else is `security invoker`; `search_path` pinned. | ✅ |
 | Session expiry | Supabase JWT expiry (1 h) with refresh rotation. Set "inactivity timeout" in Supabase Auth settings. | 🟡 check dashboard |
 | Immutable transcript | `messages` is select + insert only. Stored assistant turns become prompt history, so users must not be able to edit them. | ✅ |
 
@@ -151,6 +151,18 @@ Status key: ✅ done in repo · 🟡 partial · ❌ not done. Statuses are as of
 Wrap the web app with Capacitor (reuses this codebase; WebGL avatar works in the WebView), or go React Native if native feel matters more. Before submitting: in-app purchase for digital subscriptions; in-app account deletion (Apple requires it; ✅ `/account` exists); privacy nutrition labels / Data Safety form matching the privacy notice; mic permission strings; no "remote website in a wrapper" rejection risk, so ship real native value (push reminders, offline verses).
 
 ---
+
+## Advanced attack surface (ship-it-right v3, audited 15 Nov 2026)
+
+Checked in the code and the live database, not the docs.
+
+| Group | What we have | Status |
+|---|---|---|
+| Identity and login | Supabase Auth only: email one-time links and Google OAuth. No usernames, passwords, custom JWT handling, SAML or 2FA of our own. Supabase links an OAuth identity to an existing account only when the provider verified the email (nOAuth). Unicode usernames, bcrypt truncation, JWT algorithm confusion and OTP replay: not applicable while auth stays with Supabase. Revisit if we add usernames or our own login. | ✅ n/a |
+| Secrets, randomness, crypto | No tokens we generate (Supabase issues sessions and links). `Math.random` only for animation, music and retry jitter. Secrets compared in constant time: cron (`timingSafeEqual`), Razorpay signatures (`timingSafeEqual`). No hand-rolled encryption. | ✅ |
+| Parsers and evaluators | User text is capped (2,000 chars) before any regex; no nested quantifiers found. No deep-merge of user JSON (no prototype pollution path). Prompts take user text as delimited variables, never as template source. No XML parsing at runtime (GRETIL HTML is parsed only in offline scripts). No GraphQL. | ✅ |
+| HTTP layer, proxies, caches | Rate-limit IPs come from Vercel's `x-real-ip` / `x-vercel-forwarded-for`, never the client-writable leftmost `X-Forwarded-For` (fixed 15 Nov). Vercel's edge handles HTTP/2 Rapid Reset and smuggling. The only publicly cached API is `/api/verse/today`, which is the same for everyone and keyed by `?lang`; private APIs send `no-store`. No forwarding headers are reflected; the login callback redirects only to same-site paths. No WebSockets (Supabase Realtime not used). | ✅ |
+| Database | No views or materialised views in `public` (checked live). Every table has RLS; tables with RLS and no policies (`answer_reviews`, `payment_events`, `rate_windows`) are reachable only through definer functions or the service role. Supabase advisor's remaining warnings are intended (quota functions) or pending (`vector` extension in `public`, low). | ✅ |
 
 ## Known gaps (prioritised)
 
