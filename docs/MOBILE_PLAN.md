@@ -80,21 +80,48 @@ mobile/android/
 
 ## Phases
 
-### 1. Sign-in (next)
+### 1. Sign-in and conversation (built 16 Nov)
 
-- **Backend:** API routes must accept `Authorization: Bearer <Supabase access token>`. Today
-  they read only the website's cookie session (`lib/supabase-server.ts`). Add a server client
-  that uses the bearer token when present, with route tests for both paths, and keep RLS doing
-  the authorisation.
-- **App sign-in:** Supabase Auth from Kotlin (`supabase-kt`).
-  - **Google:** through Android's Credential Manager.
-  - **Email link:** opens the app through a verified App Link. The site serves
-    `/.well-known/assetlinks.json` with the app's signing certificate.
-- **Token storage:** encrypted with a key held in the Android Keystore. Never in plain
-  preferences, and never in logs.
-- **Old app versions** stay in use for months. The app already sends
-  `X-Kanha-Client: android/x.y.z`. Add a `/api/version` with the minimum supported version, so
-  the app can ask people to update instead of breaking.
+Sign-in goes **through the website**, so it reuses Google and email-link login, onboarding and
+consent exactly as they are, and needs no Supabase settings changed:
+
+1. The app makes a PKCE pair (`core/Pkce.kt`), keeps the verifier (encrypted), and opens
+   `/auth/app-start?challenge=…` in a Chrome tab. The challenge goes into a 15-minute httpOnly
+   cookie.
+2. The person signs in on the website (Google or email link) and goes through onboarding if
+   they haven't: terms, 18+ and AI consent can't be skipped. Where the website would land on
+   `/chat`, the proxy sends them to `/auth/app-handoff` instead.
+3. `/auth/app-handoff` checks sign-in and onboarding again and stores the session under a
+   one-time code (table `app_handoffs`: hash of the code only, 2-minute expiry, insert-own-row,
+   unreadable). It clears the session from the browser, so the two never refresh the same token,
+   and opens `intent://auth?code=…;package=app.kanha.android`, which only the Kanha app can
+   receive.
+4. The app sends the code and its verifier to `/api/auth/app-token`. `redeem_app_handoff()`
+   checks the code, the expiry and `S256(verifier) == challenge`, and burns the code either way.
+5. API calls carry `Authorization: Bearer <access token>`. `lib/supabase-server.ts` uses it in
+   place of cookies, so RLS sees the same user, and every existing route works for the app.
+   `/api/auth/app-refresh` renews the session a minute before it expires, and
+   `/api/auth/app-signout` ends it.
+
+**The conversation:**
+- Streams replies.
+- Shows the scripture page as a parchment card: the reference, title, moment, teaching, life
+  and practice, using a Kotlin port of `lib/scripture-page.ts`.
+- Includes starter prompts, Hindi, and the AI label under the header.
+
+**Session storage:** sealed with AES-256-GCM under a key in the Android Keystore; app data is
+excluded from backups.
+
+**Limits:**
+- An email link opened in a *different* browser from the one that started sign-in (for
+  example, a mail app's built-in browser) can't finish the handoff, the same as on the website.
+  Google sign-in doesn't have this problem.
+- Signing in to the app signs that browser out of the website.
+
+**Still to do:**
+- `/api/version` and forced updates.
+- History in the app.
+- Voice mode (phase 3).
 
 ### 2. Conversation
 

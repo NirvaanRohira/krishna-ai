@@ -7,6 +7,7 @@
 
     <!-- No cloud backup or device transfer of app data: sign-in tokens must not leave the phone. -->
     <application
+        android:name=".KanhaApplication"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="false"
@@ -20,10 +21,19 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Sign-in comes back as kanha://auth?code=… from the website. The code alone is
+                 useless: it only works with the PKCE verifier this app kept (AppGraph). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="kanha" android:host="auth" />
             </intent-filter>
         </activity>
     </application>

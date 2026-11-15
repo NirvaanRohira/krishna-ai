@@ -229,5 +229,8 @@ errors · `npm audit` 0 vulnerabilities · Semgrep 0 findings · spacing on grid
 
 - Move the `vector` extension out of `public` in the new production project.
 - Turn on Supabase "leaked password protection" (harmless; no passwords today).
+- 16 Nov: the advisor also flags `redeem_app_handoff` as callable without signing in. This is
+  intended (mobile sign-in, see `docs/MOBILE_PLAN.md` phase 1), and protected by a 256-bit
+  one-time code, PKCE, single use and a 2-minute expiry.
 - Re-run section 2 if login ever moves beyond Supabase (usernames, own tokens, 2FA).
 - Re-run section 3 after any visual redesign; keep `scripts/audit/spacing-grid.mjs` at exit 0.

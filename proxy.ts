@@ -80,6 +80,12 @@ export async function proxy(request: NextRequest) {
     return redirectTo('/onboarding')
   }
 
+  // A sign-in that started in the mobile app (/auth/app-start) finishes in the app: wherever
+  // the website would land after login or onboarding (/chat), hand off to the app instead.
+  if (pathname.startsWith('/chat') && request.cookies.get('kanha_app')) {
+    return redirectTo('/auth/app-handoff')
+  }
+
   return response
 }
 

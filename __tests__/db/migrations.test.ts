@@ -335,6 +335,53 @@ describe('speech-to-text burst limit (20261112000000)', () => {
   })
 })
 
+describe('app sign-in handoff (20261116000000)', () => {
+  const H = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+  const OTHER = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
+  // RFC 7636 Appendix B test vector: verifier -> S256 challenge.
+  const VERIFIER = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'
+  const CHALLENGE = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM'
+  const code = (n: number) => `${'c'.repeat(42)}${n}`
+  const hash = async (c: string) => (await db.query<{ h: string }>(`select encode(sha256(convert_to($1, 'UTF8')), 'hex') as h`, [c])).rows[0].h
+  const put = async (c: string, uid = H, challenge = CHALLENGE) =>
+    asUser(db, uid, async () => db.query(`insert into app_handoffs (code_hash, user_id, challenge, access_token, refresh_token) values ($1, $2, $3, 'acc', 'ref')`, [await hash(c), uid, challenge]))
+  const redeem = (c: string, v: string) =>
+    asUser(db, null, async () => (await db.query<{ r: { access_token: string; user_id: string } | null }>('select redeem_app_handoff($1, $2) as r', [c, v])).rows[0].r)
+
+  beforeAll(async () => {
+    await db.query('insert into auth.users (id) values ($1), ($2)', [H, OTHER])
+  })
+
+  it('the right code and verifier return the session once (single use)', async () => {
+    await put(code(1))
+    const r = await redeem(code(1), VERIFIER)
+    expect(r).toMatchObject({ access_token: 'acc', user_id: H })
+    expect(await redeem(code(1), VERIFIER)).toBeNull()
+  })
+
+  it('a wrong verifier gets nothing, and burns the code', async () => {
+    await put(code(2))
+    expect(await redeem(code(2), 'x'.repeat(43))).toBeNull()
+    expect(await redeem(code(2), VERIFIER)).toBeNull()
+  })
+
+  it('expired codes are refused and tidied away; malformed input is refused', async () => {
+    await put(code(3))
+    await db.query(`update app_handoffs set expires_at = now() - interval '1 second'`)
+    expect(await redeem(code(3), VERIFIER)).toBeNull()
+    expect((await db.query('select * from app_handoffs')).rows).toHaveLength(0)
+    expect(await redeem("'; drop table app_handoffs; --", VERIFIER)).toBeNull()
+  })
+
+  it('users can only create handoffs for themselves, cannot read any, and expiry is capped', async () => {
+    await expect(put(code(4), H).then(() => asUser(db, H, async () => db.query(`insert into app_handoffs (code_hash, user_id, challenge, access_token, refresh_token) values ($1, $2, $3, 'a', 'r')`, [await hash(code(5)), OTHER, CHALLENGE])))).rejects.toThrow()
+    expect((await asUser(db, H, () => db.query('select * from app_handoffs'))).rows).toHaveLength(0)
+    expect((await asUser(db, null, () => db.query('select * from app_handoffs'))).rows).toHaveLength(0)
+    await expect(asUser(db, H, async () => db.query(`insert into app_handoffs (code_hash, user_id, challenge, access_token, refresh_token, expires_at) values ($1, $2, $3, 'a', 'r', now() + interval '1 day')`, [await hash(code(6)), H, CHALLENGE]))).rejects.toThrow()
+    await expect(put(code(7), H, 'not-a-challenge')).rejects.toThrow()
+  })
+})
+
 describe('answer reviews (20261106010000)', () => {
   const R = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
   beforeAll(async () => { await db.query('insert into auth.users (id) values ($1)', [R]) })

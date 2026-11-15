@@ -15,8 +15,8 @@ android {
         applicationId = "app.kanha.android"
         minSdk = 26          // Android 8.0: ~97% of active devices in India
         targetSdk = 36       // Google Play requires the latest target for new apps
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
         buildConfigField("String", "KANHA_BASE_URL", "\"https://kanhacall.vercel.app\"")
     }
 
@@ -49,6 +49,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.browser)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.material3)
