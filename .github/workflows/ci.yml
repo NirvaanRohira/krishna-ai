@@ -27,6 +27,8 @@ jobs:
       - run: npm ci
       - name: Lint
         run: npm run lint
+      - name: Spacing on the 4px grid (docs/DESIGN.md)
+        run: npm run audit:spacing
       - name: Type-check
         run: npx tsc --noEmit -p .
       - name: Unit + API + database (migrations & RLS on real Postgres) tests

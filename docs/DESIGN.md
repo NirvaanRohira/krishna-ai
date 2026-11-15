@@ -33,6 +33,21 @@ The model writes the page as `<page ref="…" title="…"><moment/><teaching/><l
 - **Proof over claims:** a reply that opens the book carries its citation in the book itself (running head, chapter, verse mark, folio), with Kanha's opening line and closing question written inside it, so a reply is one object. The landing page shows a labelled example conversation.
 - **Share cards carry the label too:** a shared page (1080×1350, drawn on the device in `lib/share-card.ts`) always ends with "A reflection written by AI. Not God, not Krishna." It carries the verse, title, teaching and practice only; the personal "In your life" section never leaves the app.
 
+## Desktop (1100px and up)
+
+Most people use Kanha on a phone; the wide screen still gets a real layout, not a stretched phone.
+
+- **Breakpoints:** phone layout below 900px; the hero splits into copy and figure from 900px;
+  the full desktop layout from 1100px. Anything below 1100px is unchanged by desktop rules
+  (verified pixel for pixel).
+- **Hero:** two equal columns inside 84rem with 4rem gutters; lede at 1.375rem; a 56px primary
+  button; the halo and arch grow with the viewport (up to 36rem / 28rem).
+- **"Not answers" section:** the example conversation on the left (26rem) and the book it leads
+  to on the right, wide enough for the two-page spread (the book's own container query switches
+  to two pages at 600px).
+- **Reading pages** (verse, privacy, terms, history) stay a single readable column; pricing
+  becomes three columns from 760px.
+
 ## Tokens
 
 All tokens are in `app/globals.css` under `:root`. Legacy aliases (`--fg`, `--accent` …) exist only for old inline styles; don't use them in new code.

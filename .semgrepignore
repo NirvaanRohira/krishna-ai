@@ -6,3 +6,6 @@ public/
 .claude/
 # Downloaded source texts (GRETIL HTML), not code.
 scripts/data/
+# Android build output and Gradle caches (the Kotlin sources are scanned).
+mobile/android/**/build/
+mobile/android/.gradle/

@@ -146,9 +146,9 @@ Status key: ✅ done in repo · 🟡 partial · ❌ not done. Statuses are as of
 - Avatar mode uses voice mode (short replies) ✅. Cache repeated TTS phrases ✅. Consider TTS **off by default in text mode**.
 - New model or provider? Estimate the cost per active user in the PR, using `docs/COST_AND_AVATAR_PLAN.md`.
 
-## 8. Mobile apps (later)
+## 8. Mobile apps (started)
 
-Wrap the web app with Capacitor (reuses this codebase; WebGL avatar works in the WebView), or go React Native if native feel matters more. Before submitting: in-app purchase for digital subscriptions; in-app account deletion (Apple requires it; ✅ `/account` exists); privacy nutrition labels / Data Safety form matching the privacy notice; mic permission strings; no "remote website in a wrapper" rejection risk, so ship real native value (push reminders, offline verses).
+**Decided (15 Nov 2026): native apps, Android first** (Kotlin + Jetpack Compose in `mobile/android`, CI builds the APK), SwiftUI for iPhone later; plan in `docs/MOBILE_PLAN.md`. Not a Capacitor wrapper. Before submitting: in-app purchase for digital subscriptions; in-app account deletion (Apple requires it; ✅ `/account` exists); privacy nutrition labels / Data Safety form matching the privacy notice; mic permission strings; no "remote website in a wrapper" rejection risk, so ship real native value (push reminders, offline verses).
 
 ---
 

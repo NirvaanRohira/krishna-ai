@@ -12,7 +12,9 @@
     "test:ui": "vitest --ui",
     "ingest:gita": "npx tsx --env-file=.env.local scripts/ingest-gita.ts",
     "eval:models": "npx tsx --env-file=.env.local scripts/eval_models.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "audit:spacing": "node scripts/audit/spacing-grid.mjs",
+    "audit:screens": "node scripts/audit/screens.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
