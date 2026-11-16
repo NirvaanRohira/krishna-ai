@@ -18,21 +18,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.kanha.android.ui.BookPageContent
 import app.kanha.android.ui.Disclaimer
+import app.kanha.android.ui.OpeningBook
 import app.kanha.core.KanhaApi
 import app.kanha.core.Lang
 
+/** Today's verse as a page of the book. [onBack] is null when shown as a tab. */
 @Composable
-fun VerseScreen(api: KanhaApi, lang: Lang, onBack: () -> Unit, modifier: Modifier = Modifier) {
-    val vm: VerseViewModel = viewModel { VerseViewModel(api, lang) }
+fun VerseScreen(api: KanhaApi, lang: Lang, onBack: (() -> Unit)?, modifier: Modifier = Modifier) {
+    val vm: VerseViewModel = viewModel(key = "verse-${lang.code}") { VerseViewModel(api, lang) }
     val state by vm.state.collectAsStateWithLifecycle()
     val hi = lang == Lang.HI
 
     Column(
-        modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+        modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        TextButton(onClick = onBack) { Text(if (hi) "← वापस" else "← Back") }
+        if (onBack != null) TextButton(onClick = onBack) { Text(if (hi) "← वापस" else "← Back") }
         Text(if (hi) "आज का श्लोक" else "Today’s verse", style = MaterialTheme.typography.headlineMedium)
 
         when (val s = state) {
@@ -42,27 +45,17 @@ fun VerseScreen(api: KanhaApi, lang: Lang, onBack: () -> Unit, modifier: Modifie
                 style = MaterialTheme.typography.bodyLarge,
             )
             is VerseState.Failed -> {
-                Text(s.message, style = MaterialTheme.typography.bodyLarge)
+                Text(if (hi) "आज का श्लोक लोड नहीं हो सका।" else s.message, style = MaterialTheme.typography.bodyLarge)
                 TextButton(onClick = vm::load) { Text(if (hi) "फिर कोशिश करें" else "Try again") }
             }
             is VerseState.Ready -> {
                 val v = s.verse
-                Text("${if (hi) "भगवद् गीता" else "Bhagavad Gita"} ${v.bookChapter}.${v.verse}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-                Text(v.title, style = MaterialTheme.typography.titleLarge)
-                Section(if (hi) "वह क्षण" else "The moment", v.moment)
-                Section(if (hi) "शिक्षा" else "The teaching", v.teaching)
-                Section(if (hi) "आपके जीवन में" else "In your life", v.life)
-                Section(if (hi) "आज के लिए" else "For today", v.practice)
+                OpeningBook(
+                    BookPageContent("${if (hi) "भगवद् गीता" else "Bhagavad Gita"} ${v.bookChapter}.${v.verse}", v.title, v.moment, v.teaching, v.life, v.practice),
+                    complete = true, animate = true, hi = hi,
+                )
             }
         }
         Disclaimer(lang)
-    }
-}
-
-@Composable
-private fun Section(label: String, body: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-        Text(body, style = MaterialTheme.typography.bodyLarge)
     }
 }

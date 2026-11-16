@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The website's tokens (docs/DESIGN.md): night indigo and gold. -->
+    <color name="kanha_gold">#FFE9BB62</color>
+    <color name="kanha_night">#FF0A0B1E</color>
+    <color name="kanha_parchment">#FFFBF6EC</color>
+    <color name="ic_launcher_background">#FF0A0B1E</color>
+    <color name="window_background">#FFFBF6EC</color>
+</resources>

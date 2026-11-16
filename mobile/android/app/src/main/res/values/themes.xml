@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Kanha" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+    </style>
+
+    <!-- The splash: the gold mark on night indigo, the same on every Android version (core-splashscreen). -->
+    <style name="Theme.Kanha.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/kanha_night</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.Kanha</item>
+    </style>
+</resources>

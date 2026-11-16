@@ -25,6 +25,8 @@ fun WelcomeScreen(lang: Lang, onBegin: () -> Unit, onTodaysVerse: () -> Unit, mo
         modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 48.dp),
         verticalArrangement = Arrangement.Center,
     ) {
+        app.kanha.android.ui.Mark(72.dp)
+        Spacer(Modifier.height(16.dp))
         Text("Kanha", style = MaterialTheme.typography.displayLarge, color = MaterialTheme.colorScheme.onBackground)
         Text("कान्हा", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(16.dp))
@@ -36,7 +38,7 @@ fun WelcomeScreen(lang: Lang, onBegin: () -> Unit, onTodaysVerse: () -> Unit, mo
         )
         Spacer(Modifier.height(24.dp))
         Button(onClick = onBegin, modifier = Modifier.heightIn(min = 48.dp)) {
-            Text(if (lang == Lang.HI) "बातचीत शुरू करें" else "Begin a conversation")
+            Text(if (lang == Lang.HI) "साइन इन करके शुरू करें" else "Sign in to begin")
         }
         Spacer(Modifier.height(8.dp))
         OutlinedButton(onClick = onTodaysVerse, modifier = Modifier.heightIn(min = 48.dp)) {

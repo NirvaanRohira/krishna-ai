@@ -4,10 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,8 +16,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -28,31 +31,22 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import app.kanha.android.ui.Disclaimer
-import app.kanha.core.KanhaApi
+import app.kanha.android.ui.Mark
+import app.kanha.android.ui.OpeningBook
+import app.kanha.android.ui.pageContent
 import app.kanha.core.Lang
 import app.kanha.core.ReplyParser
 import app.kanha.core.ReplySegment
 
 @Composable
-fun ChatScreen(
-    api: KanhaApi,
-    lang: Lang,
-    onSessionEnded: () -> Unit,
-    onSignOut: () -> Unit,
-    onBack: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val vm: ChatViewModel = viewModel { ChatViewModel(api, lang, onSessionEnded) }
+fun ChatScreen(vm: ChatViewModel, lang: Lang, modifier: Modifier = Modifier) {
     val messages by vm.messages.collectAsStateWithLifecycle()
     val sending by vm.sending.collectAsStateWithLifecycle()
+    val loading by vm.loading.collectAsStateWithLifecycle()
+    val notice by vm.notice.collectAsStateWithLifecycle()
     var draft by rememberSaveable { mutableStateOf("") }
     val list = rememberLazyListState()
     val hi = lang == Lang.HI
@@ -63,34 +57,34 @@ fun ChatScreen(
         if (messages.isNotEmpty()) list.animateScrollToItem(messages.lastIndex)
     }
 
-    Column(modifier.fillMaxSize().imePadding()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onBack) { Text(if (hi) "← वापस" else "← Back") }
-            Text(if (hi) "कान्हा" else "Kanha", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-            TextButton(onClick = onSignOut) { Text(if (hi) "साइन आउट" else "Sign out") }
+    Column(modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Mark(28.dp)
+            Text(if (hi) "कान्हा" else "Kanha", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).padding(start = 10.dp))
+            if (messages.isNotEmpty()) {
+                TextButton(onClick = { vm.newConversation(); draft = "" }) { Text(if (hi) "नई बातचीत" else "New conversation") }
+            }
         }
         // The AI label sits under the header, as on the website.
-        Disclaimer(lang, Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
+        Disclaimer(lang, Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
 
-        LazyColumn(
-            state = list,
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            if (messages.isEmpty()) {
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(if (hi) "आपके मन में क्या है?" else "What’s on your mind?", style = MaterialTheme.typography.headlineMedium)
-                        for (s in starters(hi)) {
-                            TextButton(onClick = { vm.send(s) }, enabled = !sending) { Text(s) }
-                        }
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            if (loading) {
+                CircularProgressIndicator(Modifier.align(Alignment.Center))
+            } else {
+                LazyColumn(
+                    state = list,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    if (messages.isEmpty()) item { EmptyState(hi, enabled = !sending, onPick = vm::send) }
+                    items(messages, key = { it.id }) { m ->
+                        if (m.fromSeeker) SeekerBubble(m.text) else KanhaReply(m, hi)
                     }
+                    notice?.let { n -> item { Text(n, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) } }
                 }
-            }
-            items(messages, key = { it.id }) { m ->
-                if (m.fromSeeker) SeekerBubble(m.text) else KanhaReply(m, hi)
             }
         }
 
@@ -105,8 +99,26 @@ fun ChatScreen(
             Button(
                 onClick = { vm.send(draft); draft = "" },
                 enabled = draft.isNotBlank() && !sending,
-                modifier = Modifier.padding(start = 8.dp),
+                modifier = Modifier.padding(start = 8.dp).heightIn(min = 48.dp),
             ) { Text(if (hi) "भेजें" else "Send") }
+        }
+    }
+}
+
+/** What to expect: Kanha listens first, and opens the book only when it has understood. */
+@Composable
+private fun EmptyState(hi: Boolean, enabled: Boolean, onPick: (String) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(if (hi) "आपके मन में क्या है?" else "What’s on your mind?", style = MaterialTheme.typography.headlineMedium)
+        Text(
+            if (hi) "कान्हा पहले सुनता है, और शायद एक-दो सवाल पूछे। जब बात समझ आ जाए, तब वह आपके लिए गीता का एक पृष्ठ खोलता है।"
+            else "Kanha listens first, and may ask you a question or two. Once it understands, it opens the Gita to a page for your situation.",
+            style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        for (s in starters(hi)) {
+            OutlinedButton(onClick = { onPick(s) }, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
+                Text(s, modifier = Modifier.fillMaxWidth())
+            }
         }
     }
 }
@@ -149,39 +161,8 @@ private fun KanhaReply(m: ChatMessage, hi: Boolean) {
                     style = MaterialTheme.typography.bodyLarge,
                     color = if (m.failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onBackground,
                 )
-                is ReplySegment.Page -> PageCard(segment, hi)
+                is ReplySegment.Page -> OpeningBook(pageContent(segment), complete = segment.complete, animate = m.live, hi = hi)
             }
         }
-    }
-}
-
-// The book page, on parchment, in both themes (as on the website).
-private val Parchment = Color(0xFFF6ECD5)
-private val InkBrown = Color(0xFF3A2716)
-private val Rubric = Color(0xFF7A2E1B)
-
-@Composable
-private fun PageCard(page: ReplySegment.Page, hi: Boolean) {
-    Column(
-        Modifier.fillMaxWidth()
-            .background(Parchment, RoundedCornerShape(12.dp))
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Text(ReplyParser.refLabel(page.ref), color = Rubric, fontFamily = FontFamily.Serif, fontSize = 13.sp, letterSpacing = 1.sp)
-        if (page.title.isNotEmpty()) Text(page.title, color = InkBrown, fontFamily = FontFamily.Serif, fontSize = 22.sp, lineHeight = 28.sp)
-        Section(if (hi) "वह क्षण" else "The moment", page.moment, italic = true)
-        Section(if (hi) "शिक्षा" else "The teaching", page.teaching)
-        Section(if (hi) "आपके जीवन में" else "In your life", page.life)
-        Section(if (hi) "आज के लिए" else "For today", page.practice)
-    }
-}
-
-@Composable
-private fun Section(label: String, body: String, italic: Boolean = false) {
-    if (body.isEmpty()) return
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(label, color = Rubric, fontFamily = FontFamily.Serif, fontSize = 13.sp)
-        Text(body, color = InkBrown, fontFamily = FontFamily.Serif, fontSize = 17.sp, lineHeight = 25.sp, fontStyle = if (italic) FontStyle.Italic else FontStyle.Normal)
     }
 }

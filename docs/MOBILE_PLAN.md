@@ -38,8 +38,10 @@ mobile/android/
     └── src/main/
         ├── AndroidManifest.xml    # INTERNET only; no backup of app data; https-only network config
         └── java/app/kanha/android/
-            ├── MainActivity.kt    # navigation: welcome → today's verse / conversation
-            └── ui/                # theme (the web's tokens), Welcome, Verse (live), Chat (placeholder)
+            ├── MainActivity.kt    # splash, then KanhaApp
+            ├── AppGraph.kt        # account state, native sign-in, settings
+            └── ui/                # KanhaApp (state → screen), sign-in, consent, MainShell (tabs),
+                                   # chat + opening book, history, verse, you; theme (the web's tokens)
 ```
 
 ## What works today (phase 0)
@@ -80,48 +82,61 @@ mobile/android/
 
 ## Phases
 
-### 1. Sign-in and conversation (built 16 Nov)
+### 1. A real app: native sign-in, consent, conversations, history, profile (built 16 Nov, v0.3.0)
 
-Sign-in goes **through the website**, so it reuses Google and email-link login, onboarding and
-consent exactly as they are, and needs no Supabase settings changed:
+**Sign-in happens inside the app.** No browser, so it no longer matters which browser or device
+the email is opened on. This works the same way on iPhone later (Sign in with Apple is added there).
+- **Google:** Android's own account sheet (Credential Manager) gives an ID token for the website's
+  Google client, bound to a fresh nonce (`core/SupabaseAuth.kt`, `GoogleNonce`). Supabase checks it.
+- **Email:** a 6-digit code is emailed, and typed into the app (`sendEmailCode`, `verifyEmailCode`).
+- The app talks to **Supabase Auth directly** with the public anon key, like the website's browser
+  code. It reads the URL and key from `GET /api/app/config`, so moving to a new Supabase project needs
+  no app release. Going direct keeps Supabase's per-IP sign-in limits per phone instead of every
+  phone sharing the server's IP. Refresh and sign-out go direct too.
+- **Fallback:** "Sign in on the website instead" keeps the earlier browser handoff
+  (`/auth/app-start` → `/auth/app-handoff` → `kanha://auth?code=…` + PKCE).
+- **Session storage:** AES-256-GCM under an Android Keystore key; no backups of app data.
 
-1. The app makes a PKCE pair (`core/Pkce.kt`), keeps the verifier (encrypted), and opens
-   `/auth/app-start?challenge=…` in a Chrome tab. The challenge goes into a 15-minute httpOnly
-   cookie.
-2. The person signs in on the website (Google or email link) and goes through onboarding if
-   they haven't: terms, 18+ and AI consent can't be skipped. Where the website would land on
-   `/chat`, the proxy sends them to `/auth/app-handoff` instead.
-3. `/auth/app-handoff` checks sign-in and onboarding again and stores the session under a
-   one-time code (table `app_handoffs`: hash of the code only, 2-minute expiry, insert-own-row,
-   unreadable). It clears the session from the browser, so the two never refresh the same token,
-   and opens `intent://auth?code=…;package=app.kanha.android`, which only the Kanha app can
-   receive.
-4. The app sends the code and its verifier to `/api/auth/app-token`. `redeem_app_handoff()`
-   checks the code, the expiry and `S256(verifier) == challenge`, and burns the code either way.
-5. API calls carry `Authorization: Bearer <access token>`. `lib/supabase-server.ts` uses it in
-   place of cookies, so RLS sees the same user, and every existing route works for the app.
-   `/api/auth/app-refresh` renews the session a minute before it expires, and
-   `/api/auth/app-signout` ends it.
+**After sign-in:**
+- `GET /api/app/me` returns email, sign-in method, consent for the current terms and plan.
+- **Consent screen** if needed: 18+, terms and privacy (with links), AI disclosure, optional
+  updates. Nothing pre-ticked; posts to `/api/onboarding/complete`, the website's rules.
+- **Four tabs:**
+  - **Talk:** the conversation. The empty screen says what to expect: Kanha listens first and may
+    ask a question, then opens the Gita to a page. The page arrives as a **closed book that opens**:
+    while the page streams in, the cover reads "Kanha is opening the book…", then swings open onto
+    the parchment page. "New conversation" in the header.
+  - **Conversations:** history from `/api/history`; tap one to read it and carry it on.
+  - **Today:** today's verse as a page of the book.
+  - **You:** email and sign-in method, plan, language (phone / English / हिन्दी), what Kanha
+    remembers (with "Forget all of this"), privacy and terms, sign out, and delete the account
+    (two steps: an explanation, then typing `DELETE MY ACCOUNT`; the server checks it too).
+- **Version check:** `min_version_code` in `/api/app/config` (env `APP_MIN_VERSION_CODE`) shows
+  "Please update" to builds older than that.
 
-**The conversation:**
-- Streams replies.
-- Shows the scripture page as a parchment card: the reference, title, moment, teaching, life
-  and practice, using a Kotlin port of `lib/scripture-page.ts`.
-- Includes starter prompts, Hindi, and the AI label under the header.
+**Look:** adaptive launcher icon and splash screen from the peacock-feather mark (gold on night
+indigo, with a monochrome layer for themed icons), the mark on the welcome, sign-in and chat screens.
 
-**Session storage:** sealed with AES-256-GCM under a key in the Android Keystore; app data is
-excluded from backups.
+**One signing key for debug builds:** `app/kanha-debug.keystore` is committed on purpose (debug
+only), so each new build installs over the last one and Google sign-in's SHA-1 never changes.
+- SHA-1 `2F:87:91:67:B6:3E:8C:90:F9:89:4C:F8:5F:FD:58:91:51:8F:28:4D`
+- SHA-256 `E8:04:27:67:2E:17:99:1D:B4:59:8D:48:CB:D1:23:B4:98:BA:2E:6B:36:FE:5D:FC:DE:DF:9F:7D:48:B9:52:6B`
 
-**Limits:**
-- An email link opened in a *different* browser from the one that started sign-in (for
-  example, a mail app's built-in browser) can't finish the handoff, the same as on the website.
-  Google sign-in doesn't have this problem.
-- Signing in to the app signs that browser out of the website.
+The release (Play) key is created at upload time and never goes in git; its SHA-1 is added to Google
+Cloud then too.
+
+**Two dashboard steps the owner does once:**
+1. **Google Cloud → APIs & Services → Credentials → Create credentials → OAuth client ID →
+   Android.** Package `app.kanha.android`, SHA-1 above. Use the **same project** as the website's
+   web client (`560260408685-…`). Nothing to paste back: the app uses the web client ID.
+2. **Supabase → Authentication → Emails → templates "Magic Link" and "Confirm signup":** add the
+   code, for example `<p>Your Kanha code: <strong>{{ .Token }}</strong></p>`. Keep the link as it
+   is for the website.
 
 **Still to do:**
-- `/api/version` and forced updates.
-- History in the app.
-- Voice mode (phase 3).
+- Voice mode in the app (phase 3).
+- Quota messages from the server shown word for word.
+- Report-a-reply (Play's AI content policy).
 
 ### 2. Conversation
 

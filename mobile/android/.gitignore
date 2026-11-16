@@ -7,3 +7,7 @@ local.properties
 captures/
 *.keystore
 *.jks
+
+# The shared debug key (public on purpose, debug builds only) keeps updates installing over
+# each other and gives Google sign-in a stable SHA-1. Release keys never go in git.
+!app/kanha-debug.keystore
