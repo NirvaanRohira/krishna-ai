@@ -17,6 +17,11 @@ class Settings(context: Context) {
         get() = prefs.getString("language", "system") ?: "system"
         set(value) { prefs.edit().putString("language", value.takeIf { it in setOf("system", "en", "hi") } ?: "system").apply() }
 
+    /** The avatar's look in voice mode: royal, divine or pastoral (royal first, as on the website). */
+    var outfit: String
+        get() = prefs.getString("outfit", "royal")?.takeIf { it in setOf("royal", "divine", "pastoral") } ?: "royal"
+        set(value) { prefs.edit().putString("outfit", value.takeIf { it in setOf("royal", "divine", "pastoral") } ?: "royal").apply() }
+
     var appConfig: AppConfig?
         get() = prefs.getString("app_config", null)?.let { runCatching { json.decodeFromString(AppConfig.serializer(), it) }.getOrNull() }
         set(value) { prefs.edit().putString("app_config", value?.let { json.encodeToString(AppConfig.serializer(), it) }).apply() }

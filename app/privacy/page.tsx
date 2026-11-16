@@ -19,6 +19,8 @@ export default function PrivacyPage() {
         <li><strong>Conversations:</strong> the messages you send and the replies you receive.</li>
         <li><strong>A short profile we infer from your conversations</strong>, such as your life stage and recurring themes, so guidance can build on earlier sessions.</li>
         <li><strong>Voice:</strong> if you use the microphone, your audio is sent to a speech-to-text provider to turn it into text. We do not store the audio.</li>
+        <li><strong>Voice in the Android app:</strong> your phone&apos;s own speech recogniser turns your words into text (on the phone, or through the phone maker&apos;s service, under their terms); the app sends us only the text.</li>
+        <li><strong>Reports:</strong> if you report a reply, we keep that reply, the reason you chose and any note you add, so a person can review it. Reports are deleted with your account.</li>
         <li><strong>Consent records:</strong> what you agreed to and when.</li>
       </ul>
       <p>We do <strong>not</strong> use face recognition or the camera, and we do not use advertising trackers.</p>

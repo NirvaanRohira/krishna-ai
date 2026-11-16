@@ -38,6 +38,8 @@ class ChatViewModel(
     val notice: StateFlow<String?> = _notice
 
     private var sessionId: String? = null
+    /** The conversation's id on the server (for reports), once the first reply has started. */
+    val currentSessionId: String? get() = sessionId
     private var nextId = 0L
     private var job: Job? = null
 
@@ -70,11 +72,20 @@ class ChatViewModel(
         }
     }
 
-    fun send(text: String) {
+    /** Stops the reply being written (voice mode: the person interrupted). */
+    fun stop() {
+        job?.cancel()
+        _sending.value = false
+        // An empty reply bubble (stopped before any words) is dropped.
+        _messages.value = _messages.value.filterNot { !it.fromSeeker && it.text.isEmpty() }
+    }
+
+    /** [voice]: a spoken turn (short reply, no book page), from voice mode. */
+    fun send(text: String, voice: Boolean = false) {
         val message = text.trim().take(ChatRequest.MAX_MESSAGE_CHARS)
         if (message.isEmpty() || _sending.value) return
         val hi = lang() == Lang.HI
-        val request = ChatRequest(message, sessionId, mode = "text", lang = lang().code)
+        val request = ChatRequest(message, sessionId, mode = if (voice) "voice" else "text", lang = lang().code)
         val replyId = nextId + 1
         _messages.value = _messages.value + ChatMessage(nextId, true, message) + ChatMessage(replyId, false, "")
         nextId += 2
@@ -98,6 +109,9 @@ class ChatViewModel(
             } catch (e: KanhaError.Unauthorized) {
                 update(replyId, if (hi) "कृपया फिर से साइन इन करें।" else "Please sign in again.", failed = true)
                 onSessionEnded()
+            } catch (e: KanhaError.Limit) {
+                // The plan limit, in the server's own words (the same as the website shows).
+                update(replyId, e.serverMessage, failed = true)
             } catch (e: KanhaError.RateLimited) {
                 update(replyId, if (hi) "थोड़ा रुकिए, फिर कोशिश कीजिए।" else "Please wait a moment and try again.", failed = true)
             } catch (e: KanhaError) {

@@ -444,3 +444,42 @@ describe('daily verse and push (20261103000000)', () => {
     expect(r.rows[0].lang).toBe('hi')
   })
 })
+
+describe('reply reports (20261117000000)', () => {
+  const U = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
+  const V = 'ffffffff-ffff-4fff-8fff-ffffffffffff'
+  let sessionU = ''
+  const report = (uid: string, session: string | null, extra = '') =>
+    asUser(db, uid, () => db.query(`insert into reply_reports (user_id, session_id, reason, reply_excerpt${extra ? ', status' : ''}) values ($1, $2, 'wrong', 'the reply'${extra ? `, '${extra}'` : ''})`, [uid, session]))
+
+  beforeAll(async () => {
+    await db.query('insert into auth.users (id) values ($1), ($2)', [U, V])
+    sessionU = (await asUser(db, U, () => db.query<{ id: string }>('insert into sessions (user_id) values ($1) returning id', [U]))).rows[0].id
+  })
+
+  it('people report replies in their own conversations, and nobody can read reports back', async () => {
+    await report(U, sessionU)
+    expect((await asUser(db, U, () => db.query('select * from reply_reports'))).rows).toHaveLength(0)
+    expect((await asUser(db, V, () => db.query('select * from reply_reports'))).rows).toHaveLength(0)
+    expect((await db.query('select * from reply_reports where user_id = $1', [U])).rows).toHaveLength(1)
+  })
+
+  it("can't report as someone else, about someone else's conversation, or pre-triaged", async () => {
+    await expect(asUser(db, V, () => db.query(`insert into reply_reports (user_id, reason, reply_excerpt) values ($1, 'wrong', 'x')`, [U]))).rejects.toThrow()
+    await expect(report(V, sessionU)).rejects.toThrow()
+    await expect(report(U, sessionU, 'reviewed')).rejects.toThrow()
+    await expect(asUser(db, U, () => db.query(`insert into reply_reports (user_id, reason, reply_excerpt) values ($1, 'spam', 'x')`, [U]))).rejects.toThrow()
+    await expect(asUser(db, U, () => db.query('update reply_reports set status = $1', ['actioned']))).resolves.toMatchObject({ affectedRows: 0 })
+  })
+
+  it('caps reports at 30 a day per person', async () => {
+    await db.query(`insert into reply_reports (user_id, reason, reply_excerpt) select $1, 'other', 'x' from generate_series(1, 29)`, [V])
+    await report(V, null)
+    await expect(report(V, null)).rejects.toThrow(/limit/)
+  })
+
+  it('reports go with the account', async () => {
+    await db.query('delete from auth.users where id = $1', [V])
+    expect((await db.query('select * from reply_reports where user_id = $1', [V])).rows).toHaveLength(0)
+  })
+})

@@ -27,6 +27,7 @@ import app.kanha.android.ui.chat.ChatScreen
 import app.kanha.android.ui.chat.ChatViewModel
 import app.kanha.android.ui.history.HistoryScreen
 import app.kanha.android.ui.verse.VerseScreen
+import app.kanha.android.ui.voice.VoiceScreen
 import app.kanha.android.ui.you.YouScreen
 import app.kanha.core.Lang
 import app.kanha.core.Me
@@ -46,7 +47,14 @@ fun MainShell(graph: AppGraph, me: Me, lang: Lang) {
     val hi = lang == Lang.HI
     // One conversation per signed-in person; a different account never sees the last one's.
     val chat: ChatViewModel = viewModel(key = "chat-${me.email}") { ChatViewModel(graph.api, { graph.lang.value }, graph::sessionEnded) }
-    BackHandler(enabled = tab != Tab.Talk) { tab = Tab.Talk }
+    var voiceOpen by rememberSaveable { mutableStateOf(false) }
+    BackHandler(enabled = voiceOpen) { voiceOpen = false }
+    BackHandler(enabled = !voiceOpen && tab != Tab.Talk) { tab = Tab.Talk }
+    if (voiceOpen) {
+        // Voice mode takes the whole screen; the conversation carries on in Talk afterwards.
+        VoiceScreen(graph, chat, lang, onClose = { voiceOpen = false })
+        return
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -66,7 +74,7 @@ fun MainShell(graph: AppGraph, me: Me, lang: Lang) {
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
             when (tab) {
-                Tab.Talk -> ChatScreen(chat, lang)
+                Tab.Talk -> ChatScreen(chat, graph.api, lang, onVoice = { voiceOpen = true })
                 Tab.History -> HistoryScreen(graph.api, lang, onOpen = { id -> chat.open(id); tab = Tab.Talk }, onSessionEnded = graph::sessionEnded)
                 Tab.Verse -> VerseScreen(graph.api, lang, onBack = null)
                 Tab.You -> YouScreen(graph, me, lang)

@@ -16,7 +16,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -37,6 +36,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.kanha.android.AppGraph
 import app.kanha.android.ui.Disclaimer
@@ -109,7 +109,8 @@ fun SignInScreen(graph: AppGraph, lang: Lang, onBack: () -> Unit, modifier: Modi
             style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        OutlinedButton(
+        GoogleButton(
+            text = if (hi) "Google से जारी रखें" else "Continue with Google",
             onClick = {
                 (context as? Activity)?.let { activity -> run {
                     when (val r = pickGoogleAccount(activity)) {
@@ -122,8 +123,7 @@ fun SignInScreen(graph: AppGraph, lang: Lang, onBack: () -> Unit, modifier: Modi
                 } }
             },
             enabled = !busy,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-        ) { Text(if (hi) "Google से जारी रखें" else "Continue with Google") }
+        )
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
@@ -183,5 +183,32 @@ fun SignInScreen(graph: AppGraph, lang: Lang, onBack: () -> Unit, modifier: Modi
             Text(if (hi) "वेबसाइट पर साइन इन करें" else "Sign in on the website instead", style = MaterialTheme.typography.bodySmall)
         }
         Disclaimer(lang)
+    }
+}
+
+/**
+ * Google's sign-in button as its branding guidelines describe it: the "G" mark, "Continue with
+ * Google", a pill with a light (white, grey outline) or dark (#131314) face.
+ */
+@Composable
+private fun GoogleButton(text: String, onClick: () -> Unit, enabled: Boolean) {
+    val dark = androidx.compose.foundation.isSystemInDarkTheme()
+    androidx.compose.material3.OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(50),
+        border = androidx.compose.foundation.BorderStroke(1.dp, if (dark) androidx.compose.ui.graphics.Color(0xFF8E918F) else androidx.compose.ui.graphics.Color(0xFF747775)),
+        colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+            containerColor = if (dark) androidx.compose.ui.graphics.Color(0xFF131314) else androidx.compose.ui.graphics.Color.White,
+            contentColor = if (dark) androidx.compose.ui.graphics.Color(0xFFE3E3E3) else androidx.compose.ui.graphics.Color(0xFF1F1F1F),
+        ),
+        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+    ) {
+        androidx.compose.foundation.Image(
+            androidx.compose.ui.res.painterResource(app.kanha.android.R.drawable.ic_google_g),
+            contentDescription = null,
+            modifier = Modifier.padding(end = 12.dp),
+        )
+        Text(text, fontSize = 14.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
     }
 }

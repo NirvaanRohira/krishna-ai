@@ -27,6 +27,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
+import androidx.compose.ui.res.painterResource
+import app.kanha.android.R
+import app.kanha.core.KanhaApi
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -42,7 +48,8 @@ import app.kanha.core.ReplyParser
 import app.kanha.core.ReplySegment
 
 @Composable
-fun ChatScreen(vm: ChatViewModel, lang: Lang, modifier: Modifier = Modifier) {
+fun ChatScreen(vm: ChatViewModel, api: KanhaApi, lang: Lang, onVoice: () -> Unit, modifier: Modifier = Modifier) {
+    var reporting by remember { mutableStateOf<String?>(null) }
     val messages by vm.messages.collectAsStateWithLifecycle()
     val sending by vm.sending.collectAsStateWithLifecycle()
     val loading by vm.loading.collectAsStateWithLifecycle()
@@ -62,7 +69,12 @@ fun ChatScreen(vm: ChatViewModel, lang: Lang, modifier: Modifier = Modifier) {
             Mark(28.dp)
             Text(if (hi) "कान्हा" else "Kanha", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).padding(start = 10.dp))
             if (messages.isNotEmpty()) {
-                TextButton(onClick = { vm.newConversation(); draft = "" }) { Text(if (hi) "नई बातचीत" else "New conversation") }
+                TextButton(onClick = { vm.newConversation(); draft = "" }) { Text(if (hi) "नई" else "New") }
+            }
+            // Voice mode: talk with the avatar, hands-free.
+            TextButton(onClick = onVoice) {
+                Icon(painterResource(R.drawable.ic_mic), contentDescription = null, modifier = Modifier.size(20.dp))
+                Text(if (hi) "आवाज़" else "Voice", modifier = Modifier.padding(start = 6.dp))
             }
         }
         // The AI label sits under the header, as on the website.
@@ -81,12 +93,22 @@ fun ChatScreen(vm: ChatViewModel, lang: Lang, modifier: Modifier = Modifier) {
                 ) {
                     if (messages.isEmpty()) item { EmptyState(hi, enabled = !sending, onPick = vm::send) }
                     items(messages, key = { it.id }) { m ->
-                        if (m.fromSeeker) SeekerBubble(m.text) else KanhaReply(m, hi)
+                        if (m.fromSeeker) SeekerBubble(m.text) else Column {
+                            KanhaReply(m, hi)
+                            val done = !(sending && m.id == messages.last().id)
+                            if (done && !m.failed && m.text.isNotBlank()) {
+                                TextButton(onClick = { reporting = m.text }, modifier = Modifier.heightIn(min = 40.dp)) {
+                                    Text(if (hi) "रिपोर्ट करें" else "Report", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                                }
+                            }
+                        }
                     }
                     notice?.let { n -> item { Text(n, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) } }
                 }
             }
         }
+
+        reporting?.let { reply -> ReportDialog(api, vm.currentSessionId, reply, lang, onDismiss = { reporting = null }) }
 
         Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(

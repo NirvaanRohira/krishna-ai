@@ -72,3 +72,49 @@ object ReplyParser {
         Regex("<$tag>([\\s\\S]*?)(?:</$tag>|$)", RegexOption.IGNORE_CASE).find(body)
             ?.groupValues?.get(1)?.replace(Regex("<[^>]*$"), "")?.trim().orEmpty()
 }
+
+/**
+ * What Kanha says aloud: the reply as prose (a page becomes "From the Gita. Title. moment …"),
+ * handed out a sentence or a few at a time as the reply streams in. Kotlin port of the website's
+ * toSpeech and its sentence queue (app/chat/page.tsx), so both speak the same words.
+ */
+class SpokenSentences {
+    private var spokenUpTo = 0
+
+    /** New complete sentences in [assembled] since the last call; with [final], the rest too. */
+    fun next(assembled: String, final: Boolean = false): List<String> {
+        val speech = toSpeech(assembled)
+        if (spokenUpTo > speech.length) spokenUpTo = speech.length
+        val pending = speech.substring(spokenUpTo)
+        if (final) {
+            spokenUpTo = speech.length
+            return listOfNotNull(pending.trim().takeIf { it.isNotEmpty() })
+        }
+        val lastEnd = ENDS.maxOf { pending.lastIndexOf(it) }
+        if (lastEnd < 0) return emptyList()
+        spokenUpTo += lastEnd + 2
+        return listOfNotNull(pending.substring(0, lastEnd + 1).trim().takeIf { it.isNotEmpty() })
+    }
+
+    fun reset() { spokenUpTo = 0 }
+
+    companion object {
+        private val ENDS = listOf(". ", "! ", "? ", "। ", "॥ ")
+
+        fun toSpeech(content: String): String = ReplyParser.split(content).joinToString(" ") { seg ->
+            when (seg) {
+                is ReplySegment.Text -> seg.text
+                is ReplySegment.Page -> {
+                    val label = ReplyParser.refLabel(seg.ref)
+                    val intro = when {
+                        label.startsWith("Bhagavad Gita") -> "From the Gita. "
+                        label.startsWith("Srimad Bhagavatam") -> "From the Bhagavatam. "
+                        else -> ""
+                    }
+                    listOf(intro + (if (seg.title.isNotEmpty()) "${seg.title}." else ""), seg.moment, seg.teaching, seg.life, seg.practice)
+                        .filter { it.isNotBlank() }.joinToString(" ")
+                }
+            }
+        }.replace(Regex("\\s+"), " ").trim()
+    }
+}

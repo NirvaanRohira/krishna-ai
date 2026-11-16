@@ -6,6 +6,9 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -24,6 +27,11 @@ sealed class KanhaError(message: String) : Exception(message) {
     class Network : KanhaError("No connection. Check your internet and try again.")
     /** Anything else from the server. */
     class Server(val status: Int) : KanhaError("Something went wrong. Please try again.")
+    /**
+     * A plan limit (the day's messages or voice used up, or sending very fast). [serverMessage]
+     * is the website's own wording for the person (lib/quota.ts), shown word for word.
+     */
+    class Limit(val serverMessage: String, val retryAfterSeconds: Int?) : KanhaError(serverMessage)
     /** The server understood but said no (a wrong code, a bad email address). */
     class Rejected(val reason: Reason) : KanhaError(reason.message)
 }
@@ -71,7 +79,16 @@ interface KanhaApi {
 
     /** Deletes the account and all its data. Needs [Consent]-style explicit confirmation text. */
     suspend fun deleteAccount(confirmation: String)
+
+    /** Kanha's voice for one sentence (or a few): audio bytes (MP3) from `/api/tts`. */
+    suspend fun speech(text: String, lang: Lang): ByteArray
+
+    /** "Report this reply" (Play's AI-generated content policy). A person reviews each one. */
+    suspend fun report(sessionId: String?, reply: String, reason: ReportReason, note: String = "")
 }
+
+/** Why a reply is being reported; the same four choices as the website. */
+enum class ReportReason(val code: String) { HARMFUL("harmful"), OFFENSIVE("offensive"), WRONG("wrong"), OTHER("other") }
 
 class HttpKanhaApi(
     private val config: KanhaConfig,
@@ -142,6 +159,42 @@ class HttpKanhaApi(
         send("api/account/delete", "POST", """{"confirm":"$DELETE_CONFIRMATION"}""")
     }
 
+    override suspend fun speech(text: String, lang: Lang): ByteArray = withContext(Dispatchers.IO) {
+        val clean = text.trim().take(MAX_SPEECH_CHARS)
+        require(clean.isNotEmpty()) { "Nothing to say" }
+        val token = tokens.accessToken() ?: throw KanhaError.Unauthorized()
+        val body = buildJsonObject {
+            put("text", JsonPrimitive(clean)); put("lang", JsonPrimitive(lang.code))
+        }.toString()
+        val request = Request.Builder().url(config.baseUrl.newBuilder().addPathSegments("api/tts").build())
+            .header("Authorization", "Bearer $token")
+            .header("X-Kanha-Client", config.clientId)
+            .post(body.toRequestBody(JSON))
+            .build()
+        execute(http, request).use { res ->
+            val audio = res.body ?: throw KanhaError.Server(res.code)
+            if (audio.contentLength() > MAX_AUDIO_BYTES) throw KanhaError.Server(res.code)
+            audio.source().use { src ->
+                val bytes = src.readByteArray()
+                if (bytes.isEmpty() || bytes.size > MAX_AUDIO_BYTES) throw KanhaError.Server(res.code)
+                bytes
+            }
+        }
+    }
+
+    override suspend fun report(sessionId: String?, reply: String, reason: ReportReason, note: String) {
+        val text = reply.trim()
+        require(text.isNotEmpty()) { "Nothing to report" }
+        val body = buildJsonObject {
+            put("sessionId", JsonPrimitive(sessionId?.takeIf { UUID.matches(it) }))
+            put("reply", JsonPrimitive(text.take(20_000)))
+            put("reason", JsonPrimitive(reason.code))
+            put("note", JsonPrimitive(note.trim().take(1000)))
+            put("source", JsonPrimitive("android"))
+        }.toString()
+        send("api/report", "POST", body)
+    }
+
     private suspend fun <T> get(path: String, serializer: kotlinx.serialization.KSerializer<T>, signedIn: Boolean = true): T =
         withContext(Dispatchers.IO) {
             val builder = Request.Builder().url(config.baseUrl.newBuilder().addPathSegments(path).build())
@@ -171,17 +224,35 @@ class HttpKanhaApi(
             throw KanhaError.Network()
         }
         if (res.isSuccessful) return res
+        val retryAfter = res.header("Retry-After")?.toIntOrNull()?.coerceIn(1, 3600)
+        val limit = if (res.code == 429) limitMessage(res) else null
         res.close()
         throw when (res.code) {
             401, 403 -> KanhaError.Unauthorized()
-            429 -> KanhaError.RateLimited(res.header("Retry-After")?.toIntOrNull()?.coerceIn(1, 3600) ?: 60)
+            429 -> if (limit != null) KanhaError.Limit(limit, retryAfter) else KanhaError.RateLimited(retryAfter ?: 60)
             else -> KanhaError.Server(res.code)
         }
     }
 
+    /**
+     * The plan-limit wording from a 429 (`{"error": "...", "code": "daily" | "rate"}`), written
+     * for people by our own server. Anything else (no code, odd shape, too long) is ignored.
+     */
+    private fun limitMessage(res: Response): String? = runCatching {
+        val body = res.peekBody(4096).string()
+        val obj = json.parseToJsonElement(body) as JsonObject
+        val code = (obj["code"] as? JsonPrimitive)?.content
+        val text = (obj["error"] as? JsonPrimitive)?.content?.trim()
+        if (code !in setOf("daily", "rate") || text.isNullOrEmpty() || text.length > 400) null
+        else text.filter { !it.isISOControl() }
+    }.getOrNull()
+
     companion object {
         private val JSON = "application/json; charset=utf-8".toMediaType()
         private val UUID = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+        /** Same cap as the server (app/api/tts/route.ts MAX_CHARS). */
+        const val MAX_SPEECH_CHARS = 3000
+        private const val MAX_AUDIO_BYTES = 4L * 1024 * 1024
         /** The words the server requires before it deletes an account (app/api/account/delete). */
         const val DELETE_CONFIRMATION = "DELETE MY ACCOUNT"
     }

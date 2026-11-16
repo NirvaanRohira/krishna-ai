@@ -133,10 +133,9 @@ Cloud then too.
    code, for example `<p>Your Kanha code: <strong>{{ .Token }}</strong></p>`. Keep the link as it
    is for the website.
 
-**Still to do:**
-- Voice mode in the app (phase 3).
-- Quota messages from the server shown word for word.
-- Report-a-reply (Play's AI content policy).
+**Built 16 Nov in v0.4.0:** voice mode with the avatar (below), plan-limit messages shown word for
+word (`KanhaError.Limit`: the server's own text from `lib/quota.ts`, only for `code` `daily` or
+`rate`), "Report" under every reply (web and app; see below), and Google's branded sign-in button.
 
 ### 2. Conversation
 
@@ -146,14 +145,49 @@ Cloud then too.
 - History, quota messages, Hindi.
 - The AI label under the header, as on the web.
 
-### 3. Voice mode and the avatar
+### 3. Voice mode and the avatar (built 16 Nov, v0.4.0)
 
-- **Listening:** Android's on-device `SpeechRecognizer`. Ask for the microphone in context; the
-  app still works (typing) if the answer is no.
-- **Speaking:** Kanha's voice from `/api/tts` through Media3 (ExoPlayer).
-- **The same turn-taking as the web:** sends after a pause, the mic stays closed while he
-  speaks, and a tap interrupts.
-- **The avatar:** the Blender GLBs through SceneView/Filament, or the painted version.
+"Voice" in the Talk header opens it. Code in `app/…/ui/voice/`.
+- **Listening:** the phone's own `SpeechRecognizer` (free; `hi-IN` or `en-IN`). The microphone is
+  asked for when voice mode opens, never at start; if the answer is no, typing still works.
+  Partial words show as you speak.
+- **The same turn-taking as the website** (`VoiceController`): sends after a pause; after four
+  silent tries it rests until tapped; the mic is closed while he speaks; the orb interrupts him.
+  Requests use `mode: "voice"`, so replies are short and spoken, with no book page.
+- **Speaking:** the reply is cut into sentences as it streams (`core/SpokenSentences`, a port of
+  the website's queue), each voiced by `/api/tts` one sentence ahead of the one playing. Captions
+  show the sentence being spoken. Voice quotas give the server's own message.
+- **The avatar:** the website's own players (painted for Royal and Pastoral, the Blender model
+  for Divine), in a WebView showing `/embed/avatar`. The app sends each sentence's audio to the
+  page, which plays it through an `AnalyserNode` so the mouth moves exactly as on the website.
+  - The WebView loads only that page (every other link is refused) and has no file or content
+    access.
+  - Messages back (`ready`, `started`, `ended`) are accepted only from the website's origin
+    (`WebViewCompat.addWebMessageListener`).
+  - If page audio doesn't start within 4 seconds (an old WebView, autoplay blocked, offline), the
+    app plays the voice itself with `MediaPlayer` and the avatar just breathes and blinks.
+- The outfit picker (Royal, Divine, Pastoral) is remembered. The AI label ("AI depiction · not
+  divine", and the full line) stays on screen.
+- Voice turns are part of the same conversation as Talk, so they show in Talk and Conversations.
+
+**Why not native 3D (SceneView/Filament):** the painted avatar's lip-sync engine (mesh-avatar) is
+JavaScript, and one shared player keeps the website and the app identical. Revisit if WebView
+performance on low-end phones is a problem.
+
+### Report a reply (16 Nov, web and app)
+
+Play's AI-generated content policy requires it. "Report" sits under every finished reply.
+- Choose harmful, offensive, wrong about the scriptures, or something else, and add an optional
+  note. `POST /api/report` files it as the signed-in user.
+- The report is matched to the stored message when possible (`verified`).
+- Table `reply_reports`:
+  - RLS lets people insert only their own reports, only about their own conversations, only as
+    `open`.
+  - Nobody but the service role can read reports.
+  - At most 30 a day per person, enforced in Postgres.
+  - Reports are deleted with the account.
+- **Review them in Supabase:** Table editor → `reply_reports`, filter `status = open`, and set
+  `reviewed` or `actioned` once handled.
 
 ### 4. Payments
 
@@ -170,8 +204,7 @@ can appear in the app. The website keeps Razorpay either way.
 - **Account deletion** inside the app, plus the web link Google requires.
 - **AI-generated content policy:**
   - say it's generative AI;
-  - add an **in-app way to report an offensive reply**. This is required, and the web doesn't
-    have it yet, so it should be built for both.
+  - an in-app way to report an offensive reply: ✅ built (web and app).
 - **Crash reporting** with personal data scrubbed (Sentry Android), and a staged rollout.
 - **Push** (Firebase Cloud Messaging) for the morning verse, with permission asked in context.
 - **Before the first upload:** fix the application ID. It can never change after that.

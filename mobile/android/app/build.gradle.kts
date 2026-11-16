@@ -15,8 +15,8 @@ android {
         applicationId = "app.kanha.android"
         minSdk = 26          // Android 8.0: ~97% of active devices in India
         targetSdk = 36       // Google Play requires the latest target for new apps
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
         buildConfigField("String", "KANHA_BASE_URL", "\"https://kanhacall.vercel.app\"")
         // Google sign-in: the *web* OAuth client that Supabase's Google provider uses (public; it
         // is in every Google sign-in URL). The phone gets an ID token for it, Supabase checks it.
@@ -71,6 +71,7 @@ dependencies {
     implementation(libs.androidx.credentials.play)
     implementation(libs.googleid)
     implementation(libs.androidx.splashscreen)
+    implementation(libs.androidx.webkit)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.material3)

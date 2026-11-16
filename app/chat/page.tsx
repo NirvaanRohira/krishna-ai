@@ -16,6 +16,7 @@ import { prefetchAvatar } from '@/lib/avatar/prefetch'
 import { usePlan } from '@/hooks/usePlan'
 import { useLang } from '@/components/LangProvider'
 import { LanguageToggle } from '@/components/LanguageToggle'
+import { ReportDialog } from '@/components/ReportDialog'
 import { formatDate } from '@/lib/i18n'
 
 type Message = { role: 'user' | 'assistant'; content: string; sources?: Source[] }
@@ -53,6 +54,8 @@ async function consumeStream(
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [sessionId, setSessionId] = useState<string | null>(null)
+  // The reply being reported, while the report dialog is open.
+  const [reporting, setReporting] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const plan = usePlan()
   const { lang, t } = useLang()
@@ -363,7 +366,10 @@ export default function ChatPage() {
           onInterrupt={interrupt}
         />
       ) : (
-        <ChatWindow messages={messages} onSend={handleSend} loading={loading} />
+        <ChatWindow messages={messages} onSend={handleSend} loading={loading} onReport={setReporting} />
+      )}
+      {reporting !== null && (
+        <ReportDialog reply={reporting} sessionId={sessionId} onClose={() => setReporting(null)} />
       )}
     </main>
   )

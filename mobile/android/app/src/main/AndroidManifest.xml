@@ -1,9 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Only what's needed now. The microphone (voice mode) is added with that screen, and is
-         asked for in context, with the app still working if the person says no. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Voice mode only. Asked for when the person opens voice mode, never at start; if they say
+         no, typing still works. Speech is recognised by the phone's own recogniser. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Android 11+: to find the phone's speech recogniser (voice mode). -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
 
     <!-- No cloud backup or device transfer of app data: sign-in tokens must not leave the phone. -->
     <application

@@ -1613,3 +1613,43 @@ p { text-wrap: pretty; }
 .landing-theme { display: flex; gap: 0.25rem; align-items: center; }
 .auth-lang { position: absolute; top: max(0.75rem, env(safe-area-inset-top)); right: 0.75rem; z-index: 5; }
 .legal-lang-note { margin: 0 0 1rem; padding: 0.5rem 0.75rem; border-left: 3px solid var(--gold-text); background: var(--hairline); color: var(--ink-2); font-size: 0.95rem; }
+
+/* ── Report this reply ───────────────────────────────────────── */
+.message-report {
+  align-self: flex-start;
+  margin-top: -8px;
+  padding: 4px 8px;
+  min-height: 32px;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-s);
+  color: var(--fg-dim);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+.message-report:hover, .message-report:focus-visible { color: var(--fg-muted); text-decoration: underline; }
+.report-dialog {
+  width: min(28rem, calc(100vw - 32px));
+  padding: 0;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-m);
+  background: var(--bg-card);
+  color: var(--fg);
+}
+.report-dialog::backdrop { background: rgba(6, 7, 26, 0.6); }
+.report-dialog__body { display: flex; flex-direction: column; gap: 16px; padding: 24px; }
+.report-dialog__title { font-size: 1.25rem; margin: 0; }
+.report-dialog__intro { margin: 0; color: var(--fg-muted); }
+.report-dialog__reasons { display: flex; flex-direction: column; gap: 8px; border: 0; margin: 0; padding: 0; }
+.report-dialog__reasons label { display: flex; align-items: center; gap: 12px; min-height: 40px; cursor: pointer; }
+.report-dialog__note { display: flex; flex-direction: column; gap: 8px; color: var(--fg-muted); font-size: 0.875rem; }
+.report-dialog__note textarea {
+  font: inherit; color: var(--fg); background: var(--bg); padding: 8px 12px;
+  border: 1px solid var(--hairline-strong); border-radius: var(--radius-s); resize: vertical;
+}
+.report-dialog__error { margin: 0; color: var(--danger); }
+.report-dialog__actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* The avatar alone, inside the mobile app (app/embed/avatar): the app draws its own controls
+   below it, so the figure fills the whole stage. */
+.avatar-embed .avatar-painted { top: 0; bottom: 0; }
