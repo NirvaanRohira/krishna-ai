@@ -68,24 +68,26 @@ class AuthTest {
         override fun clear() { s = null }
     }
 
+    private fun supabase() = SupabaseAuth(AppConfig("http://localhost:${server.port}", "anon"))
+
     @Test fun `a fresh token is used as is, and one about to expire is refreshed once and saved`() = runTest {
         val store = MemoryStore(Session("old.a.b", "refresh-1", expiresAt = 1_000))
         var clock = 500L
-        val manager = SessionManager(store, auth) { clock }
+        val manager = SessionManager(store, supabase()) { clock }
         assertEquals("old.a.b", manager.accessToken())
         assertEquals(0, server.requestCount)
 
         clock = 990 // within a minute of expiry
         server.enqueue(MockResponse().setBody("""{"access_token":"new.a.b","refresh_token":"refresh-2","expires_at":4600}"""))
         assertEquals("new.a.b", manager.accessToken())
-        assertEquals("/api/auth/app-refresh", server.takeRequest().path)
+        assertEquals("/auth/v1/token?grant_type=refresh_token", server.takeRequest().path)
         assertEquals("refresh-2", store.s?.refreshToken)
     }
 
     @Test fun `a refused refresh signs the person out instead of looping`() = runTest {
         val store = MemoryStore(Session("old.a.b", "refresh-1", expiresAt = 1_000))
-        val manager = SessionManager(store, auth) { 999 }
-        server.enqueue(MockResponse().setResponseCode(401).setBody("""{"error":"invalid_grant"}"""))
+        val manager = SessionManager(store, supabase()) { 999 }
+        server.enqueue(MockResponse().setResponseCode(400).setBody("""{"error_code":"refresh_token_not_found"}"""))
         assertNull(manager.accessToken())
         assertNull(store.s)
         assertTrue(!manager.isSignedIn)
@@ -93,7 +95,7 @@ class AuthTest {
 
     @Test fun `sign-out forgets the tokens even when the server can't be reached`() = runTest {
         val store = MemoryStore(Session("a.b.c", "refresh-1", 9_999_999_999))
-        val manager = SessionManager(store, auth)
+        val manager = SessionManager(store, supabase())
         server.shutdown()
         manager.signOut()
         assertNull(store.s)

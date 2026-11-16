@@ -31,7 +31,7 @@ interface SessionStore {
 }
 
 /**
- * Sign-in through the website (docs/MOBILE_PLAN.md, phase 1):
+ * Sign-in through the website, kept as a fallback beside native sign-in ([SupabaseAuth]):
  *   1. open [startUrl] in a browser tab; the person signs in and accepts the terms there;
  *   2. the website opens `kanha://auth?code=…` ([codeFrom] reads it);
  *   3. [exchange] swaps the code and the PKCE verifier for a [Session].
@@ -49,23 +49,6 @@ class AuthClient(private val config: KanhaConfig, client: OkHttpClient = OkHttpC
 
     suspend fun exchange(code: String, pkce: Pkce): Session =
         post("api/auth/app-token", """{"code":"$code","verifier":"${pkce.verifier}"}""")
-
-    suspend fun refresh(refreshToken: String): Session {
-        require(Regex("^[A-Za-z0-9_-]{8,256}$").matches(refreshToken)) { "Not a refresh token" }
-        return post("api/auth/app-refresh", """{"refresh_token":"$refreshToken"}""")
-    }
-
-    /** Ends the session at the server. Best effort: the app forgets the tokens either way. */
-    suspend fun signOut(accessToken: String) = withContext(Dispatchers.IO) {
-        val req = Request.Builder()
-            .url(config.baseUrl.newBuilder().addPathSegments("api/auth/app-signout").build())
-            .header("Authorization", "Bearer $accessToken")
-            .header("X-Kanha-Client", config.clientId)
-            .post(ByteArray(0).toRequestBody(null))
-            .build()
-        runCatching { http.newCall(req).execute().close() }
-        Unit
-    }
 
     private suspend fun post(path: String, body: String): Session = withContext(Dispatchers.IO) {
         val req = Request.Builder()
@@ -102,7 +85,7 @@ class AuthClient(private val config: KanhaConfig, client: OkHttpClient = OkHttpC
  */
 class SessionManager(
     private val store: SessionStore,
-    private val auth: AuthClient,
+    private val auth: SessionBackend,
     private val now: () -> Long = { System.currentTimeMillis() / 1000 },
 ) : TokenProvider {
     private val lock = Mutex()
